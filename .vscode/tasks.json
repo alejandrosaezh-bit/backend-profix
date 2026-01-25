@@ -1,0 +1,70 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "1. Iniciar Backend (Local)",
+            "type": "shell",
+            "command": "npm run dev",
+            "options": {
+                "cwd": "${workspaceFolder}/backend"
+            },
+            "isBackground": true,
+            "problemMatcher": {
+                "owner": "custom",
+                "pattern": {
+                    "regexp": "^$"
+                },
+                "background": {
+                    "activeOnStart": true,
+                    "beginsPattern": "nodemon",
+                    "endsPattern": "Servidor corriendo"
+                }
+            },
+            "presentation": {
+                "group": "server",
+                "reveal": "always",
+                "panel": "new"
+            }
+        },
+        {
+            "label": "2. Iniciar App (Expo)",
+            "type": "shell",
+            "command": "npx",
+            "args": [
+                "expo",
+                "start",
+                "--clear"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": [],
+            "presentation": {
+                "group": "client",
+                "reveal": "always",
+                "panel": "new"
+            }
+        },
+        {
+            "label": "3. Instalar Dependencias (Todo)",
+            "dependsOn": ["Instalar Backend", "Instalar Frontend"],
+            "problemMatcher": []
+        },
+        {
+            "label": "Instalar Backend",
+            "type": "shell",
+            "command": "npm install",
+            "options": {
+                "cwd": "${workspaceFolder}/backend"
+            }
+        },
+        {
+            "label": "Instalar Frontend",
+            "type": "shell",
+            "command": "npm install",
+            "options": {
+                "cwd": "${workspaceFolder}"
+            }
+        }
+    ]
+}
