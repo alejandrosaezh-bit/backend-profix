@@ -69,7 +69,11 @@ router.get('/users', async (req, res) => {
             query.name = { $regex: search, $options: 'i' };
         }
 
-        const users = await User.find(query).sort({ createdAt: -1 });
+        // Excluir campos pesados para listado ágil
+        const users = await User.find(query)
+            .select('-avatar -documents -password -profiles.gallery') 
+            .sort({ createdAt: -1 });
+        
         res.json(users);
     } catch (error) {
         res.status(500).json({ message: error.message });
