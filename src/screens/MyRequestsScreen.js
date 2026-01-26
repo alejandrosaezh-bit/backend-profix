@@ -359,7 +359,7 @@ const styles = StyleSheet.create({
     marginBottom: 20
   },
   headerTitle: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: 'bold',
     color: 'white',
   },

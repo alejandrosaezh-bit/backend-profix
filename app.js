@@ -920,10 +920,7 @@ const RequestDetailClient = ({ request, onBack, onAcceptOffer, onOpenChat, onUpd
         <View style={{ flex: 1, backgroundColor: '#F8FAFC' }}>
             {/* ORANGE HEADER TALL */}
             <View style={{ backgroundColor: '#EA580C', paddingHorizontal: 20, paddingTop: 20, paddingBottom: 30, borderBottomLeftRadius: 30, borderBottomRightRadius: 30, elevation: 6, shadowColor: '#EA580C', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8 }}>
-                <TouchableOpacity onPress={onBack} style={{ marginBottom: 15 }}>
-                    <Feather name="arrow-left" size={24} color="white" />
-                </TouchableOpacity>
-
+                
                 {isEditing ? (
                     <View>
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
@@ -1918,10 +1915,7 @@ const JobDetailPro = ({ job: initialJob, onBack, onSendQuote, onOpenChat, proSta
             </Modal>
 
             <View style={{ backgroundColor: '#2563EB', paddingTop: 20, paddingBottom: 25, paddingHorizontal: 20, borderBottomLeftRadius: 30, borderBottomRightRadius: 30, elevation: 5 }}>
-                <TouchableOpacity onPress={onBack} style={{ marginBottom: 15 }}>
-                    <Feather name="arrow-left" size={24} color="white" />
-                </TouchableOpacity>
-
+                
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                     <View style={{ flex: 1 }}>
                         <Text style={{ fontSize: 12, color: 'rgba(255,255,255,0.8)', fontWeight: 'bold', textTransform: 'uppercase' }}>
@@ -2622,13 +2616,11 @@ const ProjectTimeline = ({ job, userMode, currentUser, onConfirmStart, onAddTime
                                 buttonColor = "#EA580C";
                                 photoType = 'Foto "Antes"';
                             } else if (isDuring) {
-                                // DURANTE: Usuario pidió que solo el cliente tome estas fotos
-                                if (userMode === 'client') {
-                                    showButton = true;
-                                    buttonText = "TOMAR FOTOS DEL DURANTE";
-                                    buttonColor = "#3B82F6";
-                                    photoType = 'Foto "Durante"';
-                                }
+                                // DURANTE: Habilitado para ambos (Cliente y Profesional)
+                                showButton = true;
+                                buttonText = "TOMAR FOTOS DEL DURANTE";
+                                buttonColor = "#3B82F6";
+                                photoType = 'Foto "Durante"';
                             } else if (isAfter) {
                                 // DESPUÉS: Cuando el pro marca finalizado
                                 showButton = true;
@@ -3890,10 +3882,10 @@ function MainApp() {
 
                 const newEvent = {
                     eventType: 'photo_uploaded',
-                    title: 'Foto de Evidencia',
-                    description: 'Foto cargada durante el trabajo.',
+                    title: eventData.title || 'Foto de Evidencia',
+                    description: eventData.description || (eventData.title ? `Registro visual: ${eventData.title}` : 'Foto cargada durante el trabajo.'),
                     mediaUrl: `data:image/jpeg;base64,${result.assets[0].base64}`,
-                    isPrivate: eventData.isPrivate || false
+                    isPrivate: eventData.isPrivate !== undefined ? eventData.isPrivate : false
                 };
 
                 const res = await api.addTimelineEvent(jobId, newEvent);

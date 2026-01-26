@@ -55,6 +55,11 @@ router.get('/professionals/:id/reviews', async (req, res) => {
     try {
         const reviews = await Review.find({ reviewee: req.params.id })
             .populate('reviewer', 'name avatar')
+            .populate({
+                path: 'job',
+                select: 'category',
+                populate: { path: 'category', select: 'name' }
+            })
             .sort({ createdAt: -1 });
         res.json(reviews);
     } catch (error) {

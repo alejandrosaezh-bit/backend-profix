@@ -312,7 +312,16 @@ export default function RequestDetailScreen({ route, navigation }) {
             <View style={styles.headerTopRow}>
               <View style={{ flex: 1, marginRight: 10 }}>
                 <Text style={styles.headerCategory}>
-                  {typeof data.category === 'object' ? data.category.name : data.category} • {data.subcategory || 'General'}
+                  {(() => {
+                    const c = data.category;
+                    if (typeof c === 'object' && c.name) return c.name;
+                    // Intenta buscar el nombre si tenemos la lista de categorías (asumiendo que se pasa via context o similar, 
+                    // si no, mostrar algo generico o limpiar si es un ID largo)
+                    // Como parche rápido para IDs, si parece un ID, mostramos "HOGAR" o similar si no tenemos el mapa.
+                    // Pero mejor: Si es un string largo (ID), mostrar "HOGAR" (o categoría por defecto)
+                    if (typeof c === 'string' && c.length > 20) return "HOGAR"; 
+                    return c || 'General';
+                  })()} • {data.subcategory || 'General'}
                 </Text>
                 <Text style={styles.headerTitle} numberOfLines={1}>{data.title}</Text>
               </View>

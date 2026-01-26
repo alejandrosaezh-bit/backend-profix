@@ -47,11 +47,29 @@ export default function ClientProfileScreen({ user, isOwner, onBack, onLogout, o
     );
   }
 
-  // Filtrar solicitudes del usuario
+  // Filtrar solicitudes del usuario (Comparación por ID más robusta)
+  const myRequests = requests.filter(r => {
+      // Intentar obtener ID de varias formas
+      const cId = r.clientId || ((r.client && typeof r.client === 'object') ? r.client._id : r.client);
+      
+      const myId = user._id || user.id;
+      // Comparación laxa para evitar problemas de tipos
+      return cId && myId && String(cId) === String(myId);
+  });
 
-  const myRequests = requests.filter(r => r.clientEmail === user.email);
-  // Filtrar contratados (En Ejecución, Finalizada, o con oferta aceptada)
-  const hiredRequests = myRequests.filter(r => ['En Ejecución', 'Finalizada', 'Cerrado'].includes(r.status) || r.offers?.some(o => o.status === 'accepted'));
+  // Filtrar contratados (En Ejecución, Finalizada, o con oferta aceptada, etc)
+  const hiredRequests = myRequests.filter(r => 
+    ['En Ejecución', 'Finalizada', 'Cerrado', 'started', 'completed', 'rated', 'TERMINADO', 'Culminada', 'VALORACIÓN', 'VALIDANDO'].includes(r.status) || 
+    r.proFinished || 
+    r.offers?.some(o => o.status === 'accepted')
+  );
+
+  // Calcular Rating Promedio en base a reviews cargadas si existen
+  const averageRating = reviews.length > 0 
+      ? (reviews.reduce((acc, curr) => acc + curr.rating, 0) / reviews.length)
+      : (user.rating || 0);
+
+  const displayRating = typeof averageRating === 'number' ? averageRating.toFixed(1) : averageRating;
 
   const handleSave = () => {
     onUpdate(editedUser);
@@ -125,13 +143,30 @@ export default function ClientProfileScreen({ user, isOwner, onBack, onLogout, o
             </View>
             
             {!isEditing ? (
-                <View style={{alignItems:'center', marginTop: 10}}>
+                <View style={{alignItems:'center', marginTop: 10, width: '100%'}}>
                     <Text style={styles.userName}>{editedUser.name}</Text>
                     <Text style={styles.userEmail}>{editedUser.email}</Text>
-                    <View style={styles.ratingContainer}>
-                        <Feather name="star" size={16} color="#FBBF24" style={{marginRight:4}} />
-                        <Text style={styles.ratingText}>{user.rating || '5.0'} (Valoración de Profesionales)</Text>
+                    
+                    {/* STATS ROW */}
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-around', width: '100%', paddingVertical: 15, borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#F3F4F6', marginBottom: 15, marginTop: 10 }}>
+                        <View style={{ alignItems: 'center', flex: 1 }}>
+                            <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#EA580C' }}>{myRequests.length}</Text>
+                            <Text style={{ fontSize: 12, color: '#6B7280' }}>Solicitados</Text>
+                        </View>
+                        <View style={{ width: 1, height: '80%', backgroundColor: '#E5E7EB' }} />
+                        <View style={{ alignItems: 'center', flex: 1 }}>
+                            <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#16A34A' }}>{hiredRequests.length}</Text>
+                            <Text style={{ fontSize: 12, color: '#6B7280' }}>Contratados</Text>
+                        </View>
+                        <View style={{ width: 1, height: '80%', backgroundColor: '#E5E7EB' }} />
+                        <View style={{ alignItems: 'center', flex: 1 }}>
+                            <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#F59E0B' }}>
+                                {displayRating} <Feather name="star" size={16} color="#F59E0B" />
+                            </Text>
+                            <Text style={{ fontSize: 12, color: '#6B7280' }}>Valoración</Text>
+                        </View>
                     </View>
+
                     <TouchableOpacity style={styles.editButton} onPress={() => setIsEditing(true)}>
                         <Text style={styles.editButtonText}>Editar Perfil</Text>
                     </TouchableOpacity>
@@ -182,13 +217,13 @@ export default function ClientProfileScreen({ user, isOwner, onBack, onLogout, o
             ) : (
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{marginTop: 10}}>
                     {myRequests.map((item) => (
-                        <View key={item.id} style={styles.activityCard}>
+                        <View key={item.id || item._id} style={styles.activityCard}>
                             <Image source={{ uri: (item.images && item.images[0]) || 'https://via.placeholder.com/150' }} style={styles.activityImage} />
                             <View style={styles.activityInfo}>
                                 <Text style={styles.activityTitle} numberOfLines={1}>{item.title}</Text>
-                                <Text style={styles.activityDate}>{item.date}</Text>
-                                <View style={[styles.statusBadge, {backgroundColor: item.status === 'Abierto' ? '#DBEAFE' : '#DCFCE7'}]}>
-                                    <Text style={[styles.statusText, {color: item.status === 'Abierto' ? '#2563EB' : '#16A34A'}]}>{item.status}</Text>
+                                <Text style={styles.activityDate}>{new Date(item.createdAt).toLocaleDateString()}</Text>
+                                <View style={[styles.statusBadge, {backgroundColor: '#DBEAFE'}]}>
+                                    <Text style={[styles.statusText, {color: '#2563EB'}]}>{item.status || 'Activo'}</Text>
                                 </View>
                             </View>
                         </View>
@@ -205,13 +240,13 @@ export default function ClientProfileScreen({ user, isOwner, onBack, onLogout, o
             ) : (
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{marginTop: 10}}>
                     {hiredRequests.map((item) => (
-                        <View key={item.id} style={styles.activityCard}>
-                            <Image source={{ uri: (item.images && item.images[0]) || 'https://via.placeholder.com/150' }} style={styles.activityImage} />
+                        <View key={item.id || item._id} style={styles.activityCard}>
+                             <Image source={{ uri: (item.images && item.images[0]) || 'https://via.placeholder.com/150' }} style={styles.activityImage} />
                             <View style={styles.activityInfo}>
                                 <Text style={styles.activityTitle} numberOfLines={1}>{item.title}</Text>
-                                <Text style={styles.activityDate}>{item.date}</Text>
-                                <View style={styles.statusBadge}>
-                                    <Text style={styles.statusText}>{item.status}</Text>
+                                <Text style={styles.activityDate}>{new Date(item.createdAt).toLocaleDateString()}</Text>
+                                <View style={[styles.statusBadge, {backgroundColor: '#DCFCE7'}]}>
+                                    <Text style={[styles.statusText, {color: '#16A34A'}]}>{item.proStatus || 'Contratado'}</Text>
                                 </View>
                             </View>
                         </View>
@@ -219,6 +254,7 @@ export default function ClientProfileScreen({ user, isOwner, onBack, onLogout, o
                 </ScrollView>
             )}
         </View>
+
 
         {/* OPINIONES / REFERENCIAS REALES */}
         <View style={styles.section}>
@@ -262,7 +298,8 @@ export default function ClientProfileScreen({ user, isOwner, onBack, onLogout, o
             )}
         </View>
 
-        {/* SETTINGS LINKS */}
+        {/* SETTINGS LINKS - HIDDEN */}
+        {/*
         <View style={styles.section}>
             <Text style={styles.sectionTitle}>Ajustes</Text>
             <TouchableOpacity style={styles.settingRow}>
@@ -293,6 +330,7 @@ export default function ClientProfileScreen({ user, isOwner, onBack, onLogout, o
                 <Feather name="chevron-right" size={20} color="#9CA3AF" />
             </TouchableOpacity>
         </View>
+        */}
 
         {onSwitchMode && user.role === 'professional' && (
             <TouchableOpacity 
@@ -308,10 +346,6 @@ export default function ClientProfileScreen({ user, isOwner, onBack, onLogout, o
 
         <TouchableOpacity onPress={onLogout} style={styles.logoutButton}>
             <Text style={styles.logoutText}>Cerrar Sesión</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity onPress={handleClearChats} style={[styles.logoutButton, { marginTop: 5 }]}>
-            <Text style={[styles.logoutText, { color: '#999', fontSize: 12 }]}>Borrar Chats (Dev)</Text>
         </TouchableOpacity>
 
       </ScrollView>
@@ -341,12 +375,12 @@ const styles = StyleSheet.create({
       alignItems: 'center',
       justifyContent: 'center',
       marginTop: 10,
-      padding: 10,
+      padding: 15,
   },
   logoutText: {
       color: '#EF4444',
       fontSize: 14,
-      textDecorationLine: 'underline'
+      fontWeight: 'bold',
   },
   profileCard: {
     backgroundColor: 'white',

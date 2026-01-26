@@ -321,21 +321,195 @@ export default function ProfessionalProfileScreen({
         </View>
     );
 
+    // Helper para extraer nombre de categoría de una review
+    const getReviewCategoryName = (r) => {
+        if (r.job && r.job.category && r.job.category.name) return r.job.category.name;
+        if (typeof r.jobCategory === 'object') return r.jobCategory?.name;
+        return r.jobCategory;
+    };
+
     // Filtrar reviews por categoría
     const categoryReviews = reviews.filter(rev => {
-        // En esta etapa mostramos todas las reviews del profesional independientemente de la categoría 
-        // para que no se vea vacío, o si quieres filtrar descomenta:
-        // if (!rev.jobCategory) return true;
-        // const revCat = (typeof rev.jobCategory === 'object') ? rev.jobCategory.name : rev.jobCategory;
-        // return revCat === categoryKey;
-        return true;
+        const revCat = getReviewCategoryName(rev);
+        return revCat === categoryKey;
     });
 
     // Calcular stats reales
-    const categoryStats = {
-        jobs: user?.reviewsCount || 0,
-        rating: user?.rating > 0 ? user.rating.toFixed(1) : 'Nuevo',
-        success: user?.reviewsCount > 0 ? '100%' : 'N/A'
+    const getCategoryStats = (catKey) => {
+        const catReviews = reviews.filter(r => {
+             const rCat = getReviewCategoryName(r);
+             return rCat === catKey;
+        });
+
+        if (catReviews.length > 0) {
+            const avg = catReviews.reduce((sum, r) => sum + r.rating, 0) / catReviews.length;
+            return {
+                jobs: catReviews.length,
+                rating: avg.toFixed(1),
+                success: '100%' 
+            };
+        }
+        
+        // Si no hay reviews especificas, retornar vacio (Nuevo)
+        return {
+            jobs: 0,
+            rating: 'Nuevo',
+            success: 'N/A'
+        };
+    };
+
+    const renderCategoryContent = (catKey, profile, isEditMode) => {
+        const catStats = getCategoryStats(catKey);
+        const catDef = categories.find(c => (c.fullName || c.name) === catKey) || { name: catKey };
+        
+        return (
+            <View style={{ marginBottom: 30, backgroundColor: 'white', borderRadius: 16, padding: 15, elevation: 2 }}>
+                {/* Header de Categoría */}
+                <View style={{flexDirection:'row', alignItems:'center', marginBottom: 15}}>
+                     <View style={{width: 40, height: 40, borderRadius: 20, backgroundColor: '#EFF6FF', alignItems:'center', justifyContent:'center', marginRight: 10}}>
+                        {catDef.icon ? <catDef.icon size={20} color="#2563EB"/> : <Feather name="briefcase" size={20} color="#2563EB"/> }
+                     </View>
+                     <View style={{flex:1}}>
+                        <Text style={{fontSize: 18, fontWeight: 'bold', color:'#1F2937'}}>{catDef.name}</Text>
+                        <Text style={{fontSize: 12, color:'#6B7280'}}>{profile.isActive !== false ? 'Activo' : 'Pausado'}</Text>
+                     </View>
+                     {isEditMode && isOwner && (
+                        <TouchableOpacity 
+                            style={[styles.toggleButton, styles.btnDestructive, {paddingHorizontal: 10, paddingVertical: 5}]}
+                            onPress={toggleCategoryActivation}
+                        >
+                            <Text style={[styles.toggleButtonText, {color: '#EF4444', fontSize: 10}]}>Pausar</Text>
+                        </TouchableOpacity>
+                     )}
+                </View>
+
+                {/* ESTADÍSTICAS DE LA CATEGORÍA */}
+                <View style={[styles.statsRow, {marginBottom: 20}]}>
+                    <View style={styles.statItem}>
+                        <Text style={styles.statValue}>{catStats.jobs}</Text>
+                        <Text style={styles.statLabel}>Trabajos</Text>
+                    </View>
+                    <View style={styles.statDivider} />
+                    <View style={styles.statItem}>
+                        <Text style={styles.statValue}>{catStats.rating} ★</Text>
+                        <Text style={styles.statLabel}>Valoración</Text>
+                    </View>
+                    <View style={styles.statDivider} />
+                    <View style={styles.statItem}>
+                        <Text style={styles.statValue}>{catStats.success}</Text>
+                        <Text style={styles.statLabel}>Éxito</Text>
+                    </View>
+                </View>
+
+                {/* SUBCATEGORÍAS */}
+                <Text style={styles.label}>Especialidades</Text>
+                <View style={styles.tagsContainer}>
+                    {(allSubcategories[catKey] || [])
+                        .filter(sub => isEditMode || profile.subcategories?.includes(sub))
+                        .map((sub, index) => {
+                            const isSelected = profile.subcategories?.includes(sub);
+                            return (
+                                <TouchableOpacity
+                                    key={index}
+                                    style={[styles.tag, isSelected && styles.tagSelected]}
+                                    onPress={() => isEditMode && toggleSubcategory(sub)}
+                                    disabled={!isEditMode}
+                                >
+                                    <Text style={[styles.tagText, isSelected && styles.tagTextSelected]}>{sub}</Text>
+                                </TouchableOpacity>
+                            );
+                        })}
+                    {!isEditMode && (!profile.subcategories || profile.subcategories.length === 0) && (
+                        <Text style={{ color: '#999', fontStyle: 'italic', fontSize: 12 }}>No hay especialidades seleccionadas.</Text>
+                    )}
+                </View>
+
+                {/* ZONAS DE TRABAJO */}
+                <Text style={styles.label}>Zonas de Cobertura</Text>
+
+                {isEditMode ? (
+                    // MODO EDICIÓN: Mostrar lista agrupada por ciudades
+                    <View>
+                        {Object.keys(allZones).map((city) => (
+                            <View key={city} style={{ marginBottom: 15 }}>
+                                <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#4B5563', marginBottom: 8 }}>{city}</Text>
+                                <View style={styles.tagsContainer}>
+                                    {allZones[city].map((muni) => {
+                                        const fullZoneName = `${muni}, ${city}`;
+                                        const isSelected = profile.zones?.includes(fullZoneName);
+                                        return (
+                                            <TouchableOpacity
+                                                key={muni}
+                                                style={[styles.tag, isSelected && styles.tagSelected]}
+                                                onPress={() => toggleZone(fullZoneName)}
+                                            >
+                                                <Text style={[styles.tagText, isSelected && styles.tagTextSelected]}>{muni}</Text>
+                                            </TouchableOpacity>
+                                        );
+                                    })}
+                                </View>
+                            </View>
+                        ))}
+                    </View>
+                ) : (
+                    // MODO VISUALIZACIÓN: Mostrar solo las seleccionadas
+                    <View style={styles.tagsContainer}>
+                        {(profile.zones || []).map((zone, index) => (
+                            <View key={index} style={[styles.tag, styles.tagSelected]}>
+                                <Text style={[styles.tagText, styles.tagTextSelected]}>{zone}</Text>
+                            </View>
+                        ))}
+                        {(!profile.zones || profile.zones.length === 0) && (
+                            <Text style={{ color: '#999', fontStyle: 'italic', fontSize: 12 }}>No hay zonas seleccionadas.</Text>
+                        )}
+                    </View>
+                )}
+
+                {/* PRESENTACIÓN */}
+                <Text style={styles.label}>Presentación</Text>
+                {isEditMode ? (
+                    <TextInput
+                        style={styles.bioInput}
+                        multiline
+                        placeholder={`Describe tu experiencia en ${catKey}...`}
+                        value={profile.bio}
+                        onChangeText={(text) => updateCurrentProfile({ bio: text })}
+                    />
+                ) : (
+                    <Text style={styles.bioText}>
+                        {profile.bio || 'Sin descripción.'}
+                    </Text>
+                )}
+
+                {/* PORTAFOLIO */}
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 20, marginBottom: 10 }}>
+                    <Text style={styles.label}>Portafolio</Text>
+                    {isEditMode && (
+                        <TouchableOpacity onPress={pickImage}>
+                            <Text style={{ color: '#2563EB', fontWeight: 'bold' }}>+ Agregar Foto</Text>
+                        </TouchableOpacity>
+                    )}
+                </View>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 10 }}>
+                    {(profile.gallery || []).map((img, i) => (
+                         <View key={i} style={{marginRight: 10}}>
+                             <Image source={{ uri: img }} style={{ width: 100, height: 100, borderRadius: 8 }} />
+                             {isEditMode && (
+                                 <TouchableOpacity 
+                                     style={{position:'absolute', top:5, right:5, backgroundColor:'rgba(0,0,0,0.5)', borderRadius:12, padding:4}}
+                                     onPress={() => removeImage(i)}
+                                 >
+                                     <Feather name="x" size={12} color="white" />
+                                 </TouchableOpacity>
+                             )}
+                         </View>
+                    ))}
+                    {(!profile.gallery || profile.gallery.length === 0) && !isEditMode && (
+                         <Text style={{ color: '#999', fontStyle: 'italic', fontSize: 12 }}>Sin fotos.</Text>
+                    )}
+                </ScrollView>
+            </View>
+        );
     };
 
     return (
@@ -428,14 +602,47 @@ export default function ProfessionalProfileScreen({
                     )}
                 </View>
 
-                {/* SELECTOR DE CATEGORÍAS (SOLO VISIBLE EN MODO EDICIÓN) */}
-                {isEditing && (
-                    <View style={styles.categoryBar}>
-                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 10 }}>
-                            {sortedCategories.map((cat) => {
+
+                {/* SELECTOR DE CATEGORÍAS (VISIBLE SIEMPRE, FILTRADO SEGÚN MODO) */}
+                <View style={[styles.categoryBar, !isEditing && {backgroundColor: 'transparent', borderBottomWidth: 0, paddingTop:0}]}>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16 }}>
+                        {sortedCategories
+                            .filter(cat => {
+                                // En Modo Edición, mostrar TODAS las categorías (para poder activarlas)
+                                if (isEditing) return true;
+                                // En Modo Ver, mostrar SOLO las activas
+                                const key = cat.fullName || cat.name;
+                                const prof = profileData.profiles?.[key];
+                                return prof && prof.isActive !== false;
+                            })
+                            .map((cat) => {
                                 const catKey = cat.fullName || cat.name;
                                 const isActive = !!profileData.profiles?.[catKey] && profileData.profiles[catKey].isActive !== false;
                                 const isSelected = selectedCategory.id === cat.id;
+
+                                // Si estamos en view mode, usamos un estilo más de "Pill/Boton"
+                                if (!isEditing) {
+                                     return (
+                                        <TouchableOpacity
+                                            key={cat.id}
+                                            style={[
+                                                styles.catTab,
+                                                { flexDirection: 'row', alignItems: 'center' },
+                                                isSelected ? styles.catTabSelected : { backgroundColor: 'white', borderWidth:1, borderColor:'#E5E7EB' }
+                                            ]}
+                                            onPress={() => setSelectedCategory(cat)}
+                                        >
+                                            {typeof cat.icon === 'function' && <cat.icon size={16} color={isSelected ? 'white' : '#4B5563'} />}
+                                            <Text style={[
+                                                styles.catTabText, 
+                                                isSelected ? { color: 'white' } : { color: '#4B5563' }
+                                            ]}>
+                                                {cat.name}
+                                            </Text>
+                                        </TouchableOpacity>
+                                     );
+                                }
+
                                 return (
                                     <TouchableOpacity
                                         key={cat.id}
@@ -458,212 +665,115 @@ export default function ProfessionalProfileScreen({
                                         {isActive && <View style={styles.activeDot} />}
                                     </TouchableOpacity>
                                 );
-                            })}
-                        </ScrollView>
-                    </View>
-                )}
+                        })}
+                    </ScrollView>
+                </View>
 
-                {/* ESTADO DE LA CATEGORÍA */}
+                {/* ESTADO DE LA CATEGORÍA / CONTENIDO */}
                 <View style={styles.section}>
-                    {isEditing && (
-                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 }}>
-                            <Text style={styles.sectionTitle}>Perfil de {selectedCategory.name}</Text>
-                            {isOwner && (
-                                <TouchableOpacity
-                                    style={[styles.toggleButton, isCategoryActive ? styles.btnDestructive : styles.btnPrimary]}
-                                    onPress={toggleCategoryActivation}
-                                >
-                                    <Text style={[styles.toggleButtonText, isCategoryActive ? { color: '#EF4444' } : { color: 'white' }]}>
-                                        {isCategoryActive ? 'Pausar Categoría' : 'Reactivar Categoría'}
-                                    </Text>
-                                </TouchableOpacity>
-                            )}
-                        </View>
-                    )}
-
-                    {!isCategoryActive ? (
-                        <View style={styles.emptyState}>
-                            <Feather name="briefcase" size={48} color="#ccc" />
-                            <Text style={styles.emptyStateText}>No tienes un perfil activo para {selectedCategory.name}.</Text>
-                            <Text style={styles.emptyStateSubtext}>Actívalo para empezar a recibir solicitudes de este tipo.</Text>
-                        </View>
-                    ) : (
+                    {isEditing ? (
                         <>
-                            {/* ESTADÍSTICAS DE LA CATEGORÍA */}
-                            <View style={styles.statsRow}>
-                                <View style={styles.statItem}>
-                                    <Text style={styles.statValue}>{categoryStats.jobs}</Text>
-                                    <Text style={styles.statLabel}>Trabajos</Text>
-                                </View>
-                                <View style={styles.statDivider} />
-                                <View style={styles.statItem}>
-                                    <Text style={styles.statValue}>{categoryStats.rating} ★</Text>
-                                    <Text style={styles.statLabel}>Valoración</Text>
-                                </View>
-                                <View style={styles.statDivider} />
-                                <View style={styles.statItem}>
-                                    <Text style={styles.statValue}>100%</Text>
-                                    <Text style={styles.statLabel}>Éxito</Text>
-                                </View>
-                            </View>
-
-                            {/* SUBCATEGORÍAS */}
-                            <Text style={styles.label}>Especialidades (Subcategorías)</Text>
-                            <View style={styles.tagsContainer}>
-                                {(allSubcategories[categoryKey] || [])
-                                    .filter(sub => isEditing || currentCatProfile.subcategories?.includes(sub))
-                                    .map((sub, index) => {
-                                        const isSelected = currentCatProfile.subcategories?.includes(sub);
-                                        return (
-                                            <TouchableOpacity
-                                                key={index}
-                                                style={[styles.tag, isSelected && styles.tagSelected]}
-                                                onPress={() => isEditing && toggleSubcategory(sub)}
-                                                disabled={!isEditing}
-                                            >
-                                                <Text style={[styles.tagText, isSelected && styles.tagTextSelected]}>{sub}</Text>
-                                            </TouchableOpacity>
-                                        );
-                                    })}
-                                {!isEditing && (!currentCatProfile.subcategories || currentCatProfile.subcategories.length === 0) && (
-                                    <Text style={{ color: '#999', fontStyle: 'italic', fontSize: 12 }}>No hay especialidades seleccionadas.</Text>
-                                )}
-                            </View>
-
-                            {/* ZONAS DE TRABAJO */}
-                            <Text style={styles.label}>Zonas de Cobertura</Text>
-
-                            {isEditing ? (
-                                // MODO EDICIÓN: Mostrar lista agrupada por ciudades
-                                <View>
-                                    {Object.keys(allZones).map((city) => (
-                                        <View key={city} style={{ marginBottom: 15 }}>
-                                            <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#4B5563', marginBottom: 8 }}>{city}</Text>
-                                            <View style={styles.tagsContainer}>
-                                                {allZones[city].map((muni) => {
-                                                    const fullZoneName = `${muni}, ${city}`;
-                                                    const isSelected = currentCatProfile.zones?.includes(fullZoneName);
-                                                    return (
-                                                        <TouchableOpacity
-                                                            key={muni}
-                                                            style={[styles.tag, isSelected && styles.tagSelected]}
-                                                            onPress={() => toggleZone(fullZoneName)}
-                                                        >
-                                                            <Text style={[styles.tagText, isSelected && styles.tagTextSelected]}>{muni}</Text>
-                                                        </TouchableOpacity>
-                                                    );
-                                                })}
-                                            </View>
-                                        </View>
-                                    ))}
-                                </View>
-                            ) : (
-                                // MODO VISUALIZACIÓN: Mostrar solo las seleccionadas
-                                <View style={styles.tagsContainer}>
-                                    {(currentCatProfile.zones || []).map((zone, index) => (
-                                        <View key={index} style={[styles.tag, styles.tagSelected]}>
-                                            <Text style={[styles.tagText, styles.tagTextSelected]}>{zone}</Text>
-                                        </View>
-                                    ))}
-                                    {(!currentCatProfile.zones || currentCatProfile.zones.length === 0) && (
-                                        <Text style={{ color: '#999', fontStyle: 'italic', fontSize: 12 }}>No hay zonas seleccionadas.</Text>
-                                    )}
-                                </View>
-                            )}
-
-                            {/* PRESENTACIÓN */}
-                            <Text style={styles.label}>Presentación / Bio</Text>
-                            {isEditing ? (
-                                <TextInput
-                                    style={styles.bioInput}
-                                    multiline
-                                    placeholder={`Describe tu experiencia en ${selectedCategory.name}...`}
-                                    value={currentCatProfile.bio}
-                                    onChangeText={(text) => updateCurrentProfile({ bio: text })}
-                                />
-                            ) : (
-                                <Text style={styles.bioText}>
-                                    {currentCatProfile.bio || 'Sin descripción.'}
-                                </Text>
-                            )}
-
-                            {/* PORTAFOLIO */}
-                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 20, marginBottom: 10 }}>
-                                <Text style={styles.label}>Portafolio ({selectedCategory.name})</Text>
-                                {isEditing && (
-                                    <TouchableOpacity onPress={pickImage}>
-                                        <Text style={{ color: '#2563EB', fontWeight: 'bold' }}>+ Agregar Foto</Text>
+                           {/* HEADER EDIT MODE */}
+                           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 }}>
+                                <Text style={styles.sectionTitle}>Perfil de {selectedCategory.name}</Text>
+                                {isOwner && (
+                                    <TouchableOpacity
+                                        style={[styles.toggleButton, isCategoryActive ? styles.btnDestructive : styles.btnPrimary]}
+                                        onPress={toggleCategoryActivation}
+                                    >
+                                        <Text style={[styles.toggleButtonText, isCategoryActive ? { color: '#EF4444' } : { color: 'white' }]}>
+                                            {isCategoryActive ? 'Pausar Categoría' : 'Reactivar Categoría'}
+                                        </Text>
                                     </TouchableOpacity>
                                 )}
                             </View>
-                            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 20 }}>
-                                {(currentCatProfile.gallery || []).map((img, i) => (
-                                    <View key={i} style={{ position: 'relative', marginRight: 10 }}>
-                                        <Image source={{ uri: img }} style={styles.galleryImage} />
-                                        {isEditing && (
-                                            <TouchableOpacity
-                                                style={styles.deleteImageButton}
-                                                onPress={() => removeImage(i)}
-                                            >
-                                                <Feather name="x" size={12} color="white" />
-                                            </TouchableOpacity>
-                                        )}
-                                    </View>
-                                ))}
-                                {(!currentCatProfile.gallery || currentCatProfile.gallery.length === 0) && (
-                                    <Text style={{ color: '#999', fontStyle: 'italic' }}>No hay fotos en este portafolio.</Text>
-                                )}
-                            </ScrollView>
 
-                            {/* OPINIONES */}
-                            <Text style={styles.label}>Opiniones de Clientes</Text>
-                            {isLoadingReviews ? (
-                                <ActivityIndicator size="small" color="#2563EB" style={{ marginVertical: 20 }} />
-                            ) : categoryReviews.length === 0 ? (
-                                <Text style={{ color: '#999', marginBottom: 20 }}>Aún no hay opiniones.</Text>
+                            {!isCategoryActive ? (
+                                <View style={styles.emptyState}>
+                                    <Feather name="briefcase" size={48} color="#ccc" />
+                                    <Text style={styles.emptyStateText}>No tienes un perfil activo para {selectedCategory.name}.</Text>
+                                    <Text style={styles.emptyStateSubtext}>Actívalo para empezar a recibir solicitudes de este tipo.</Text>
+                                </View>
                             ) : (
-                                categoryReviews.map((review, idx) => (
-                                    <View key={review._id || idx} style={styles.reviewCard}>
-                                        <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                                            <Text style={{ fontWeight: 'bold' }}>{review.reviewer?.name || 'Cliente'}</Text>
-                                            <Text style={{ fontSize: 10, color: '#9CA3AF' }}>{new Date(review.createdAt).toLocaleDateString()}</Text>
-                                        </View>
-                                        {renderStars(review.rating)}
-                                        <Text style={{ marginTop: 5, color: '#4B5563', fontSize: 13, fontStyle: 'italic' }}>
-                                            "{review.comment || 'Sin comentarios'}"
-                                        </Text>
-                                    </View>
-                                ))
+                                <>
+                                    {/* Renderiza el contenido editable de la categoria seleccionada */}
+                                    {renderCategoryContent(categoryKey, currentCatProfile, true)}
+
+                                    {/* OPINIONES - Solo visible en modo edicion/detalle singular */}
+                                    <Text style={styles.label}>Opiniones de Clientes</Text>
+                                    {isLoadingReviews ? (
+                                        <ActivityIndicator size="small" color="#2563EB" style={{ marginVertical: 20 }} />
+                                    ) : categoryReviews.length === 0 ? (
+                                        <Text style={{ color: '#999', marginBottom: 20 }}>Aún no hay opiniones.</Text>
+                                    ) : (
+                                        categoryReviews.map((review, idx) => (
+                                            <View key={review._id || idx} style={styles.reviewCard}>
+                                                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                                                    <Text style={{ fontWeight: 'bold' }}>{review.reviewer?.name || 'Cliente'}</Text>
+                                                    <Text style={{ fontSize: 10, color: '#9CA3AF' }}>{new Date(review.createdAt).toLocaleDateString()}</Text>
+                                                </View>
+                                                {renderStars(review.rating)}
+                                                <Text style={{ marginTop: 5, color: '#4B5563', fontSize: 13, fontStyle: 'italic' }}>
+                                                    "{review.comment || 'Sin comentarios'}"
+                                                </Text>
+                                            </View>
+                                        ))
+                                    )}
+                                </>
                             )}
+                        </>
+                    ) : (
+                        // VIEW MODE: Show Selected Category ONLY
+                        <>
+                             {/* No mostramos un header grande aqui, dejamos que los botones hablen por si mismos */}
+                             <Text style={[styles.sectionTitle, {marginBottom: 15}]}>Categoría Activa: {selectedCategory.name}</Text>
+                             
+                             {/* Renderizar solo la categoria seleccionada si esta activa */}
+                             {(isCategoryActive) ? (
+                                <View>
+                                    {renderCategoryContent(categoryKey, currentCatProfile, false)}
+                                     
+                                     {/* OPINIONES EN MODO VISTA */}
+                                    <Text style={styles.label}>Opiniones ({selectedCategory.name})</Text>
+                                    {isLoadingReviews ? (
+                                        <ActivityIndicator size="small" color="#2563EB" style={{ marginVertical: 20 }} />
+                                    ) : categoryReviews.length === 0 ? (
+                                        <Text style={{ color: '#999', marginBottom: 20 }}>Aún no hay opiniones.</Text>
+                                    ) : (
+                                        categoryReviews.map((review, idx) => (
+                                            <View key={review._id || idx} style={styles.reviewCard}>
+                                                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                                                    <Text style={{ fontWeight: 'bold' }}>{review.reviewer?.name || 'Cliente'}</Text>
+                                                    <Text style={{ fontSize: 10, color: '#9CA3AF' }}>{new Date(review.createdAt).toLocaleDateString()}</Text>
+                                                </View>
+                                                {renderStars(review.rating)}
+                                                <Text style={{ marginTop: 5, color: '#4B5563', fontSize: 13, fontStyle: 'italic' }}>
+                                                    "{review.comment || 'Sin comentarios'}"
+                                                </Text>
+                                            </View>
+                                        ))
+                                    )}
+                                </View>
+                             ) : (
+                                 <View style={styles.emptyState}>
+                                     <Text style={{color:'#666'}}>Selecciona una categoría arriba para ver los detalles.</Text>
+                                 </View>
+                             )}
+
+                             {Object.entries(profileData.profiles || {}).filter(([k,v]) => v.isActive !== false).length === 0 && (
+                                 <Text style={{textAlign:'center', color:'#666', fontStyle:'italic', marginTop: 20}}>
+                                     No tienes categorías activas. Pulsa "Editar Perfil" para agregar una.
+                                 </Text>
+                             )}
                         </>
                     )}
                 </View>
 
                 {isOwner && (
-                    <View style={{ marginBottom: 30 }}>
-                        {onSwitchMode && (
-                            <TouchableOpacity 
-                                style={{ alignSelf: 'center', padding: 15, backgroundColor: '#EA580C', borderRadius: 12, marginTop: 10, width: '80%' }}
-                                onPress={() => {
-                                    onSwitchMode('client');
-                                    onBack();
-                                }}
-                            >
-                                <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 14, textAlign: 'center' }}>Cambiar a Perfil Cliente</Text>
-                            </TouchableOpacity>
-                        )}
-                        <TouchableOpacity style={{ alignSelf: 'center', padding: 15 }} onPress={onLogout}>
-                            <Text style={{ color: '#EF4444', fontWeight: 'bold', fontSize: 14 }}>Cerrar Sesión</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={{ alignSelf: 'center', padding: 5, marginBottom: 20 }} onPress={handleClearChats}>
-                            <Text style={{ color: '#999', fontSize: 12 }}>Borrar Chats (Dev)</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity onPress={onBack} style={{ alignSelf: 'center', padding: 15 }}>
-                            <Text style={{ color: '#2563EB', fontWeight: 'bold', fontSize: 14 }}>Regresar al Mercado</Text>
-                        </TouchableOpacity>
-                    </View>
+                    <TouchableOpacity style={{ alignSelf: 'center', padding: 15, marginTop: 10 }} onPress={onLogout}>
+                        <Text style={{ color: '#EF4444', fontWeight: 'bold', fontSize: 14 }}>Cerrar Sesión</Text>
+                    </TouchableOpacity>
                 )}
-                <View style={{ height: 50 }} />
             </ScrollView>
         </View>
     );
@@ -671,7 +781,7 @@ export default function ProfessionalProfileScreen({
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#F3F4F6' },
-    scrollContent: { paddingBottom: 40 },
+    scrollContent: { paddingBottom: 20 },
     profileCard: {
         backgroundColor: 'white',
         margin: 16,

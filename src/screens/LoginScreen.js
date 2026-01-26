@@ -2,6 +2,8 @@ import { Feather } from '@expo/vector-icons';
 import { useContext, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Keyboard, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
 import { AuthContext } from '../context/AuthContext';
+import { api } from '../utils/api';
+import { OTA_VERSION } from '../utils/version';
 
 export default function LoginScreen({ navigation }) {
   const { login, register, isLoading } = useContext(AuthContext);
@@ -25,6 +27,17 @@ export default function LoginScreen({ navigation }) {
   const [phone, setPhone] = useState('');
   const [cedula, setCedula] = useState('');
   const [errorMessage, setErrorMessage] = useState(''); // Estado para mensajes de error en UI
+  const [diagStatus, setDiagStatus] = useState(''); // Estado para diagnóstico
+
+  const runDiagnostics = async () => {
+    setDiagStatus('Ejecutando pruebas exhaustivas...');
+    try {
+        const res = await api.checkConnection();
+        setDiagStatus(`${res.ok ? '✅ ÉXITO' : '❌ ERROR'}\nLogs: ${res.logs}`);
+    } catch (e) {
+        setDiagStatus(`❌ Error Critico: ${e.message}`);
+    }
+  };
 
   const handleSubmit = async () => {
     setErrorMessage(''); // Limpiar errores previos
@@ -57,6 +70,8 @@ export default function LoginScreen({ navigation }) {
       console.error("handleSubmit error:", error);
       // Mostrar error en la UI en lugar de usar Alert que puede cerrarse
       setErrorMessage(error.message || 'Error de autenticación');
+      // Doble confirmación visual
+      Alert.alert("Error de Registro", error.message || 'Error desconocido');
     }
   };
 
@@ -173,6 +188,27 @@ export default function LoginScreen({ navigation }) {
               </Text>
             </TouchableOpacity>
           </View>
+          
+          {/* Zona de Diagnóstico e Información de Versión */}
+          <View style={{ marginTop: 30, alignItems: 'center', opacity: 0.8 }}>
+              <Text style={{ color: 'white', fontWeight: 'bold' }}>Versión: {OTA_VERSION}</Text>
+              
+              <TouchableOpacity 
+                  onPress={runDiagnostics}
+                  style={{ marginTop: 10, backgroundColor: 'rgba(0,0,0,0.2)', padding: 8, borderRadius: 8 }}
+              >
+                  <Text style={{ color: 'white', fontSize: 12 }}>Diagnosticar Conexión</Text>
+              </TouchableOpacity>
+
+              {diagStatus ? (
+                  <View style={{ marginTop: 10, backgroundColor: '#333', padding: 10, borderRadius: 5, width: '100%' }}>
+                      <Text style={{ color: '#00FF00', fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace', fontSize: 10 }}>
+                          {diagStatus}
+                      </Text>
+                  </View>
+              ) : null}
+          </View>
+
           {/* Espaciador para asegurar que el teclado no tape el último input */}
           <View style={{ height: 100 }} />
         </ScrollView>

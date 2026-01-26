@@ -1,16 +1,19 @@
 import { Feather } from '@expo/vector-icons';
 import { useState } from 'react';
-import { ActivityIndicator, FlatList, Image, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, FlatList, Image, Modal, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 export default function ChatListScreen({ currentUser, requests, chats = [], onSelectChat, onBack, userMode, onRefresh, refreshing }) {
     if (!currentUser) return <View style={{flex:1, backgroundColor:'white'}} />;
 
     const [filterCategory, setFilterCategory] = useState('Todas');
-    const [filterStatus, setFilterStatus] = useState('Todas');
+    const [filterStatus, setFilterStatus] = useState('Activas'); 
+    const [categoryModalVisible, setCategoryModalVisible] = useState(false);
+    const [statusModalVisible, setStatusModalVisible] = useState(false);
 
     const isPro = userMode === 'pro';
     const themeColor = isPro ? '#2563EB' : '#EA580C';
-    const [showArchived, setShowArchived] = useState(false);
+    
+    const showArchived = filterStatus === 'Archivadas';
 
     const activeChats = [];
     const visitedIds = new Set();
@@ -272,57 +275,105 @@ export default function ChatListScreen({ currentUser, requests, chats = [], onSe
 
     return (
         <View style={styles.container}>
-            {/* HEADER DESIGN MATCHED TO APP STANDARD */}
-            <View style={{ 
-                backgroundColor: themeColor, 
-                paddingTop: 10, 
-                paddingBottom: 20, 
-                borderBottomLeftRadius: 30, 
-                borderBottomRightRadius: 30, 
-                elevation: 10,
-                shadowColor: themeColor,
-                shadowOffset: { width: 0, height: 10 },
-                shadowOpacity: 0.2,
-                shadowRadius: 15,
-                marginBottom: 10
-            }}>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20 }}>
-                    <Text style={{ fontSize: 22, fontWeight: 'bold', color: 'white' }}>
-                        {isPro ? 'Conversaciones' : 'Mis Solicitudes'}
+            {/* HEADER TIPO TRABAJOS DISPONIBLES */}
+            <View style={{ backgroundColor: themeColor, paddingHorizontal: 16, paddingTop: 10, paddingBottom: 10, borderBottomLeftRadius: 24, borderBottomRightRadius: 24, elevation: 4, marginBottom: 10 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Text style={{ fontSize: 24, fontWeight: 'bold', color: 'white', marginBottom: 8 }}>
+                        {isPro ? 'Conversaciones' : 'Conversaciones con Profesionales'}
                     </Text>
                     {refreshing && <ActivityIndicator color="white" size="small" />}
                 </View>
-                
-                <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 13, paddingHorizontal: 20, marginTop: 5 }}>
-                    {isPro ? 'Gestiona la comunicación con tus clientes' : 'Contacta con los profesionales de tus trabajos'}
-                </Text>
-            </View>
 
-            {/* HEADER FILTROS */}
-            <View style={styles.filterHeader}>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap: 8, paddingHorizontal: 15, paddingVertical: 10}}>
-                    {uniqueCategories.map(cat => (
-                        <TouchableOpacity 
-                            key={cat} 
-                            style={[styles.filterChip, filterCategory === cat && { backgroundColor: themeColor, borderColor: themeColor }]}
-                            onPress={() => setFilterCategory(cat)}
+                {/* FILTERS - DROPDOWNS */}
+                <View style={{ flexDirection: 'row', paddingHorizontal: 0, gap: 10, marginTop: 8 }}>
+                    {/* Category Dropdown */}
+                    <View style={{ flex: 1 }}>
+                        <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12, marginBottom: 4, fontWeight: 'bold' }}>Categoría</Text>
+                        <TouchableOpacity
+                            onPress={() => setCategoryModalVisible(true)}
+                            style={styles.dropdownButton}
                         >
-                            <Text style={[styles.filterText, filterCategory === cat && { color: 'white' }]}>{cat}</Text>
+                            <Text style={styles.dropdownButtonText} numberOfLines={1}>{filterCategory}</Text>
+                            <Feather name="chevron-down" size={16} color="white" />
                         </TouchableOpacity>
-                    ))}
-                </ScrollView>
-                
-                {/* TOGGLE ARCHIVADOS */}
-                <View style={styles.archiveToggle}>
-                    <Text style={{fontSize:12, color:'#64748B', marginRight:8}}>Ver Archivados</Text>
-                    <TouchableOpacity 
-                        onPress={() => setShowArchived(!showArchived)}
-                        style={[styles.toggleBtn, showArchived && { backgroundColor: '#64748B' }]}
-                    >
-                         <Feather name={showArchived ? "check" : "circle"} size={14} color={showArchived ? "white" : "#64748B"} />
-                    </TouchableOpacity>
+                    </View>
+
+                    {/* Status Dropdown */}
+                    <View style={{ flex: 1 }}>
+                        <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12, marginBottom: 4, fontWeight: 'bold' }}>Ver</Text>
+                        <TouchableOpacity
+                            onPress={() => setStatusModalVisible(true)}
+                            style={styles.dropdownButton}
+                        >
+                            <Text style={styles.dropdownButtonText} numberOfLines={1}>{filterStatus}</Text>
+                            <Feather name="chevron-down" size={16} color="white" />
+                        </TouchableOpacity>
+                    </View>
                 </View>
             </View>
+
+            {/* MODALS */}
+            <Modal
+                visible={categoryModalVisible}
+                transparent={true}
+                animationType="fade"
+                onRequestClose={() => setCategoryModalVisible(false)}
+            >
+                <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setCategoryModalVisible(false)}>
+                    <View style={styles.modalContent}>
+                        <Text style={styles.modalTitle}>Filtrar por Categoría</Text>
+                        <ScrollView style={{ maxHeight: 300 }}>
+                            {uniqueCategories.map((cat, index) => (
+                                <TouchableOpacity
+                                    key={index}
+                                    style={[styles.modalOption, filterCategory === cat && styles.modalOptionSelected]}
+                                    onPress={() => {
+                                        setFilterCategory(cat);
+                                        setCategoryModalVisible(false);
+                                    }}
+                                >
+                                    <Text style={[styles.modalOptionText, filterCategory === cat && { color: themeColor, fontWeight: 'bold' }]}>{cat}</Text>
+                                    {filterCategory === cat && <Feather name="check" size={16} color={themeColor} />}
+                                </TouchableOpacity>
+                            ))}
+                        </ScrollView>
+                        <TouchableOpacity style={{ marginTop: 15, alignItems: 'center' }} onPress={() => setCategoryModalVisible(false)}>
+                            <Text style={{ color: themeColor, fontWeight: 'bold' }}>Cerrar</Text>
+                        </TouchableOpacity>
+                    </View>
+                </TouchableOpacity>
+            </Modal>
+
+            <Modal
+                visible={statusModalVisible}
+                transparent={true}
+                animationType="fade"
+                onRequestClose={() => setStatusModalVisible(false)}
+            >
+                <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setStatusModalVisible(false)}>
+                    <View style={styles.modalContent}>
+                        <Text style={styles.modalTitle}>Estado de Conversación</Text>
+                        <ScrollView style={{ maxHeight: 300 }}>
+                            {['Activas', 'Archivadas'].map((status, index) => (
+                                <TouchableOpacity
+                                    key={index}
+                                    style={[styles.modalOption, filterStatus === status && styles.modalOptionSelected]}
+                                    onPress={() => {
+                                        setFilterStatus(status);
+                                        setStatusModalVisible(false);
+                                    }}
+                                >
+                                    <Text style={[styles.modalOptionText, filterStatus === status && { color: themeColor, fontWeight: 'bold' }]}>{status}</Text>
+                                    {filterStatus === status && <Feather name="check" size={16} color={themeColor} />}
+                                </TouchableOpacity>
+                            ))}
+                        </ScrollView>
+                         <TouchableOpacity style={{ marginTop: 15, alignItems: 'center' }} onPress={() => setStatusModalVisible(false)}>
+                            <Text style={{ color: themeColor, fontWeight: 'bold' }}>Cerrar</Text>
+                        </TouchableOpacity>
+                    </View>
+                </TouchableOpacity>
+            </Modal>
 
             {/* LISTA */}
             <FlatList
@@ -380,5 +431,49 @@ const styles = StyleSheet.create({
     
     emptyState: { alignItems: 'center', justifyContent: 'center', padding: 40, marginTop: 50 },
     emptyText: { fontSize: 16, color: '#64748B', marginTop: 15, fontWeight: '500' },
-    emptySubtext: { fontSize: 13, color: '#94A3B8', textAlign: 'center', marginTop: 8, maxWidth: 200 }
+    emptySubtext: { fontSize: 13, color: '#94A3B8', textAlign: 'center', marginTop: 8, maxWidth: 200 },
+
+    // Dropdown Styles
+    dropdownButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        backgroundColor: 'rgba(255,255,255,0.2)',
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.3)'
+    },
+    dropdownButtonText: { color: 'white', fontWeight: '600', fontSize: 13, flex: 1 },
+
+    // Modal Styles
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 20
+    },
+    modalContent: {
+        backgroundColor: 'white',
+        borderRadius: 16,
+        width: '100%',
+        maxWidth: 340,
+        padding: 20,
+        elevation: 10,
+        maxHeight: '80%'
+    },
+    modalTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 15, color: '#1E293B', textAlign: 'center' },
+    modalOption: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingVertical: 14,
+        borderBottomWidth: 1,
+        borderBottomColor: '#F1F5F9'
+    },
+    modalOptionSelected: { backgroundColor: '#FFF7ED', paddingHorizontal: 10, borderRadius: 8, borderBottomWidth: 0 },
+    modalOptionText: { fontSize: 15, color: '#475569' },
+    modalOptionTextSelected: { color: '#EA580C', fontWeight: 'bold' }
 });
