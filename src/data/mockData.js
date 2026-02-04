@@ -18,11 +18,11 @@ export const DETAILED_CATEGORIES = {
 };
 
 export const BLOG_POSTS = [
-  { id: '1', title: '¿Cómo limpiar tu aire acondicionado fácil y barato?', category: 'Hogar', image: 'https://via.placeholder.com/150' },
-  { id: '2', title: '5 tips para ahorrar electricidad en casa', category: 'Tips', image: 'https://via.placeholder.com/150' },
+  { id: '1', title: '¿Cómo limpiar tu aire acondicionado fácil y barato?', category: 'Hogar', image: 'https://placehold.co/150' },
+  { id: '2', title: '5 tips para ahorrar electricidad en casa', category: 'Tips', image: 'https://placehold.co/150' },
 ];
 
 export const TESTIMONIALS = [
-    { id: 1, user: "Camilo Acosta", text: "Me ha salvado en varias ocasiones.", stars: 5 },
-    { id: 2, user: "Lucia Esperanza", text: "Encontré un cerrajero en 5 minutos.", stars: 5 },
+  { id: 1, user: "Camilo Acosta", text: "Me ha salvado en varias ocasiones.", stars: 5 },
+  { id: 2, user: "Lucia Esperanza", text: "Encontré un cerrajero en 5 minutos.", stars: 5 },
 ];

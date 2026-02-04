@@ -384,7 +384,7 @@ router.post('/:id/offers', protect, async (req, res) => {
                 job: job._id,
                 participants: { $all: [req.user._id, job.client] }
             });
-    
+
             if (!chat) {
                 chat = new Chat({
                     job: job._id,
@@ -392,7 +392,7 @@ router.post('/:id/offers', protect, async (req, res) => {
                     messages: []
                 });
             }
-    
+
             // Mensaje automático de oferta
             const offerDisplay = offer.currency ? `${offer.currency} ${offer.amount}` : `$${offer.amount}`;
             chat.messages.push({
@@ -721,16 +721,16 @@ router.get('/', async (req, res) => {
         let query = {}; // MOSTRAR TODO | RESET QUERY from { status: ... }
 
         if (req.query.status) {
-           // Si el frontend pide status especifico, respetarlo, pero por defecto (sin params) trae todo.
-           // Pero ojo, si el frontend espera 'active', podría llenarse de basura antigua.
-           // User asked "Eliminar todos los filtros", so... ALL.
+            // Si el frontend pide status especifico, respetarlo, pero por defecto (sin params) trae todo.
+            // Pero ojo, si el frontend espera 'active', podría llenarse de basura antigua.
+            // User asked "Eliminar todos los filtros", so... ALL.
         } else {
-             // query.status = { $in: ['active', 'open'] }; // Default safe filter for "Available Jobs"
+            // query.status = { $in: ['active', 'open'] }; // Default safe filter for "Available Jobs"
         }
 
         if (category) query.category = category;
         if (location) query.location = { $regex: location, $options: 'i' };
-        
+
         // DISABLE ALL SERVER SIDE EXCLUSIONS for now
         /*
         // FILTRO DE EXCLUSIÓN DE PROPIAS SOLICITUDES
@@ -802,13 +802,13 @@ router.get('/', async (req, res) => {
                     const conversations = jobChats.map(chat => {
                         // REGLA: El "Pro" es el participante que NO es el cliente del trabajo.
                         const jobClientIdStr = (j.client._id || j.client).toString();
-                        
+
                         // Buscar el participante que no sea el cliente
                         const proParticipant = chat.participants.find(p => (p._id || p).toString() !== jobClientIdStr);
-                        
+
                         // Si no hay otro participante (raro), o si YO soy el pro y no está poblado, usar fallback
-                        const finalProId = proParticipant ? (proParticipant._id || proParticipant) : ( (userId.toString() !== jobClientIdStr) ? userId : null );
-                        const finalProName = proParticipant ? proParticipant.name : ( (userId.toString() !== jobClientIdStr) ? (currentUser ? currentUser.name : 'Profesional') : 'Usuario' );
+                        const finalProId = proParticipant ? (proParticipant._id || proParticipant) : ((userId.toString() !== jobClientIdStr) ? userId : null);
+                        const finalProName = proParticipant ? proParticipant.name : ((userId.toString() !== jobClientIdStr) ? (currentUser ? currentUser.name : 'Profesional') : 'Usuario');
 
                         return {
                             id: chat._id,
@@ -1001,19 +1001,34 @@ router.get('/me', protect, async (req, res) => {
         console.log(`[GET /me] Found ${allMyChats.length} total chats for user.`);
         console.log(`[GET /me] Chats by Job ID: ${Object.keys(chatsByJobId).length} groups. Orphans: ${orphanChats.length}`);
 
+        // OPTIMIZATION: Fetch all interactions in one go to avoid N+1 queries
+        const allJobIds = Array.from(validJobIds);
+        let interactionsByJob = {};
+        try {
+            const allInteractions = await JobInteraction.find({ job: { $in: allJobIds } }).lean();
+            allInteractions.forEach(i => {
+                const jId = i.job.toString();
+                if (!interactionsByJob[jId]) interactionsByJob[jId] = [];
+                interactionsByJob[jId].push(i);
+            });
+            console.log(`[GET /me OPTIMIZATION] Fetched ${allInteractions.length} interactions for ${allJobIds.length} jobs.`);
+        } catch (e) {
+            console.error("Error batch fetching interactions:", e);
+        }
+
         const jobsWithChats = await Promise.all(jobs.map(async job => {
             let jobChats = chatsByJobId[job._id.toString()] || [];
 
-            // Add Interaction Summary for status calculation (Admin/Client consistency)
+            // Add Interaction Summary depending on cached Map
             let interactionsSummary = { viewed: 0, contacted: 0, offered: 0, total: 0 };
             try {
-                const ints = await JobInteraction.find({ job: job._id });
+                const ints = interactionsByJob[job._id.toString()] || [];
                 interactionsSummary.viewed = ints.filter(i => i.status === 'viewed').length;
                 interactionsSummary.contacted = ints.filter(i => i.status === 'contacted').length;
                 interactionsSummary.offered = ints.filter(i => i.status === 'offered').length;
                 interactionsSummary.total = ints.length;
             } catch (e) {
-                console.log("Error fetching interactions for job:", job._id, e);
+                console.log("Error processing interactions for job:", job._id, e);
             }
 
             // Format conversations
@@ -1022,15 +1037,15 @@ router.get('/me', protect, async (req, res) => {
                 const jobClientIdStr = (job.client._id || job.client).toString();
                 const proParticipant = chat.participants.find(p => (p._id || p).toString() !== jobClientIdStr);
 
-                const finalProId = proParticipant ? (proParticipant._id || proParticipant) : ( (req.user._id.toString() !== jobClientIdStr) ? req.user._id : null );
-                const finalProName = proParticipant ? proParticipant.name : ( (req.user._id.toString() !== jobClientIdStr) ? req.user.name : 'Usuario' );
+                const finalProId = proParticipant ? (proParticipant._id || proParticipant) : ((req.user._id.toString() !== jobClientIdStr) ? req.user._id : null);
+                const finalProName = proParticipant ? proParticipant.name : ((req.user._id.toString() !== jobClientIdStr) ? req.user.name : 'Usuario');
 
                 return {
                     id: chat._id,
                     proId: finalProId,
                     proName: finalProName,
                     proEmail: proParticipant ? proParticipant.email : null,
-                    proAvatar: proParticipant ? proParticipant.avatar : 'https://via.placeholder.com/100',
+                    proAvatar: proParticipant ? proParticipant.avatar : 'https://placehold.co/100',
                     proRating: proParticipant?.rating,
                     proReviewsCount: proParticipant?.reviewsCount,
                     messages: chat.messages.map(m => ({
@@ -1098,6 +1113,7 @@ router.get('/me', protect, async (req, res) => {
             });
         }
 
+
         res.json(finalJobs);
     } catch (error) {
         res.status(500).json({ message: error.message });
@@ -1145,7 +1161,7 @@ router.get('/:id', async (req, res) => {
                 // Formatear para el frontend
                 const currentUser = await User.findById(userId).select('name');
                 const jobClientIdStr = (job.client._id || job.client).toString();
-                
+
                 conversations = chats.map(chat => {
                     // El "pro" es el participante que NO es el cliente del trabajo
                     const proParticipant = chat.participants.find(p => (p._id || p).toString() !== jobClientIdStr);
@@ -1153,9 +1169,9 @@ router.get('/:id', async (req, res) => {
                     if (proParticipant) {
                         console.log(`[GET /jobs/:id] Job ${job._id} Chat ${chat._id} Pro: ${proParticipant.name}`);
                     }
-                    
-                    const finalProId = proParticipant ? (proParticipant._id || proParticipant) : ( (userId !== jobClientIdStr) ? userId : null );
-                    const finalProName = proParticipant ? proParticipant.name : ( (userId !== jobClientIdStr) ? (currentUser ? currentUser.name : 'Usuario') : 'Usuario' );
+
+                    const finalProId = proParticipant ? (proParticipant._id || proParticipant) : ((userId !== jobClientIdStr) ? userId : null);
+                    const finalProName = proParticipant ? proParticipant.name : ((userId !== jobClientIdStr) ? (currentUser ? currentUser.name : 'Usuario') : 'Usuario');
 
                     return {
                         id: chat._id,
@@ -1346,7 +1362,7 @@ router.post('/:id/rate-mutual', protect, async (req, res) => {
             job.projectHistory.push({
                 eventType: 'note_added', // Usamos note_added para la reseña
                 actor: reviewerId,
-                actorRole: req.user.role === 'admin' ? 'pro' : req.user.role, 
+                actorRole: req.user.role === 'admin' ? 'pro' : req.user.role,
                 title: (req.user.role === 'client' || req.user.role === 'admin') ? 'Cliente Valoró el Trabajo' : 'Profesional Valoró al Cliente',
                 description: `Calificación: ${rating} estrellas. "${comment || 'Sin comentarios'}"`,
                 timestamp: new Date()
@@ -1354,7 +1370,7 @@ router.post('/:id/rate-mutual', protect, async (req, res) => {
 
             // Si alguien valora, el trabajo escala a 'rated' (TERMINADO en el frontend)
             job.status = 'rated';
-            
+
             // Usar IDs para marcar quién ya valoró de forma fiable
             const jobClientId = job.client.toString();
             const jobProId = job.professional ? job.professional.toString() : null;
@@ -1367,7 +1383,7 @@ router.post('/:id/rate-mutual', protect, async (req, res) => {
                 // Si el que califica no es el dueño (cliente), asumimos que es el profesional.
                 // Verificamos si es el profesional asignado o tiene una oferta aceptada.
                 const isAssignedPro = jobProId && reviewerIdStr === jobProId;
-                const hasAcceptedOffer = job.offers && job.offers.some(o => 
+                const hasAcceptedOffer = job.offers && job.offers.some(o =>
                     o.proId.toString() === reviewerIdStr && o.status === 'accepted'
                 );
 

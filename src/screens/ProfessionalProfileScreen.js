@@ -21,6 +21,21 @@ const { width } = Dimensions.get('window');
 
 // --- MOCK DATA REMOVED ---
 
+const ICON_MAP = {
+    'Hogar': 'home',
+    'Autos': 'tool',
+    'Mascotas': 'smile', // or github/gitlab exist in feather? no. 'smile', 'github'? 'gitlab'? 'heart'? 'anchor'? 'feather'?
+    // Feather icons: home, tool, user, settings, camera, star, etc.
+    // Let's use generic mapping.
+    'Evento': 'calendar',
+    'Salud': 'heart',
+    'Belleza': 'sun',
+    'Tech': 'monitor',
+    'Clases': 'book',
+    'Legal': 'briefcase',
+    'General': 'grid'
+};
+
 export default function ProfessionalProfileScreen({
     user,
     isOwner = false,
@@ -40,20 +55,63 @@ export default function ProfessionalProfileScreen({
     const [isLoadingReviews, setIsLoadingReviews] = useState(false);
 
     // Fetch reviews when category or user changes
+    const [stats, setStats] = useState({
+        active: 0,
+        completed: 0,
+        successRate: 100
+    });
+    const [jobsList, setJobsList] = useState([]); // Store fetched jobs for portfolio display
+
+    // Fetch reviews & stats
     useEffect(() => {
-        const fetchReviews = async () => {
+        const fetchData = async () => {
             if (!user?._id) return;
             setIsLoadingReviews(true);
             try {
-                const data = await api.getProfessionalReviews(user._id);
-                setReviews(data || []);
+                // If owner, ensure we have the latest profile data too
+                if (isOwner) {
+                    // We might want to rely on the parent updating `user`, but let's be safe
+                    // Actually, parent handles user updates via `getMe`.
+                    // The issue might be `profileData` not syncing if `user` prop hasn't changed reference but content did (though React should handle reference changes).
+                    // However, fetching fresh stats is always good.
+                }
+
+                // 1. Reviews
+                const reviewsData = await api.getProfessionalReviews(user._id);
+                setReviews(reviewsData || []);
+
+                // 2. Real Jobs Stats
+                // Fetch all jobs assigned to this user
+                const allJobs = await api.getJobs({ assignedTo: user._id });
+                if (Array.isArray(allJobs)) {
+                    setJobsList(allJobs); // Save for portfolio usage
+                    const activeCount = allJobs.filter(j => ['En Ejecución', 'Asignada', 'Aceptada'].includes(j.status)).length;
+                    const completedCount = allJobs.filter(j => ['Finalizada', 'Cerrado'].includes(j.status)).length;
+                    const totalFinished = completedCount + allJobs.filter(j => j.status === 'Cancelada').length; // Suponiendo canceladas cuentan para ratio
+
+                    // Success Rate: Finalizadas vs Total Finalizadas (o Total Asignadas históricas?)
+                    // Usaremos: de los trabajos terminados, cuántos fueron exitosos (Finalizada) vs Cancelados/Problema.
+                    // O simplemente el % de trabajos aceptados que se completaron.
+                    // Para simplificar: % de trabajos (Finalizada) sobre (Finalizada + Cancelada). Si es 0, 100%.
+                    let successRate = 100;
+                    if (totalFinished > 0) {
+                        successRate = Math.round((completedCount / totalFinished) * 100);
+                    }
+
+                    setStats({
+                        active: activeCount,
+                        completed: completedCount,
+                        successRate: successRate
+                    });
+                }
+
             } catch (error) {
-                console.error("Error fetching reviews:", error);
+                console.error("Error fetching pro data:", error);
             } finally {
                 setIsLoadingReviews(false);
             }
         };
-        fetchReviews();
+        fetchData();
     }, [user?._id]);
 
     // Estado principal del perfil
@@ -96,6 +154,24 @@ export default function ProfessionalProfileScreen({
         setProfileData({ ...user, profiles: freshProfiles });
         console.log("ProfessionalProfileScreen: User prop updated, syncing state. Active categories:", Object.keys(freshProfiles));
     }, [user, isEditing]);
+
+    // Auto-select first active category if current is not active/available (e.g. after fetch)
+    useEffect(() => {
+        const currentKey = selectedCategory.fullName || selectedCategory.name;
+        const hasProfile = profileData.profiles?.[currentKey];
+        const isActive = hasProfile && hasProfile.isActive !== false;
+
+        if (!isActive || !hasProfile) {
+            const firstActiveKey = Object.keys(profileData.profiles || {}).find(k => {
+                const p = profileData.profiles[k];
+                return p && p.isActive !== false;
+            });
+            if (firstActiveKey) {
+                const found = categories.find(c => (c.fullName || c.name) === firstActiveKey);
+                if (found) setSelectedCategory(found);
+            }
+        }
+    }, [profileData.profiles]);
 
     // Helper: Obtener perfil de la categoría actual
     const currentCatProfile = profileData.profiles?.[categoryKey];
@@ -331,12 +407,22 @@ export default function ProfessionalProfileScreen({
         return true;
     });
 
-    // Calcular stats reales
+    // Calcular stats reales para la vista
+    // Si queremos filtrar por categoría, podríamos filtrar `allJobs` aquí si lo tuviéramos en estado.
+    // El usuario pidió "estadísticas reales de cuantos trabajos tiene actualmente" (Active) y "cuantos ha realizado exitosamente" (Success)
+    // "valoración general" (Rating).
+
+    // Si la categoría seleccionada tiene trabajos específicos, podríamos refinar. 
+    // Por ahora, usamos las globales calculadas o las 'proxies' si estamos en "General".
+    // Pero para cumplir con "estadísticas reales", usaremos el estado `stats`.
+
     const categoryStats = {
-        jobs: user?.reviewsCount || 0,
-        rating: user?.rating > 0 ? user.rating.toFixed(1) : 'Nuevo',
-        success: user?.reviewsCount > 0 ? '100%' : 'N/A'
+        jobs: stats.active,       // "Cuantos trabajos tiene actualmente" -> Active
+        rating: user.rating || '5.0', // Valoración General
+        success: `${stats.successRate}%` // "Cuantos ha realizado exitosamente" (Rate)
     };
+
+    const globalRating = user.rating || 5.0; // Global Rating from User Object
 
     return (
         <View style={styles.container}>
@@ -428,10 +514,58 @@ export default function ProfessionalProfileScreen({
                     )}
                 </View>
 
-                {/* SELECTOR DE CATEGORÍAS (SOLO VISIBLE EN MODO EDICIÓN) */}
+                {/* SELECTOR DE CATEGORÍAS (VIEW MODE - BUTTONS) */}
+                {!isEditing && (
+                    <View style={styles.categoryBar}>
+                        <Text style={{ marginBottom: 10, fontSize: 13, fontWeight: 'bold', color: '#6B7280', paddingHorizontal: 16 }}>Categoría</Text>
+                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 16, gap: 10 }}>
+                            {sortedCategories
+                                .filter(cat => {
+                                    const key = cat.fullName || cat.name;
+                                    return !!profileData.profiles?.[key] && profileData.profiles[key].isActive !== false;
+                                })
+                                .map((cat) => {
+                                    const isSelected = selectedCategory.id === cat.id;
+                                    return (
+                                        <TouchableOpacity
+                                            key={cat.id}
+                                            style={[
+                                                styles.catButton,
+                                                isSelected && styles.catButtonSelected
+                                            ]}
+                                            onPress={() => setSelectedCategory(cat)}
+                                        >
+                                            {/* Icon Placeholder or Real Icon if available */}
+                                            {cat.icon || ICON_MAP[cat.name] ? (
+                                                <Feather name={cat.icon || ICON_MAP[cat.name]} size={16} color={isSelected ? 'white' : '#4B5563'} style={{ marginRight: 6 }} />
+                                            ) : (
+                                                <Feather name="grid" size={16} color={isSelected ? 'white' : '#4B5563'} style={{ marginRight: 6 }} />
+                                            )}
+                                            <Text style={[
+                                                styles.catButtonText,
+                                                isSelected && { color: 'white' }
+                                            ]}>
+                                                {cat.name}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    );
+                                })}
+                            {/* Fallback if no categories active */}
+                            {sortedCategories.filter(cat => {
+                                const key = cat.fullName || cat.name;
+                                return !!profileData.profiles?.[key] && profileData.profiles[key].isActive !== false;
+                            }).length === 0 && (
+                                    <Text style={{ color: '#999', fontStyle: 'italic', paddingLeft: 5 }}>No tienes categorías activas.</Text>
+                                )}
+                        </View>
+                    </View>
+                )}
+
+                {/* EDICIÓN TABS (SOLO SI ESTÁ EDITANDO PARA ACTIVAR/DESACTIVAR) */}
                 {isEditing && (
                     <View style={styles.categoryBar}>
-                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 10 }}>
+                        <Text style={{ marginLeft: 16, marginBottom: 10, fontSize: 12, color: '#666' }}>Gestionar Categorías:</Text>
+                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 16, gap: 8 }}>
                             {sortedCategories.map((cat) => {
                                 const catKey = cat.fullName || cat.name;
                                 const isActive = !!profileData.profiles?.[catKey] && profileData.profiles[catKey].isActive !== false;
@@ -446,8 +580,12 @@ export default function ProfessionalProfileScreen({
                                         ]}
                                         onPress={() => setSelectedCategory(cat)}
                                     >
-                                        {/* Renderizar icono si es componente o elemento */}
-                                        {typeof cat.icon === 'function' ? <cat.icon size={16} color={isSelected ? 'white' : (isActive ? '#2563EB' : '#666')} /> : null}
+                                        {/* Icon */}
+                                        {cat.icon || ICON_MAP[cat.name] ? (
+                                            <Feather name={cat.icon || ICON_MAP[cat.name]} size={14} color={isSelected ? 'white' : (isActive ? '#2563EB' : '#6B7280')} style={{ marginRight: 4 }} />
+                                        ) : (
+                                            <Feather name="grid" size={14} color={isSelected ? 'white' : (isActive ? '#2563EB' : '#6B7280')} style={{ marginRight: 4 }} />
+                                        )}
                                         <Text style={[
                                             styles.catTabText,
                                             isSelected && { color: 'white' },
@@ -459,7 +597,7 @@ export default function ProfessionalProfileScreen({
                                     </TouchableOpacity>
                                 );
                             })}
-                        </ScrollView>
+                        </View>
                     </View>
                 )}
 
@@ -490,10 +628,14 @@ export default function ProfessionalProfileScreen({
                     ) : (
                         <>
                             {/* ESTADÍSTICAS DE LA CATEGORÍA */}
-                            <View style={styles.statsRow}>
+                            {/* ESTADÍSTICAS DE LA CATEGORÍA */}
+                            <View style={styles.statsCard}>
                                 <View style={styles.statItem}>
-                                    <Text style={styles.statValue}>{categoryStats.jobs}</Text>
-                                    <Text style={styles.statLabel}>Trabajos</Text>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                        <FontAwesome5 name="trophy" size={14} color="#F59E0B" style={{ marginRight: 5 }} />
+                                        <Text style={styles.statValue}>{categoryStats.jobs}</Text>
+                                    </View>
+                                    <Text style={styles.statLabel}>Ganados</Text>
                                 </View>
                                 <View style={styles.statDivider} />
                                 <View style={styles.statItem}>
@@ -502,7 +644,7 @@ export default function ProfessionalProfileScreen({
                                 </View>
                                 <View style={styles.statDivider} />
                                 <View style={styles.statItem}>
-                                    <Text style={styles.statValue}>100%</Text>
+                                    <Text style={styles.statValue}>{categoryStats.success}</Text>
                                     <Text style={styles.statLabel}>Éxito</Text>
                                 </View>
                             </View>
@@ -587,9 +729,9 @@ export default function ProfessionalProfileScreen({
                                 </Text>
                             )}
 
-                            {/* PORTAFOLIO */}
+                            {/* PRESENTATION GALLERY */}
                             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 20, marginBottom: 10 }}>
-                                <Text style={styles.label}>Portafolio ({selectedCategory.name})</Text>
+                                <Text style={styles.label}>Galería de Presentación ({selectedCategory.name})</Text>
                                 {isEditing && (
                                     <TouchableOpacity onPress={pickImage}>
                                         <Text style={{ color: '#2563EB', fontWeight: 'bold' }}>+ Agregar Foto</Text>
@@ -612,6 +754,28 @@ export default function ProfessionalProfileScreen({
                                 ))}
                                 {(!currentCatProfile.gallery || currentCatProfile.gallery.length === 0) && (
                                     <Text style={{ color: '#999', fontStyle: 'italic' }}>No hay fotos en este portafolio.</Text>
+                                )}
+                            </ScrollView>
+
+                            {/* TRABAJOS REALIZADOS (COMPLETED JOBS) */}
+                            {/* Mostrar fotos de trabajos finalizados en ésta categoría */}
+                            <Text style={styles.label}>Trabajos Realizados</Text>
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 20 }}>
+                                {jobsList
+                                    .filter(j =>
+                                        ['Finalizada', 'Cerrado'].includes(j.status) &&
+                                        j.category === selectedCategory.name && // Filter by current cat
+                                        (j.workPhotos?.length > 0 || j.images?.length > 0)
+                                    )
+                                    .flatMap(j => j.workPhotos?.length > 0 ? j.workPhotos : (j.images || [])) // Flatten all images
+                                    .map((img, i) => (
+                                        <TouchableOpacity key={i} style={{ marginRight: 10 }} onPress={() => { /* View full screen? */ }}>
+                                            <Image source={{ uri: img }} style={styles.galleryImage} />
+                                        </TouchableOpacity>
+                                    ))}
+
+                                {jobsList.filter(j => ['Finalizada', 'Cerrado'].includes(j.status) && j.category === selectedCategory.name && (j.workPhotos?.length > 0 || j.images?.length > 0)).length === 0 && (
+                                    <Text style={{ color: '#999', fontStyle: 'italic', fontSize: 13 }}>No hay fotos de trabajos realizados en esta categoría.</Text>
                                 )}
                             </ScrollView>
 
@@ -641,25 +805,11 @@ export default function ProfessionalProfileScreen({
 
                 {isOwner && (
                     <View style={{ marginBottom: 30 }}>
-                        {onSwitchMode && (
-                            <TouchableOpacity 
-                                style={{ alignSelf: 'center', padding: 15, backgroundColor: '#EA580C', borderRadius: 12, marginTop: 10, width: '80%' }}
-                                onPress={() => {
-                                    onSwitchMode('client');
-                                    onBack();
-                                }}
-                            >
-                                <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 14, textAlign: 'center' }}>Cambiar a Perfil Cliente</Text>
-                            </TouchableOpacity>
-                        )}
-                        <TouchableOpacity style={{ alignSelf: 'center', padding: 15 }} onPress={onLogout}>
-                            <Text style={{ color: '#EF4444', fontWeight: 'bold', fontSize: 14 }}>Cerrar Sesión</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={{ alignSelf: 'center', padding: 5, marginBottom: 20 }} onPress={handleClearChats}>
-                            <Text style={{ color: '#999', fontSize: 12 }}>Borrar Chats (Dev)</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity onPress={onBack} style={{ alignSelf: 'center', padding: 15 }}>
-                            <Text style={{ color: '#2563EB', fontWeight: 'bold', fontSize: 14 }}>Regresar al Mercado</Text>
+                        <TouchableOpacity
+                            style={{ alignSelf: 'center', padding: 15, backgroundColor: '#EF4444', borderRadius: 12, marginTop: 20, width: '80%', alignItems: 'center' }}
+                            onPress={onLogout}
+                        >
+                            <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 14 }}>Cerrar Sesión</Text>
                         </TouchableOpacity>
                     </View>
                 )}
@@ -678,10 +828,15 @@ const styles = StyleSheet.create({
         borderRadius: 24,
         padding: 20,
         alignItems: 'center',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
+        ...Platform.select({
+            web: { boxShadow: '0px 2px 8px rgba(0,0,0,0.1)' },
+            default: {
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.1,
+                shadowRadius: 8,
+            }
+        }),
         elevation: 4,
     },
     avatarContainer: {
@@ -763,11 +918,63 @@ const styles = StyleSheet.create({
     },
 
     categoryBar: { backgroundColor: 'white', paddingVertical: 10, borderBottomWidth: 1, borderColor: '#E5E7EB' },
-    catTab: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, paddingHorizontal: 16, borderRadius: 20, marginRight: 10, backgroundColor: '#F3F4F6' },
-    catTabSelected: { backgroundColor: '#2563EB' },
-    catTabActive: { backgroundColor: '#DBEAFE', borderWidth: 1, borderColor: '#2563EB' },
-    catTabText: { marginLeft: 6, fontWeight: '600', color: '#666' },
-    activeDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#2563EB', position: 'absolute', top: 5, right: 5 },
+
+    catButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 10,
+        paddingHorizontal: 16,
+        borderRadius: 20,
+        backgroundColor: 'white',
+        borderWidth: 1,
+        borderColor: '#E5E7EB',
+        marginBottom: 8,
+        ...Platform.select({
+            web: { boxShadow: '0px 1px 2px rgba(0,0,0,0.05)' },
+            default: { elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2 }
+        })
+    },
+    catButtonSelected: {
+        backgroundColor: '#2563EB',
+        borderColor: '#2563EB',
+    },
+    catButtonText: {
+        fontSize: 14,
+        fontWeight: 'bold',
+        color: '#374151',
+    },
+
+    catTab: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 8,
+        paddingHorizontal: 16,
+        borderRadius: 20,
+        marginBottom: 8,
+        backgroundColor: '#F3F4F6',
+        borderWidth: 1,
+        borderColor: 'transparent'
+    },
+    catTabSelected: {
+        backgroundColor: '#2563EB',
+        borderColor: '#2563EB'
+    },
+    catTabActive: {
+        backgroundColor: '#DBEAFE',
+        borderColor: '#BFDBFE'
+    },
+    catTabText: {
+        fontSize: 13,
+        fontWeight: '600',
+        color: '#6B7280'
+    },
+    activeDot: {
+        width: 6,
+        height: 6,
+        borderRadius: 3,
+        backgroundColor: '#10B981',
+        marginLeft: 6
+    },
 
     content: { flex: 1 },
     section: { backgroundColor: 'white', marginHorizontal: 20, marginBottom: 20, borderRadius: 16, padding: 20, elevation: 2 },
@@ -782,11 +989,25 @@ const styles = StyleSheet.create({
     emptyStateText: { marginTop: 10, fontSize: 16, fontWeight: 'bold', color: '#374151', textAlign: 'center' },
     emptyStateSubtext: { marginTop: 5, color: '#6B7280', textAlign: 'center' },
 
-    statsRow: { flexDirection: 'row', justifyContent: 'space-around', paddingVertical: 15, borderBottomWidth: 1, borderColor: '#F3F4F6', marginBottom: 15 },
-    statItem: { alignItems: 'center' },
-    statValue: { fontSize: 18, fontWeight: 'bold', color: '#2563EB' },
-    statLabel: { fontSize: 12, color: '#6B7280' },
-    statDivider: { width: 1, backgroundColor: '#E5E7EB' },
+    statsCard: {
+        flexDirection: 'row',
+        justifyContent: 'space-around',
+        paddingVertical: 20,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 16,
+        marginBottom: 20,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05,
+        shadowRadius: 5,
+        elevation: 2,
+        borderWidth: 1,
+        borderColor: '#F1F5F9'
+    },
+    statItem: { alignItems: 'center', flex: 1 },
+    statValue: { fontSize: 22, fontWeight: 'bold', color: '#2563EB' },
+    statLabel: { fontSize: 13, color: '#64748B', marginTop: 4 },
+    statDivider: { width: 1, backgroundColor: '#E2E8F0', height: '80%' },
 
     label: { fontSize: 14, fontWeight: 'bold', color: '#374151', marginTop: 15, marginBottom: 10 },
     tagsContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
@@ -795,13 +1016,13 @@ const styles = StyleSheet.create({
     tagText: { color: '#6B7280', fontSize: 12 },
     tagTextSelected: { color: '#2563EB', fontWeight: 'bold' },
 
-    bioInput: { 
-        backgroundColor: '#fff', 
-        borderWidth: 2, 
-        borderColor: '#000', 
-        borderRadius: 10, 
-        padding: 10, 
-        height: 100, 
+    bioInput: {
+        backgroundColor: '#fff',
+        borderWidth: 2,
+        borderColor: '#000',
+        borderRadius: 10,
+        padding: 10,
+        height: 100,
         textAlignVertical: 'top',
         color: '#000',
         fontSize: 16

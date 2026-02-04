@@ -86,8 +86,8 @@ export const AuthProvider = ({ children }) => {
                 // Intentar obtener datos frescos del backend (con timeout implícito si el login es lento)
                 // Usamos un timeout manual aquí para no bloquear la app
                 const fetchPromise = api.getMe();
-                const timeoutPromise = new Promise((_, reject) => 
-                    setTimeout(() => reject(new Error('Timeout profile fetch')), 8000)
+                const timeoutPromise = new Promise((_, reject) =>
+                    setTimeout(() => reject(new Error('Timeout profile fetch')), 15000)
                 );
 
                 try {

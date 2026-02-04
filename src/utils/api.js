@@ -8,7 +8,7 @@ const PROD_URL = 'https://profix-backend-h56b.onrender.com/api';
 // Configuración de IP dinámica (Desarrollo Local)
 // Si necesitas trabajar con el backend localmente, cambia USE_LOCAL a true
 const LOCAL_IP = '192.168.1.172'; // IMPORTANTE: Verifica tu IP con `ipconfig` en Windows
-const USE_LOCAL = __DEV__; // Automáticamente false en Producción/APK, true en desarrollo
+const USE_LOCAL = true; // __DEV__; // FORZADO A TRUE PARA LOCALHOST
 
 const API_URL = !USE_LOCAL
     ? PROD_URL
@@ -29,23 +29,81 @@ const getHeaders = async () => {
     };
 };
 
-const fetchWithTimeout = async (url, options = {}, timeout = 12000) => {
+const fetchWithTimeout = async (url, options = {}, timeout = 120000) => {
     const controller = new AbortController();
-    const id = setTimeout(() => controller.abort(), timeout);
+    const id = setTimeout(() => {
+        console.warn(`[API] Timeout reached for ${url} after ${timeout}ms. Aborting.`);
+        controller.abort();
+    }, timeout);
+
+    const start = Date.now();
     try {
         const response = await fetch(url, {
             ...options,
             signal: controller.signal
         });
         clearTimeout(id);
+        const duration = Date.now() - start;
+        // console.log(`[API] Success ${url} (${duration}ms)`);
         return response;
     } catch (error) {
         clearTimeout(id);
+        const duration = Date.now() - start;
+        console.error(`[API] Error for ${url} after ${duration}ms:`, error.name, error.message);
         throw error;
     }
 };
 
 export const api = {
+    checkConnection: async () => {
+        let logs = [];
+        const log = (msg) => logs.push(msg);
+
+        try {
+            // 1. Google check (Internet) - Fast
+            try {
+                await fetch('https://www.google.com', { mode: 'no-cors' });
+                log("Google:OK");
+            } catch (e) {
+                log("Google:Err(" + e.message + ")");
+            }
+
+            // 2. External API Check (SSL/HTTPS verify)
+            try {
+                const extInfo = await fetch('https://jsonplaceholder.typicode.com/todos/1');
+                log("ExtAPI:" + (extInfo.ok ? "OK" : extInfo.status));
+            } catch (e) {
+                log("ExtAPI:Err(" + e.message + ")");
+            }
+
+            // 3. Backend Check (With Promise.race for timeout)
+            const rootUrl = API_URL.replace('/api', '');
+            log("Backend:Ping...");
+
+            try {
+                // Timeout manual de 30s usando Promise.race para evitar problemas con AbortController
+                const backendPromise = fetch(rootUrl);
+                const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout 30s')), 30000));
+
+                const res = await Promise.race([backendPromise, timeoutPromise]);
+
+                if (res.ok) {
+                    const text = await res.text();
+                    log("Backend:OK");
+                    return { ok: true, status: res.status, url: rootUrl, logs: logs.join(' | ') };
+                } else {
+                    log("Backend:Status " + res.status);
+                    return { ok: false, error: `Status ${res.status}`, url: rootUrl, logs: logs.join(' | ') };
+                }
+            } catch (e) {
+                log("Backend:Err(" + e.message + ")");
+                return { ok: false, error: e.message, url: rootUrl, logs: logs.join(' | ') };
+            }
+
+        } catch (error) {
+            return { ok: false, error: error.message, url: API_URL, logs: logs.join(' | ') };
+        }
+    },
     // --- AUTENTICACIÓN ---
     login: async (email, password) => {
         const res = await fetchWithTimeout(`${API_URL}/auth/login`, {
@@ -372,70 +430,82 @@ export const api = {
 
     // --- ADMIN: USUARIOS ---
     getUsers: async () => {
-        const res = await fetchWithTimeout(`${API_URL}/admin/users`);
+        const headers = await getHeaders();
+        const res = await fetchWithTimeout(`${API_URL}/admin/users`, { headers });
         return res.json();
     },
     getPendingUsers: async () => {
-        const res = await fetchWithTimeout(`${API_URL}/admin/users/pending`);
+        const headers = await getHeaders();
+        const res = await fetchWithTimeout(`${API_URL}/admin/users/pending`, { headers });
         return res.json();
     },
     verifyUser: async (id) => {
-        const res = await fetchWithTimeout(`${API_URL}/admin/users/verify/${id}`, { method: 'PUT' });
+        const headers = await getHeaders();
+        const res = await fetchWithTimeout(`${API_URL}/admin/users/verify/${id}`, { method: 'PUT', headers });
         return res.json();
     },
     updateUserRating: async (id, rating) => {
+        const headers = await getHeaders();
         const res = await fetchWithTimeout(`${API_URL}/admin/users/${id}/rating`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
+            headers,
             body: JSON.stringify({ rating })
         });
         return res.json();
     },
     adminGetUser: async (id) => {
-        const res = await fetchWithTimeout(`${API_URL}/admin/users/${id}`);
+        const headers = await getHeaders();
+        const res = await fetchWithTimeout(`${API_URL}/admin/users/${id}`, { headers });
         if (!res.ok) throw new Error('Error fetching user details');
         return res.json();
     },
     adminUpdateUser: async (id, data) => {
+        const headers = await getHeaders();
         const res = await fetchWithTimeout(`${API_URL}/admin/users/${id}`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
+            headers,
             body: JSON.stringify(data)
         });
         if (!res.ok) throw new Error('Error updating user');
         return res.json();
     },
     adminGetChats: async () => {
-        const res = await fetchWithTimeout(`${API_URL}/admin/chats`);
+        const headers = await getHeaders();
+        const res = await fetchWithTimeout(`${API_URL}/admin/chats`, { headers });
         if (!res.ok) throw new Error('Error fetching admin chats');
         return res.json();
     },
     adminGetChatDetails: async (id) => {
-        const res = await fetchWithTimeout(`${API_URL}/admin/chats/${id}`);
+        const headers = await getHeaders();
+        const res = await fetchWithTimeout(`${API_URL}/admin/chats/${id}`, { headers });
         if (!res.ok) throw new Error('Error fetching admin chat details');
         return res.json();
     },
     adminGetJobs: async () => {
-        const res = await fetchWithTimeout(`${API_URL}/admin/jobs`);
+        const headers = await getHeaders();
+        const res = await fetchWithTimeout(`${API_URL}/admin/jobs`, { headers });
         if (!res.ok) throw new Error('Error fetching admin jobs');
         return res.json();
     },
     adminGetJobDetails: async (id) => {
-        const res = await fetchWithTimeout(`${API_URL}/admin/jobs/${id}`);
+        const headers = await getHeaders();
+        const res = await fetchWithTimeout(`${API_URL}/admin/jobs/${id}`, { headers });
         if (!res.ok) throw new Error('Error fetching admin job details');
         return res.json();
     },
     adminUpdateJob: async (id, data) => {
+        const headers = await getHeaders();
         const res = await fetchWithTimeout(`${API_URL}/admin/jobs/${id}`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
+            headers,
             body: JSON.stringify(data)
         });
         if (!res.ok) throw new Error('Error updating job');
         return res.json();
     },
     adminGetChatsByJob: async (jobId) => {
-        const res = await fetchWithTimeout(`${API_URL}/admin/chats/job/${jobId}`);
+        const headers = await getHeaders();
+        const res = await fetchWithTimeout(`${API_URL}/admin/chats/job/${jobId}`, { headers });
         return res.json();
     },
     updateProfile: async (userData) => {
@@ -546,6 +616,24 @@ export const api = {
         });
         return res.json();
     },
+    getBusinesses: async () => {
+        const res = await fetchWithTimeout(`${API_URL}/admin/businesses`);
+        return res.json();
+    },
+    updateBusiness: async (id, data) => {
+        const res = await fetchWithTimeout(`${API_URL}/admin/businesses/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        return res.json();
+    },
+    deleteBusiness: async (id) => {
+        const res = await fetchWithTimeout(`${API_URL}/admin/businesses/${id}`, {
+            method: 'DELETE'
+        });
+        return res.json();
+    },
 
     // --- PÚBLICO: DATOS APP ---
     getCategories: async () => {
@@ -555,6 +643,11 @@ export const api = {
     },
     getArticles: async () => {
         const res = await fetchWithTimeout(`${API_URL}/articles`);
+        return res.json();
+    },
+    getPublicProfile: async (id) => {
+        const res = await fetchWithTimeout(`${API_URL}/professionals/${id}`); // Usa la nueva ruta pública
+        if (!res.ok) throw new Error('Error fetching public profile');
         return res.json();
     },
     getBusinesses: async () => {

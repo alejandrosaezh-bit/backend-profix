@@ -1,4 +1,5 @@
 import { Feather, FontAwesome5 } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { api } from '../utils/api';
@@ -63,7 +64,7 @@ export default function AdminScreens({ onBack }) {
             case 'requests': return <RequestsManager jobs={jobs} categories={categories} filter={requestFilter} onRefresh={loadData} />;
             case 'categories': return <CategoriesManager />;
             case 'articles': return <ArticlesManager />;
-            case 'businesses': return <BusinessesManager />;
+            case 'businesses': return <BusinessesManager categories={categories} />;
             default: return <Dashboard setActiveTab={setActiveTab} />;
         }
     };
@@ -657,7 +658,7 @@ const ArticlesManager = () => {
     const handlePublish = async () => {
         if (!title || !content) return Alert.alert("Error", "Título y contenido requeridos");
         try {
-            await api.createArticle({ title, content, category, image: 'https://via.placeholder.com/300' });
+            await api.createArticle({ title, content, category, image: 'https://placehold.co/300' });
             Alert.alert("Éxito", "Artículo publicado");
             setTitle('');
             setContent('');
@@ -1089,26 +1090,286 @@ const RequestsManager = ({ jobs, categories, filter, onRefresh }) => {
 };
 
 const BusinessesManager = () => {
-    const [name, setName] = useState('');
+    const [form, setForm] = useState({
+        name: '',
+        description: '',
+        category: '',
+        subcategory: '',
+        address: '',
+        phone: '',
+        whatsapp: '',
+        rating: '5.0',
+        image: '',
+        promo: ''
+    });
+
+    const [existingAds, setExistingAds] = useState([]);
+    const [categories, setCategories] = useState([]);
+    const [editingId, setEditingId] = useState(null);
+    const [loading, setLoading] = useState(false);
+
+    // Helper to get subcategories of selected category
+    const availableSubcategories = categories.find(c => c.name === form.category)?.subcategories || [];
+
+    useEffect(() => {
+        loadData();
+    }, []);
+
+    const loadData = async () => {
+        try {
+            const [adsData, catsData] = await Promise.all([
+                api.getBusinesses(),
+                api.getCategories()
+            ]);
+            setExistingAds(adsData);
+            setCategories(catsData);
+        } catch (e) {
+            console.log("Error loading business data", e);
+        }
+    };
+
+    const handleEdit = (ad) => {
+        setEditingId(ad._id);
+        setForm({
+            name: ad.name || '',
+            description: ad.description || '',
+            category: ad.category || '',
+            subcategory: ad.subcategory || '',
+            address: ad.address || '',
+            phone: ad.phone || '',
+            whatsapp: ad.whatsapp || '',
+            rating: ad.rating ? String(ad.rating) : '',
+            image: ad.image || '',
+            promo: ad.promo || ''
+        });
+    };
+
+    const handleDelete = (id) => {
+        Alert.alert("Eliminar Anuncio", "¿Estás seguro?", [
+            { text: "Cancelar", style: "cancel" },
+            {
+                text: "Eliminar", style: "destructive", onPress: async () => {
+                    try {
+                        await api.deleteBusiness(id);
+                        loadData();
+                    } catch (e) {
+                        Alert.alert("Error", "No se pudo eliminar");
+                    }
+                }
+            }
+        ]);
+    };
+
+    const resetForm = () => {
+        setEditingId(null);
+        setForm({
+            name: '', description: '', category: '', subcategory: '', address: '', phone: '', whatsapp: '', rating: '5.0', image: '', promo: ''
+        });
+    };
+
+    // Helper to get subcategories of selected category
+
+    const pickImage = async () => {
+        const result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            allowsEditing: true,
+            aspect: [16, 9],
+            quality: 0.5,
+            base64: true,
+        });
+
+        if (!result.canceled) {
+            setForm({ ...form, image: `data:image/jpeg;base64,${result.assets[0].base64}` });
+        }
+    };
 
     const handleSave = async () => {
-        if (!name) return Alert.alert("Error", "Nombre requerido");
+        if (!form.name || !form.category) return Alert.alert("Error", "Nombre y Categoría son obligatorios");
+
+        setLoading(true);
         try {
-            await api.createBusiness({ name, isPromoted: true });
-            Alert.alert("Éxito", "Negocio registrado");
-            setName('');
+            if (editingId) {
+                await api.updateBusiness(editingId, { ...form, isPromoted: true });
+                Alert.alert("Éxito", "Anuncio actualizado correctamente");
+            } else {
+                await api.createBusiness({ ...form, isPromoted: true });
+                Alert.alert("Éxito", "Anuncio creado correctamente");
+            }
+            resetForm();
+            loadData();
         } catch (e) {
-            Alert.alert("Error", "No se pudo registrar el negocio");
+            Alert.alert("Error", "No se pudo guardar el anuncio: " + e.message);
+        } finally {
+            setLoading(false);
         }
     };
 
     return (
         <ScrollView>
-            <Text style={styles.sectionTitle}>Registrar Negocio</Text>
-            <TextInput style={styles.input} placeholder="Nombre del Negocio" value={name} onChangeText={setName} />
-            <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-                <Text style={styles.saveButtonText}>Guardar Negocio</Text>
-            </TouchableOpacity>
+            <Text style={styles.sectionTitle}>{editingId ? 'Editar Anuncio' : 'Crear Nuevo Anuncio'}</Text>
+
+            <View style={{ backgroundColor: 'white', padding: 15, borderRadius: 10, marginBottom: 20 }}>
+                <Text style={styles.label}>Información Básica</Text>
+                <TextInput
+                    style={styles.input}
+                    placeholder="Título del Negocio (Ej. Ferretería EPA)"
+                    value={form.name}
+                    onChangeText={t => setForm({ ...form, name: t })}
+                />
+
+                <Text style={styles.label}>Ubicación del Anuncio (Target)</Text>
+
+                <Text style={{ fontSize: 12, color: '#6B7280', marginBottom: 5 }}>Categoría:</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 15 }}>
+                    {categories.map(c => (
+                        <TouchableOpacity
+                            key={c._id}
+                            style={{
+                                paddingHorizontal: 15, paddingVertical: 8, borderRadius: 20, marginRight: 10,
+                                backgroundColor: form.category === c.name ? '#DBEAFE' : '#F3F4F6',
+                                borderWidth: 1, borderColor: form.category === c.name ? '#2563EB' : '#E5E7EB'
+                            }}
+                            onPress={() => setForm({ ...form, category: c.name, subcategory: '' })}
+                        >
+                            <Text style={{ color: form.category === c.name ? '#1E40AF' : '#4B5563', fontWeight: 'bold' }}>{c.name}</Text>
+                        </TouchableOpacity>
+                    ))}
+                </ScrollView>
+
+                {form.category ? (
+                    <>
+                        <Text style={{ fontSize: 12, color: '#6B7280', marginBottom: 5 }}>Subcategoría (Opcional):</Text>
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 20 }}>
+                            <TouchableOpacity
+                                style={{
+                                    paddingHorizontal: 15, paddingVertical: 8, borderRadius: 20, marginRight: 10,
+                                    backgroundColor: form.subcategory === '' ? '#DCFCE7' : '#F3F4F6',
+                                    borderWidth: 1, borderColor: form.subcategory === '' ? '#16A34A' : '#E5E7EB'
+                                }}
+                                onPress={() => setForm({ ...form, subcategory: '' })}
+                            >
+                                <Text style={{ color: form.subcategory === '' ? '#14532D' : '#4B5563', fontStyle: 'italic' }}>Toda la Categoría</Text>
+                            </TouchableOpacity>
+                            {availableSubcategories.map(sub => (
+                                <TouchableOpacity
+                                    key={sub}
+                                    style={{
+                                        paddingHorizontal: 15, paddingVertical: 8, borderRadius: 20, marginRight: 10,
+                                        backgroundColor: form.subcategory === sub ? '#DCFCE7' : '#F3F4F6',
+                                        borderWidth: 1, borderColor: form.subcategory === sub ? '#16A34A' : '#E5E7EB'
+                                    }}
+                                    onPress={() => setForm({ ...form, subcategory: sub })}
+                                >
+                                    <Text style={{ color: form.subcategory === sub ? '#14532D' : '#4B5563' }}>{sub}</Text>
+                                </TouchableOpacity>
+                            ))}
+                        </ScrollView>
+                    </>
+                ) : null}
+
+                <TextInput
+                    style={styles.input}
+                    placeholder="Texto Promocional (Ej. 10% Descuento)"
+                    value={form.promo}
+                    onChangeText={t => setForm({ ...form, promo: t })}
+                />
+
+                <TextInput
+                    style={[styles.input, { height: 80 }]}
+                    placeholder="Descripción detallada..."
+                    multiline
+                    value={form.description}
+                    onChangeText={t => setForm({ ...form, description: t })}
+                />
+
+                <Text style={styles.label}>Contacto</Text>
+                <TextInput
+                    style={styles.input}
+                    placeholder="Dirección Física"
+                    value={form.address}
+                    onChangeText={t => setForm({ ...form, address: t })}
+                />
+
+                <View style={{ flexDirection: 'row', gap: 10 }}>
+                    <TextInput
+                        style={[styles.input, { flex: 1 }]}
+                        placeholder="Teléfono"
+                        keyboardType="phone-pad"
+                        value={form.phone}
+                        onChangeText={t => setForm({ ...form, phone: t })}
+                    />
+                    <TextInput
+                        style={[styles.input, { flex: 1 }]}
+                        placeholder="WhatsApp"
+                        keyboardType="phone-pad"
+                        value={form.whatsapp}
+                        onChangeText={t => setForm({ ...form, whatsapp: t })}
+                    />
+                </View>
+
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 15 }}>
+                    <Text style={{ fontWeight: 'bold', color: '#374151' }}>Valoración Inicial:</Text>
+                    <TextInput
+                        style={[styles.input, { width: 80, marginBottom: 0, textAlign: 'center' }]}
+                        placeholder="5.0"
+                        keyboardType="numeric"
+                        value={form.rating}
+                        onChangeText={t => setForm({ ...form, rating: t })}
+                    />
+                </View>
+
+                <Text style={styles.label}>Imagen del Anuncio</Text>
+                <TouchableOpacity onPress={pickImage} style={{ alignItems: 'center', justifyContent: 'center', height: 150, backgroundColor: '#F3F4F6', borderRadius: 10, borderWidth: 1, borderColor: '#E5E7EB', marginBottom: 20, overflow: 'hidden' }}>
+                    {form.image ? (
+                        <Image source={{ uri: form.image }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                    ) : (
+                        <View style={{ alignItems: 'center' }}>
+                            <Feather name="image" size={30} color="#9CA3AF" />
+                            <Text style={{ color: '#6B7280', marginTop: 5 }}>Toca para subir imagen</Text>
+                        </View>
+                    )}
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                    style={[styles.saveButton, loading && { opacity: 0.7 }]}
+                    onPress={handleSave}
+                    disabled={loading}
+                >
+                    {loading ? <ActivityIndicator color="white" /> : <Text style={styles.saveButtonText}>{editingId ? 'Actualizar Anuncio' : 'Publicar Anuncio'}</Text>}
+                </TouchableOpacity>
+
+                {editingId && (
+                    <TouchableOpacity style={[styles.saveButton, { backgroundColor: '#9CA3AF', marginTop: 10 }]} onPress={resetForm}>
+                        <Text style={styles.saveButtonText}>Cancelar Edición</Text>
+                    </TouchableOpacity>
+                )}
+            </View>
+
+            <Text style={styles.sectionTitle}>Anuncios Activos</Text>
+            {existingAds.length === 0 && <Text style={{ textAlign: 'center', color: '#999', marginBottom: 20 }}>No hay anuncios creados.</Text>}
+
+            {existingAds.map(ad => (
+                <View key={ad._id} style={styles.card}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                        {ad.image ? <Image source={{ uri: ad.image }} style={{ width: 50, height: 50, borderRadius: 8, marginRight: 10 }} /> : null}
+                        <View style={{ flex: 1 }}>
+                            <Text style={styles.cardTitle}>{ad.name}</Text>
+                            <Text style={styles.cardSubtitle}>{ad.category} {ad.subcategory ? `> ${ad.subcategory}` : ''}</Text>
+                            <Text style={{ fontSize: 10, color: '#6B7280' }}>Rating: {ad.rating || 'N/A'} • WA: {ad.whatsapp || 'No'}</Text>
+                        </View>
+                    </View>
+                    <View style={{ flexDirection: 'row', gap: 15 }}>
+                        <TouchableOpacity onPress={() => handleEdit(ad)}>
+                            <Feather name="edit-2" size={20} color="#2563EB" />
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => handleDelete(ad._id)}>
+                            <Feather name="trash-2" size={20} color="#EF4444" />
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            ))}
+
+            <View style={{ height: 50 }} />
         </ScrollView>
     );
 };

@@ -71,9 +71,9 @@ router.get('/users', async (req, res) => {
 
         // Excluir campos pesados para listado ágil
         const users = await User.find(query)
-            .select('-avatar -documents -password -profiles.gallery') 
+            .select('-avatar -documents -password -profiles.gallery')
             .sort({ createdAt: -1 });
-        
+
         res.json(users);
     } catch (error) {
         res.status(500).json({ message: error.message });
@@ -500,6 +500,56 @@ router.post('/businesses', async (req, res) => {
         const business = new Business(req.body);
         const createdBusiness = await business.save();
         res.status(201).json(createdBusiness);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
+router.get('/businesses', async (req, res) => {
+    try {
+        const businesses = await Business.find().sort({ createdAt: -1 });
+        res.json(businesses);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
+router.put('/businesses/:id', async (req, res) => {
+    try {
+        const { name, category, subcategory, description, address, phone, whatsapp, rating, image, promo, isPromoted } = req.body;
+        const business = await Business.findById(req.params.id);
+        if (business) {
+            business.name = name || business.name;
+            business.category = category || business.category;
+            business.subcategory = subcategory !== undefined ? subcategory : business.subcategory;
+            business.description = description || business.description;
+            business.address = address || business.address;
+            business.phone = phone || business.phone;
+            business.whatsapp = whatsapp || business.whatsapp;
+            business.rating = rating || business.rating;
+            business.image = image || business.image;
+            business.promo = promo || business.promo;
+            if (isPromoted !== undefined) business.isPromoted = isPromoted;
+
+            const updated = await business.save();
+            res.json(updated);
+        } else {
+            res.status(404).json({ message: 'Negocio no encontrado' });
+        }
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
+router.delete('/businesses/:id', async (req, res) => {
+    try {
+        const business = await Business.findById(req.params.id);
+        if (business) {
+            await business.deleteOne();
+            res.json({ message: 'Negocio eliminado' });
+        } else {
+            res.status(404).json({ message: 'Negocio no encontrado' });
+        }
     } catch (error) {
         res.status(500).json({ message: error.message });
     }

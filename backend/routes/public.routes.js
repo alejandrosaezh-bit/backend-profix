@@ -62,4 +62,16 @@ router.get('/professionals/:id/reviews', async (req, res) => {
     }
 });
 
+// 6. Obtener perfil público de profesional
+router.get('/professionals/:id', async (req, res) => {
+    try {
+        const user = await User.findById(req.params.id)
+            .select('name email avatar phone rating profiles createdAt role'); // Excluir password, etc.
+        if (!user) return res.status(404).json({ message: 'Profesional no encontrado' });
+        res.json(user);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
 module.exports = router;

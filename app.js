@@ -3,7 +3,7 @@ import { Feather, FontAwesome5, MaterialCommunityIcons, MaterialIcons } from '@e
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { StatusBar } from 'expo-status-bar';
-import React, { useCallback, useContext, useEffect, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useRef, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
@@ -88,6 +88,8 @@ const ArrowLeft = Feather;
 const ClipboardList = FontAwesome5;
 const Home = Feather;
 const ChevronRight = Feather;
+const Layers = Feather;
+const Grid = Feather;
 
 const { width } = Dimensions.get('window');
 
@@ -101,6 +103,8 @@ const ICON_MAP = {
     'calendar': IconEvents,
     'cat': IconPets,
     'briefcase': IconLegal,
+    'building': (props) => <Feather name="home" {...props} />, // Bienes Raíces fallback
+    'grid': (props) => <Feather name="grid" {...props} />, // Cursos
     'default': IconHogar
 };
 
@@ -135,7 +139,7 @@ const getClientStatus = (request) => {
 
     // 3. VALIDANDO (Pro finished, Client hasn't confirmed)
     if (request.proFinished && !request.clientFinished) return 'VALIDANDO';
-    
+
     // 4. EN EJECUCIÓN (Started)
     if (request.status === 'in_progress' || request.status === 'started' || request.status === 'En Ejecución') return 'EN EJECUCIÓN';
 
@@ -224,7 +228,7 @@ const getProStatus = (job, myId) => {
     // Es posible que offers venga como strings (IDs) o como objetos populados.
     // Manejar ambos casos.
     const myOffer = job.offers?.find(o => areIdsEqual(o.proId?._id || o.proId || o, myId));
-    
+
     if (myOffer) {
         console.log(`[getProStatus] Found offer for ${job._id} (Status: ${myOffer.status})`);
         if (myOffer.status === 'accepted') return 'GANADA';
@@ -232,7 +236,7 @@ const getProStatus = (job, myId) => {
         if (myOffer.status === 'pending' || myOffer.status === 'sent') return 'PRESUPUESTADA';
     } else {
         if (job.offers && job.offers.length > 0) {
-             console.log(`[getProStatus] No matching offer for ${myId} in job ${job._id}. Offers proIds:`, job.offers.map(o => o.proId));
+            console.log(`[getProStatus] No matching offer for ${myId} in job ${job._id}. Offers proIds:`, job.offers.map(o => o.proId));
         }
     }
 
@@ -390,8 +394,8 @@ const Header = ({ userMode, toggleMode, isLoggedIn, onLoginPress, currentUser, o
                     {userMode === 'client' ? <Hammer color="white" size={18} /> : <Briefcase name="briefcase" color="white" size={18} />}
                 </View>
                 <Text style={styles.logoText}>ProFix</Text>
-                <View style={{ backgroundColor:'#E5E7EB', paddingHorizontal:6, paddingVertical:2, borderRadius:4, marginLeft:8 }}>
-                    <Text style={{ fontSize:10, fontWeight:'bold', color:'#374151', fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace' }}>{OTA_VERSION}</Text>
+                <View style={{ backgroundColor: '#E5E7EB', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, marginLeft: 8 }}>
+                    <Text style={{ fontSize: 10, fontWeight: 'bold', color: '#374151', fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace' }}>{OTA_VERSION}</Text>
                 </View>
             </View>
             <View style={styles.headerRight}>
@@ -459,6 +463,83 @@ const CustomDropdown = ({ label, value, options, onSelect, placeholder }) => {
     );
 };
 
+const CategoryGridModal = ({ visible, onClose, onSelect, categories }) => {
+    return (
+        <Modal visible={visible} transparent={true} animationType="slide" onRequestClose={onClose}>
+            <View style={styles.categoryGridModalOverlay}>
+                <View style={styles.categoryGridModalContent}>
+                    <View style={styles.categoryGridHeader}>
+                        <View>
+                            <Text style={styles.categoryGridTitle}>¿Qué área necesitas?</Text>
+                            <Text style={styles.categoryGridSubtitle}>Selecciona la categoría de tu solicitud</Text>
+                        </View>
+                        <TouchableOpacity onPress={onClose} style={styles.categoryGridCloseButton}>
+                            <X name="x" size={24} color="#6B7280" />
+                        </TouchableOpacity>
+                    </View>
+                    <ScrollView contentContainerStyle={styles.categoryGridScroll}>
+                        {categories.map((cat) => (
+                            <TouchableOpacity
+                                key={cat.id}
+                                style={styles.categoryGridItem}
+                                onPress={() => {
+                                    onSelect(cat.name);
+                                    onClose();
+                                }}
+                            >
+                                <View style={[styles.categoryGridIconWrapper, { backgroundColor: cat.color || '#F3F4F6' }]}>
+                                    <cat.icon size={30} color={cat.iconColor || '#EA580C'} />
+                                </View>
+                                <Text style={styles.categoryGridLabel}>{cat.name}</Text>
+                            </TouchableOpacity>
+                        ))}
+                    </ScrollView>
+                </View>
+            </View>
+        </Modal>
+    );
+};
+
+const SubcategoryGridModal = ({ visible, onClose, onSelect, subcategories, categoryName }) => {
+    return (
+        <Modal visible={visible} transparent={true} animationType="slide" onRequestClose={onClose}>
+            <View style={styles.categoryGridModalOverlay}>
+                <View style={styles.categoryGridModalContent}>
+                    <View style={styles.categoryGridHeader}>
+                        <View style={{ flex: 1, marginRight: 10 }}>
+                            <Text style={styles.categoryGridTitle} numberOfLines={1}>{categoryName}: Especialidades</Text>
+                            <Text style={styles.categoryGridSubtitle}>Selecciona el servicio específico</Text>
+                        </View>
+                        <TouchableOpacity onPress={onClose} style={styles.categoryGridCloseButton}>
+                            <X name="x" size={24} color="#6B7280" />
+                        </TouchableOpacity>
+                    </View>
+                    <ScrollView contentContainerStyle={styles.categoryGridScroll}>
+                        {subcategories.map((sub, index) => (
+                            <TouchableOpacity
+                                key={index}
+                                style={styles.categoryGridItem}
+                                onPress={() => {
+                                    onSelect(sub);
+                                    onClose();
+                                }}
+                            >
+                                <View style={[styles.categoryGridIconWrapper, { backgroundColor: '#EFF6FF' }]}>
+                                    <Layers name="layers" size={28} color="#2563EB" />
+                                </View>
+                                <Text style={styles.categoryGridLabel} numberOfLines={2}>{sub}</Text>
+                            </TouchableOpacity>
+                        ))}
+                        {subcategories.length === 0 && (
+                            <Text style={{ textAlign: 'center', width: '100%', color: '#9CA3AF', marginTop: 20 }}>No hay especialidades disponibles.</Text>
+                        )}
+                    </ScrollView>
+                </View>
+            </View>
+        </Modal>
+    );
+};
+
 // --- 3. SECCIONES DE CONTENIDO (BLOG, ETC) ---
 const HomeSections = ({ onSelectCategory, onSelectPost, categories, articles }) => {
     const displayCategories = (categories && categories.length > 0) ? categories : [];
@@ -504,39 +585,6 @@ const HomeSections = ({ onSelectCategory, onSelectPost, categories, articles }) 
                 </View>
             </View>
 
-            {/* Testimonios */}
-            <Text style={styles.sectionTitle}>Opiniones de usuarios</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingRight: 20 }}>
-                {TESTIMONIALS.map(t => (
-                    <View key={t.id} style={styles.testimonialCard}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-                            <Image source={{ uri: t.image }} style={{ width: 30, height: 30, borderRadius: 15, marginRight: 8 }} />
-                            <View>
-                                <Text style={styles.testimonialUser}>{t.user}</Text>
-                                <View style={{ flexDirection: 'row' }}>
-                                    {[...Array(t.stars)].map((_, i) => <Star key={i} size={10} color="#FBBF24" fill="#FBBF24" />)}
-                                </View>
-                            </View>
-                        </View>
-                        <Text style={styles.testimonialText}>"{t.text}"</Text>
-                    </View>
-                ))}
-            </ScrollView>
-
-            {/* Blog */}
-            <Text style={styles.sectionTitle}>Consejos para el hogar</Text>
-            {displayArticles.map(post => (
-                <TouchableOpacity key={post.id} style={styles.blogCard} onPress={() => onSelectPost && onSelectPost(post)}>
-                    <View style={{ width: 80, height: '100%', backgroundColor: '#ddd' }}>
-                        <Image source={{ uri: post.image }} style={{ width: '100%', height: '100%' }} />
-                    </View>
-                    <View style={styles.blogContent}>
-                        <Text style={styles.blogCategory}>{post.category}</Text>
-                        <Text style={styles.blogTitle}>{post.title}</Text>
-                        <Text style={styles.blogLink}>Leer más ➝</Text>
-                    </View>
-                </TouchableOpacity>
-            ))}
         </View>
     );
 };
@@ -550,6 +598,9 @@ const ServiceForm = ({ onSubmit, isLoggedIn, onTriggerLogin, initialCategory, in
     const [isLocating, setIsLocating] = useState(false);
     const [suggestions, setSuggestions] = useState([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
+    const [showCategoryGrid, setShowCategoryGrid] = useState(false);
+    const [showSubcategoryGrid, setShowSubcategoryGrid] = useState(false);
+    const titleInputRef = useRef(null);
 
     useEffect(() => {
         if (initialCategory) setFormData(prev => ({ ...prev, category: initialCategory }));
@@ -686,25 +737,68 @@ const ServiceForm = ({ onSubmit, isLoggedIn, onTriggerLogin, initialCategory, in
                 <Text style={styles.serviceFormSubtitle}>Describe tu problema, recibe ofertas de profesionales verificados y elige la mejor opción.</Text>
             </View>
             <View style={styles.serviceFormContent}>
-                <CustomDropdown
-                    label="CATEGORÍA"
-                    placeholder="Selecciona..."
-                    value={formData.category}
-                    options={categories.map(c => c.name)}
-                    onSelect={(c) => setFormData({ ...formData, category: c, subcategory: '' })}
+                <View style={{ marginBottom: 16 }}>
+                    <Text style={styles.label}>CATEGORÍA</Text>
+                    <TouchableOpacity
+                        style={styles.pickerContainer}
+                        onPress={() => setShowCategoryGrid(true)}
+                    >
+                        <Text style={[styles.input, { color: formData.category ? '#1F2937' : '#9CA3AF' }]}>
+                            {formData.category || "Selecciona..."}
+                        </Text>
+                        <ChevronDown name="chevron-down" size={20} color="#6B7280" />
+                    </TouchableOpacity>
+                </View>
+
+                <CategoryGridModal
+                    visible={showCategoryGrid}
+                    onClose={() => setShowCategoryGrid(false)}
+                    categories={categories}
+                    onSelect={(c) => {
+                        setFormData({ ...formData, category: c, subcategory: '' });
+                        // Auto-open Subcategories after short delay to allow state update
+                        setTimeout(() => setShowSubcategoryGrid(true), 300);
+                    }}
                 />
+
                 {formData.category ? (
-                    <CustomDropdown
-                        label="SUBCATEGORÍA"
-                        placeholder="Específico..."
-                        value={formData.subcategory}
-                        options={allSubcategories[formData.category] || []}
-                        onSelect={(s) => setFormData({ ...formData, subcategory: s })}
-                    />
+                    <View style={{ marginBottom: 16 }}>
+                        <Text style={styles.label}>SUBCATEGORÍA</Text>
+                        <TouchableOpacity
+                            style={styles.pickerContainer}
+                            onPress={() => setShowSubcategoryGrid(true)}
+                        >
+                            <Text style={[styles.input, { color: formData.subcategory ? '#1F2937' : '#9CA3AF' }]}>
+                                {formData.subcategory || "Específico..."}
+                            </Text>
+                            <ChevronDown name="chevron-down" size={20} color="#6B7280" />
+                        </TouchableOpacity>
+                    </View>
                 ) : null}
+
+                <SubcategoryGridModal
+                    visible={showSubcategoryGrid}
+                    onClose={() => setShowSubcategoryGrid(false)}
+                    categoryName={formData.category}
+                    subcategories={allSubcategories[formData.category] || []}
+                    onSelect={(s) => {
+                        setFormData({ ...formData, subcategory: s });
+                        // Auto-focus Title after selection
+                        if (titleInputRef.current) {
+                            setTimeout(() => titleInputRef.current.focus(), 300);
+                        }
+                    }}
+                />
                 <View style={styles.inputGroup}>
                     <Text style={styles.label}>TÍTULO</Text>
-                    <TextInput style={styles.inputBox} placeholder={placeholders.title} placeholderTextColor="#9CA3AF" value={formData.title} onChangeText={t => setFormData({ ...formData, title: t })} />
+                    <TextInput
+                        ref={titleInputRef}
+                        style={styles.inputBox}
+                        placeholder={placeholders.title}
+                        placeholderTextColor="#9CA3AF"
+                        value={formData.title}
+                        onChangeText={t => setFormData({ ...formData, title: t })}
+                    />
                 </View>
                 <View style={styles.inputGroup}>
                     <Text style={styles.label}>DESCRIPCIÓN</Text>
@@ -760,7 +854,7 @@ const ServiceForm = ({ onSubmit, isLoggedIn, onTriggerLogin, initialCategory, in
 
 // --- 5. PANTALLAS DE DETALLE ---
 
-const RequestDetailClient = ({ request, onBack, onAcceptOffer, onOpenChat, onUpdateRequest, selectedBudget, setSelectedBudget, showBudgetModal, setShowBudgetModal, categories = [], onRejectOffer, onConfirmStart, onAddWorkPhoto, onFinish, onRate, onCloseRequest, currentUser, onAddTimelineEvent, onTogglePortfolio }) => {
+const RequestDetailClient = ({ request, onBack, onAcceptOffer, onOpenChat, onUpdateRequest, selectedBudget, setSelectedBudget, showBudgetModal, setShowBudgetModal, categories = [], onRejectOffer, onConfirmStart, onAddWorkPhoto, onFinish, onRate, onCloseRequest, currentUser, onAddTimelineEvent, onTogglePortfolio, onViewUserProfile }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [rejectionReason, setRejectionReason] = useState("");
     const [data, setData] = useState(request);
@@ -919,7 +1013,24 @@ const RequestDetailClient = ({ request, onBack, onAcceptOffer, onOpenChat, onUpd
     return (
         <View style={{ flex: 1, backgroundColor: '#F8FAFC' }}>
             {/* ORANGE HEADER TALL */}
-            <View style={{ backgroundColor: '#EA580C', paddingHorizontal: 20, paddingTop: 20, paddingBottom: 30, borderBottomLeftRadius: 30, borderBottomRightRadius: 30, elevation: 6, shadowColor: '#EA580C', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8 }}>
+            <View style={{
+                backgroundColor: '#EA580C',
+                paddingHorizontal: 20,
+                paddingTop: 20,
+                paddingBottom: 30,
+                borderBottomLeftRadius: 30,
+                borderBottomRightRadius: 30,
+                elevation: 6,
+                ...Platform.select({
+                    web: { boxShadow: '0px 4px 8px rgba(234, 88, 12, 0.2)' },
+                    default: {
+                        shadowColor: '#EA580C',
+                        shadowOffset: { width: 0, height: 4 },
+                        shadowOpacity: 0.2,
+                        shadowRadius: 8
+                    }
+                })
+            }}>
                 <TouchableOpacity onPress={onBack} style={{ marginBottom: 15 }}>
                     <Feather name="arrow-left" size={24} color="white" />
                 </TouchableOpacity>
@@ -979,24 +1090,6 @@ const RequestDetailClient = ({ request, onBack, onAcceptOffer, onOpenChat, onUpd
                             </View>
                         </View>
                         <View style={{ flexDirection: 'row', gap: 10 }}>
-                            {data.status === 'Abierto' && (
-                                <TouchableOpacity
-                                    onPress={onCloseRequest}
-                                    style={{
-                                        backgroundColor: 'rgba(255,255,255,0.2)',
-                                        paddingHorizontal: 12,
-                                        paddingVertical: 8,
-                                        borderRadius: 12,
-                                        flexDirection: 'row',
-                                        alignItems: 'center',
-                                        borderWidth: 1,
-                                        borderColor: 'rgba(255,255,255,0.3)'
-                                    }}
-                                >
-                                    <Feather name="x-circle" size={16} color="white" />
-                                    <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 12, marginLeft: 6 }}>Cerrar</Text>
-                                </TouchableOpacity>
-                            )}
                             <TouchableOpacity
                                 onPress={() => setIsEditing(true)}
                                 style={{ backgroundColor: 'rgba(255,255,255,0.25)', width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)' }}
@@ -1112,11 +1205,11 @@ const RequestDetailClient = ({ request, onBack, onAcceptOffer, onOpenChat, onUpd
                         });
                         (request.offers || []).forEach((offer, idx) => {
                             if (!proMap[offer.proId]) proMap[offer.proId] = { id: offer.proId, name: offer.proName, avatar: offer.proAvatar, rating: offer.proRating };
-                            proMap[offer.proId].offer = { 
-                                ...offer, 
-                                index: idx, 
-                                proName: proMap[offer.proId].name, 
-                                proAvatar: proMap[offer.proId].avatar 
+                            proMap[offer.proId].offer = {
+                                ...offer,
+                                index: idx,
+                                proName: proMap[offer.proId].name,
+                                proAvatar: proMap[offer.proId].avatar
                             };
                         });
 
@@ -1163,7 +1256,10 @@ const RequestDetailClient = ({ request, onBack, onAcceptOffer, onOpenChat, onUpd
                                         <View key={index} style={{ backgroundColor: 'white', borderRadius: 20, padding: 16, marginBottom: 16, elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 10, borderWidth: 1, borderColor: '#F1F5F9' }}>
                                             {/* Cabecera Pro */}
                                             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 15 }}>
-                                                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                                <TouchableOpacity
+                                                    style={{ flexDirection: 'row', alignItems: 'center' }}
+                                                    onPress={() => onViewUserProfile && onViewUserProfile(pro)}
+                                                >
                                                     <Image
                                                         source={{ uri: pro.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(pro.name)}&background=random` }}
                                                         style={{ width: 50, height: 50, borderRadius: 25, marginRight: 12, backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#F1F5F9' }}
@@ -1180,7 +1276,7 @@ const RequestDetailClient = ({ request, onBack, onAcceptOffer, onOpenChat, onUpd
                                                             <Text style={{ fontSize: 13, color: '#64748B', marginLeft: 5, fontWeight: '600' }}>{pro.rating || '5.0'}</Text>
                                                         </View>
                                                     </View>
-                                                </View>
+                                                </TouchableOpacity>
                                                 {pro.offer && (
                                                     <View style={{ alignItems: 'flex-end' }}>
                                                         <Text style={{ color: '#10B981', fontWeight: 'bold', fontSize: 22 }}>
@@ -1441,21 +1537,21 @@ const RequestDetailClient = ({ request, onBack, onAcceptOffer, onOpenChat, onUpd
                     })()}
                 </View>
 
-                    {/* SHOW TIMELINE IF OFFER ACCEPTED OR TRACKING STARTED */}
-                    {(data.offers?.some(o => o.status === 'accepted') || ['contracted', 'started', 'in_progress', 'completed', 'finished'].includes(data.trackingStatus) || ['TERMINADO', 'Culminada', 'rated', 'completed'].includes(data.status)) && (
-                        <ProjectTimeline
-                            job={data}
-                            userMode="client"
-                            currentUser={currentUser}
-                            onConfirmStart={handleConfirmStartInternal}
-                            onAddTimelineEvent={onAddTimelineEvent}
-                            onFinish={handleFinishInternal}
-                            onRate={handleRateInternal}
-                            onTogglePortfolio={onTogglePortfolio}
-                        />
-                    )}
+                {/* SHOW TIMELINE IF OFFER ACCEPTED OR TRACKING STARTED */}
+                {(data.offers?.some(o => o.status === 'accepted') || ['contracted', 'started', 'in_progress', 'completed', 'finished'].includes(data.trackingStatus) || ['TERMINADO', 'Culminada', 'rated', 'completed'].includes(data.status)) && (
+                    <ProjectTimeline
+                        job={data}
+                        userMode="client"
+                        currentUser={currentUser}
+                        onConfirmStart={handleConfirmStartInternal}
+                        onAddTimelineEvent={onAddTimelineEvent}
+                        onFinish={handleFinishInternal}
+                        onRate={handleRateInternal}
+                        onTogglePortfolio={onTogglePortfolio}
+                    />
+                )}
 
-                    {/* BOTÓN ELIMINAR SOLICITUD (Solo si está activa/abierta) */}
+                {/* BOTÓN ELIMINAR SOLICITUD (Solo si está activa/abierta) */}
                 {(data.status === 'active' || data.status === 'open' || data.status === 'Abierto' || data.status === 'NUEVA') && (
                     <View style={{ marginTop: 20, marginBottom: 40, paddingHorizontal: 20 }}>
                         <TouchableOpacity
@@ -1522,7 +1618,7 @@ const RequestDetailClient = ({ request, onBack, onAcceptOffer, onOpenChat, onUpd
                                         <View style={{ width: 3, height: 16, backgroundColor: '#2563EB', marginRight: 8, borderRadius: 2 }} />
                                         <Text style={{ fontSize: 15, fontWeight: 'bold', color: '#1E293B' }}>DESGLOSE DE TRABAJO</Text>
                                     </View>
-                                    
+
                                     {selectedBudget.items && selectedBudget.items.length > 0 && (
                                         <View style={{ backgroundColor: 'white', borderRadius: 16, borderWidth: 1, borderColor: '#F1F5F9', overflow: 'hidden' }}>
                                             {selectedBudget.items.map((item, i) => (
@@ -1566,7 +1662,7 @@ const RequestDetailClient = ({ request, onBack, onAcceptOffer, onOpenChat, onUpd
                                         <View style={{ width: 3, height: 16, backgroundColor: '#2563EB', marginRight: 8, borderRadius: 2 }} />
                                         <Text style={{ fontSize: 15, fontWeight: 'bold', color: '#1E293B' }}>DETALLES DE EJECUCIÓN</Text>
                                     </View>
-                                    
+
                                     <View style={{ flexDirection: 'row', gap: 10 }}>
                                         <View style={{ flex: 1, backgroundColor: 'white', padding: 12, borderRadius: 12, borderWidth: 1, borderColor: '#F1F5F9', alignItems: 'center' }}>
                                             <Feather name="calendar" size={16} color="#2563EB" />
@@ -1730,8 +1826,8 @@ const JobDetailPro = ({ job: initialJob, onBack, onSendQuote, onOpenChat, proSta
     // Encontrar conversación para este pro
     // Si soy pro, en teoría solo debo tener una o ninguna en el objeto job (filtrado por backend)
     // Pero usamos una búsqueda segura
-    const myConversation = job.conversations?.find(c => 
-        areIdsEqual(c.proId?._id || c.proId, currentUser?._id) || 
+    const myConversation = job.conversations?.find(c =>
+        areIdsEqual(c.proId?._id || c.proId, currentUser?._id) ||
         c.proEmail === currentUser?.email ||
         (proStatus !== 'NUEVA' && job.conversations && job.conversations.length === 1 && (userMode === 'pro' || currentUser?.role === 'professional'))
     );
@@ -1813,7 +1909,7 @@ const JobDetailPro = ({ job: initialJob, onBack, onSendQuote, onOpenChat, proSta
                                         <View style={{ width: 3, height: 16, backgroundColor: '#2563EB', marginRight: 8, borderRadius: 2 }} />
                                         <Text style={{ fontSize: 15, fontWeight: 'bold', color: '#1E293B' }}>DESGLOSE DE TRABAJO</Text>
                                     </View>
-                                    
+
                                     {myOffer.items && myOffer.items.length > 0 && (
                                         <View style={{ backgroundColor: 'white', borderRadius: 16, borderWidth: 1, borderColor: '#F1F5F9', overflow: 'hidden' }}>
                                             {myOffer.items.map((item, i) => (
@@ -1857,7 +1953,7 @@ const JobDetailPro = ({ job: initialJob, onBack, onSendQuote, onOpenChat, proSta
                                         <View style={{ width: 3, height: 16, backgroundColor: '#2563EB', marginRight: 8, borderRadius: 2 }} />
                                         <Text style={{ fontSize: 15, fontWeight: 'bold', color: '#1E293B' }}>DETALLES DE EJECUCIÓN</Text>
                                     </View>
-                                    
+
                                     <View style={{ flexDirection: 'row', gap: 10 }}>
                                         <View style={{ flex: 1, backgroundColor: 'white', padding: 12, borderRadius: 12, borderWidth: 1, borderColor: '#F1F5F9', alignItems: 'center' }}>
                                             <Feather name="calendar" size={16} color="#2563EB" />
@@ -2000,7 +2096,7 @@ const JobDetailPro = ({ job: initialJob, onBack, onSendQuote, onOpenChat, proSta
                                 >
                                     <Text style={{ color: '#EF4444', fontWeight: 'bold' }}>Archivar</Text>
                                 </TouchableOpacity>
-                                
+
                                 {proStatus !== 'PERDIDA' && (
                                     <TouchableOpacity
                                         style={{ flex: 1, backgroundColor: '#EF4444', padding: 10, borderRadius: 8, alignItems: 'center' }}
@@ -2236,7 +2332,7 @@ const JobDetailPro = ({ job: initialJob, onBack, onSendQuote, onOpenChat, proSta
                 )}
 
                 {
-                    (isWinner || ['TERMINADO', 'Culminada', 'rated', 'completed'].includes(job.status)) && 
+                    (isWinner || ['TERMINADO', 'Culminada', 'rated', 'completed'].includes(job.status)) &&
                     (job.trackingStatus !== 'none' || ['TERMINADO', 'Culminada', 'rated', 'completed'].includes(job.status)) && (
                         <ProjectTimeline
                             job={job}
@@ -2455,8 +2551,8 @@ const ProjectTimeline = ({ job, userMode, currentUser, onConfirmStart, onAddTime
 
     const events = [...(job.projectHistory || [])];
 
-    const revieweeName = userMode === 'client' 
-        ? (job.professionalName || job.professional?.name || 'Profesional') 
+    const revieweeName = userMode === 'client'
+        ? (job.professionalName || job.professional?.name || 'Profesional')
         : (job.clientName || job.client?.name || 'Cliente');
 
     const handleRatingSubmit = async (reviewData) => {
@@ -2569,8 +2665,8 @@ const ProjectTimeline = ({ job, userMode, currentUser, onConfirmStart, onAddTime
             <View style={{ backgroundColor: '#F8FAFC', borderRadius: 16, marginBottom: 25, borderWidth: 1, borderColor: '#E2E8F0', overflow: 'hidden' }}>
                 <View style={{ backgroundColor: '#F1F5F9', paddingHorizontal: 15, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#E2E8F0', flexDirection: 'row', justifyContent: 'space-between' }}>
                     <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#475569', textTransform: 'uppercase' }}>
-                        {job.trackingStatus === 'contracted' ? '1. Inicio' : 
-                         (job.trackingStatus === 'started' && !job.proFinished ? '2. Avance' : '3. Cierre')}
+                        {job.trackingStatus === 'contracted' ? '1. Inicio' :
+                            (job.trackingStatus === 'started' && !job.proFinished ? '2. Avance' : '3. Cierre')}
                     </Text>
                     {/* Privacy Toggle for both */}
                     <TouchableOpacity onPress={() => setIsPrivate(!isPrivate)} style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -2644,8 +2740,8 @@ const ProjectTimeline = ({ job, userMode, currentUser, onConfirmStart, onAddTime
                                     <Text style={{ fontSize: 12, fontWeight: 'bold', color: '#1F2937', marginBottom: 8 }}>EVIDENCIA VISUAL ({isPrivate ? 'PRIVADA' : 'PÚBLICA'})</Text>
                                     <TouchableOpacity
                                         onPress={() => onAddTimelineEvent({ pickImage: true, title: photoType, isPrivate })}
-                                        style={{ 
-                                            backgroundColor: 'white', padding: 15, borderRadius: 12, alignItems: 'center', 
+                                        style={{
+                                            backgroundColor: 'white', padding: 15, borderRadius: 12, alignItems: 'center',
                                             borderWidth: 2, borderColor: buttonColor, borderStyle: 'dashed',
                                             flexDirection: 'row', justifyContent: 'center'
                                         }}
@@ -2717,10 +2813,10 @@ const ProjectTimeline = ({ job, userMode, currentUser, onConfirmStart, onAddTime
                             // Professional can rate as soon as they mark as finished.
                             // Client can rate after they acknowledge/validate the finish.
                             const isFinished = (
-                                job.status === 'completed' || 
-                                job.status === 'TERMINADO' || 
-                                job.status === 'rated' || 
-                                job.status === 'Culminada' || 
+                                job.status === 'completed' ||
+                                job.status === 'TERMINADO' ||
+                                job.status === 'rated' ||
+                                job.status === 'Culminada' ||
                                 job.proRated ||
                                 job.clientRated ||
                                 (job.proFinished && (userMode === 'pro' || job.clientFinished))
@@ -2730,11 +2826,11 @@ const ProjectTimeline = ({ job, userMode, currentUser, onConfirmStart, onAddTime
 
                             // Robust check for rating existence
                             const hasMyRating = (userMode === 'pro' && job.proRated) || (userMode === 'client' && job.clientRated);
-                            const ratingEvents = events.filter(e => 
-                                (e.eventType === 'note_added' || e.eventType === 'job_finished') && 
+                            const ratingEvents = events.filter(e =>
+                                (e.eventType === 'note_added' || e.eventType === 'job_finished') &&
                                 (e.title?.toLowerCase().includes('valoró') || e.description?.toLowerCase().includes('calificación'))
                             );
-                            
+
                             const myRatingEvent = ratingEvents.find(e => {
                                 const actorId = (e.actor?._id || e.actor)?.toString();
                                 const myId = currentUser?._id?.toString() || currentUser?.id?.toString();
@@ -2747,7 +2843,7 @@ const ProjectTimeline = ({ job, userMode, currentUser, onConfirmStart, onAddTime
                             });
 
                             const showMyRatingBox = hasMyRating || !!myRatingEvent;
-                            
+
                             return (
                                 <View style={{ width: '100%', gap: 10 }}>
                                     {/* Muestra valoración del OTRO (si existe) */}
@@ -2777,7 +2873,7 @@ const ProjectTimeline = ({ job, userMode, currentUser, onConfirmStart, onAddTime
                                                     "{myRatingEvent.description}"
                                                 </Text>
                                             )}
-                                            
+
                                             {/* Photo Instructions (Only show if I've rated) */}
                                             {events.some(e => e.mediaUrl) && (
                                                 <View style={{ marginTop: 5, borderTopWidth: 1, borderTopColor: '#E0F2FE', paddingTop: 8 }}>
@@ -2787,7 +2883,7 @@ const ProjectTimeline = ({ job, userMode, currentUser, onConfirmStart, onAddTime
                                             )}
                                         </View>
                                     ) : (
-                                        <RatingForm 
+                                        <RatingForm
                                             revieweeName={revieweeName}
                                             isForPro={userMode === 'client'}
                                             onSubmit={handleRatingSubmit}
@@ -2836,10 +2932,10 @@ const ProjectTimeline = ({ job, userMode, currentUser, onConfirmStart, onAddTime
                                         {e.mediaUrl && (
                                             <View style={{ marginTop: 8, position: 'relative', width: 150 }}>
                                                 <Image source={{ uri: e.mediaUrl }} style={{ width: 150, height: 100, borderRadius: 8 }} />
-                                                <TouchableOpacity 
+                                                <TouchableOpacity
                                                     onPress={() => onTogglePortfolio(e.mediaUrl, categoryTitle)}
-                                                    style={{ 
-                                                        position: 'absolute', top: 5, right: 5, 
+                                                    style={{
+                                                        position: 'absolute', top: 5, right: 5,
                                                         backgroundColor: portfolioGallery.includes(e.mediaUrl) ? '#F59E0B' : 'rgba(0,0,0,0.5)',
                                                         padding: 6, borderRadius: 20, elevation: 3
                                                     }}
@@ -2893,7 +2989,7 @@ class ErrorBoundary extends React.Component {
                     <Text style={{ marginBottom: 10 }}>{String(this.state.error)}</Text>
                     <TouchableOpacity
                         onPress={() => {
-                            if (DevSettings && typeof DevSettings.reload === 'function') {
+                            if (typeof DevSettings !== 'undefined' && DevSettings.reload) {
                                 DevSettings.reload();
                             } else if (typeof window !== 'undefined' && window.location) {
                                 window.location.reload();
@@ -2910,11 +3006,113 @@ class ErrorBoundary extends React.Component {
     }
 }
 
+// Helper component to refresh user data on mount
+const ProfessionalProfileRefresher = ({ user, refreshUser, children }) => {
+    useEffect(() => {
+        refreshUser();
+    }, []);
+    return React.cloneElement(React.Children.only(children), { user });
+};
+
 function MainApp() {
     /* AUTH CONTEXT INTEGRATION */
     const { userToken, userInfo, logout, updateUser, isLoading } = useContext(AuthContext);
     const isLoggedIn = !!userToken;
     const currentUser = userInfo;
+
+    // --- ESTADO GLOBAL (Data) ---
+    const [allRequests, setAllRequests] = useState([]);
+    const [allChats, setAllChats] = useState([]);
+    const [refreshing, setRefreshing] = useState(false);
+
+    // --- ESTADO UI/NAV ---
+    const [userMode, setUserMode] = useState('client');
+    const [showAuth, setShowAuth] = useState(false);
+    const [view, setView] = useState('home');
+    const [selectedCategory, setSelectedCategory] = useState(null);
+    const [selectedSubcategory, setSelectedSubcategory] = useState(null);
+    const [selectedBlogPost, setSelectedBlogPost] = useState(null);
+    const [selectedUser, setSelectedUser] = useState(null);
+    const [selectedRequest, setSelectedRequest] = useState(null);
+    const [selectedChatRequest, setSelectedChatRequest] = useState(null);
+    // --- ESTADO DATOS DINÁMICOS ---
+    const [categories, setCategories] = useState([]);
+    const [articles, setArticles] = useState([]);
+
+    // --- ESTADO PRO/INTERACCIONES ---
+    const [proInteractions, setProInteractions] = useState({});
+    const [filterCategory, setFilterCategory] = useState('Todas');
+    const [filterStatus, setFilterStatus] = useState('Todas');
+    const [counts, setCounts] = useState({ client: { chats: 0, updates: 0 }, pro: { chats: 0, updates: 0 } });
+
+    // --- ESTADO CLIENTE FILTROS ---
+    const [clientFilterCategory, setClientFilterCategory] = useState('Todas');
+    const [clientFilterStatus, setClientFilterStatus] = useState('Todas');
+    const [showArchivedOffers, setShowArchivedOffers] = useState(false);
+
+    // --- MODALES ---
+    const [isRegister, setIsRegister] = useState(false);
+    const [showCloseModal, setShowCloseModal] = useState(false);
+    const [categoryModalVisible, setCategoryModalVisible] = useState(false);
+    const [statusModalVisible, setStatusModalVisible] = useState(false);
+    const [showBudgetModal, setShowBudgetModal] = useState(false);
+
+    // --- NUEVO ESTADO FALTANTE ---
+    const [selectedBudget, setSelectedBudget] = useState(null);
+    const [previousView, setPreviousView] = useState(null);
+    const [pendingRequestData, setPendingRequestData] = useState(null);
+
+    // --- EFECTOS INICIALES ---
+    useEffect(() => {
+        const loadData = async () => {
+            try {
+                const cats = await api.getCategories();
+                if (Array.isArray(cats) && cats.length > 0) {
+                    setCategories(cats.map(mapCategoryToDisplay));
+                }
+                const arts = await api.getArticles();
+                if (Array.isArray(arts) && arts.length > 0) {
+                    setArticles(arts.map(a => ({ ...a, id: a._id })));
+                }
+            } catch (err) {
+                console.log("Error loading data:", err);
+            }
+        };
+        loadData();
+    }, []);
+
+    // --- COUNTERS EFFECT (MOVED UP) ---
+    useEffect(() => {
+        if (!allRequests) return;
+
+        let clientChatCount = 0;
+        let clientUpdateCount = 0;
+        let proChatCount = 0;
+        let proUpdateCount = 0;
+
+        allRequests.forEach(req => {
+            const isClientJob = !req.isVirtual; // Assuming virtual/market jobs vs user jobs
+
+            if (userMode === 'client') { // Count for client view
+                if (req.offers?.some(o => o.status === 'pending')) clientUpdateCount++;
+                if (req.conversations) req.conversations.forEach(c => clientChatCount += (c.unreadCount || 0));
+            } else { // Count for pro view
+                if (req.proInteractionStatus === 'new') proUpdateCount++;
+                if (req.conversations) req.conversations.forEach(c => proChatCount += (c.unreadCount || 0));
+            }
+        });
+
+        // Simplified counts for stability
+        setCounts({
+            client: { chats: clientChatCount, updates: clientUpdateCount },
+            pro: { chats: proChatCount, updates: proUpdateCount }
+        });
+    }, [allRequests, userMode]);
+
+
+
+
+
 
     const handleLogout = async () => {
         await logout();
@@ -2933,32 +3131,16 @@ function MainApp() {
 
     const getClientStatus = (request) => {
         if (!request) return 'NUEVA';
-        // 0. CANCELADA -> ELIMINADA
         if (request.status === 'canceled' || request.status === 'Cerrada') return 'ELIMINADA';
-
-        // 1. TERMINADO (Any rating exists)
         const isRated = request.status === 'rated' || request.status === 'TERMINADO' || request.clientRated || request.proRated || (request.rating > 0) || (request.proRating > 0);
         if (isRated) return 'TERMINADO';
-
-        // 2. VALORACIÓN (Both finished)
         if (request.status === 'completed' || request.status === 'Culminada' || (request.proFinished && request.clientFinished)) return 'VALORACIÓN';
-
-        // 3. VALIDANDO (Waiting for client confirmation)
         if (request.proFinished && !request.clientFinished) return 'VALIDANDO';
-
-        // 4. EN EJECUCIÓN (Started)
         if (request.status === 'in_progress' || request.status === 'started' || request.status === 'En Ejecución') return 'EN EJECUCIÓN';
-
-        // 5. PRESUPUESTADA (Has active offers)
         const activeOffers = request.offers?.filter(o => o.status !== 'rejected');
         if (activeOffers && activeOffers.length > 0) return 'PRESUPUESTADA';
-
-        // 6. CONTACTADA (Has messages but no offers yet)
         if (request.conversations && request.conversations.length > 0) return 'CONTACTADA';
-
-        // 7. ABIERTA / NUEVA
         if (request.status === 'open' || request.status === 'active' || request.status === 'Abierto') return 'ABIERTA';
-
         return 'NUEVA';
     };
 
@@ -3005,59 +3187,8 @@ function MainApp() {
         }
     };
 
-    const [userMode, setUserMode] = useState('client');
-    const [showAuth, setShowAuth] = useState(false);
 
-    // Legacy removed: isLoggedIn, currentUser, authEmail, authPassword
 
-    useEffect(() => {
-        if (isLoggedIn) {
-            setShowAuth(false);
-            // Wait for user info to be hydrated before loading requests
-            if (currentUser && currentUser._id) {
-                loadRequests();
-            }
-        }
-    }, [isLoggedIn, currentUser]); // Added currentUser dependency
-    const [view, setView] = useState('home');
-    const [selectedCategory, setSelectedCategory] = useState(null);
-    const [selectedSubcategory, setSelectedSubcategory] = useState(null);
-    const [selectedBlogPost, setSelectedBlogPost] = useState(null);
-
-    // --- ESTADO DATOS DINÁMICOS ---
-    const [categories, setCategories] = useState([]);
-    const [articles, setArticles] = useState([]);
-
-    useEffect(() => {
-        const loadData = async () => {
-            try {
-                const cats = await api.getCategories();
-                if (Array.isArray(cats) && cats.length > 0) {
-                    setCategories(cats.map(mapCategoryToDisplay));
-                }
-                const arts = await api.getArticles();
-                if (Array.isArray(arts) && arts.length > 0) {
-                    setArticles(arts.map(a => ({ ...a, id: a._id })));
-                }
-            } catch (err) {
-                console.log("Error loading data:", err);
-            }
-        };
-
-        loadData();
-    }, []);
-
-    // --- ESTADO PRO ---
-    const [proInteractions, setProInteractions] = useState({}); // { jobId: { status: 'Nueva', hasUnread: false } }
-    const [filterCategory, setFilterCategory] = useState('Todas');
-    const [filterStatus, setFilterStatus] = useState('Todas');
-    const [categoryModalVisible, setCategoryModalVisible] = useState(false);
-    const [statusModalVisible, setStatusModalVisible] = useState(false);
-
-    // --- ESTADO CLIENTE FILTROS ---
-    const [clientFilterCategory, setClientFilterCategory] = useState('Todas');
-    const [clientFilterStatus, setClientFilterStatus] = useState('Todas');
-    const [showArchivedOffers, setShowArchivedOffers] = useState(false);
 
     const STATUS_MAP_DB_TO_UI = {
         'new': 'NUEVA',
@@ -3111,7 +3242,7 @@ function MainApp() {
         try {
             await api.rejectOffer(jobId, proId, reason);
             showAlert("Éxito", "La oferta ha sido rechazada y el profesional ha sido notificado.");
-            
+
             // Refresh detail if open
             if (selectedRequest && (selectedRequest.id === jobId || selectedRequest._id === jobId)) {
                 try {
@@ -3122,7 +3253,7 @@ function MainApp() {
                     console.warn("Could not refresh after rejection:", refreshErr);
                 }
             }
-            
+
             loadRequests(); // Refresh list background
         } catch (e) {
             showAlert("Error", e.message);
@@ -3175,7 +3306,7 @@ function MainApp() {
             // 1. Get current profiles (handling both Map-like and Object-like structures)
             const currentProfiles = { ...(currentUser.profiles || {}) };
             const catProfile = { ...(currentProfiles[category] || { category, gallery: [], description: `Trabajos en ${category}` }) };
-            
+
             let newGallery = [...(catProfile.gallery || [])];
             let message = "";
 
@@ -3199,12 +3330,12 @@ function MainApp() {
 
             // 2. Update via API
             await api.updateProfile({ profiles: updatedProfiles });
-            
+
             // 3. Refresh user state (this will update currentUser and trigger re-render of Timeline)
             const freshUser = await api.getMe();
             await updateUser(freshUser);
             await saveSession(freshUser);
-            
+
             showAlert("¡Listo!", message);
         } catch (error) {
             console.error("Error toggling portfolio photo:", error);
@@ -3225,10 +3356,10 @@ function MainApp() {
 
             const res = await api.rateMutual(jobId, { ...reviewData, revieweeId });
             showAlert("¡Gracias!", "Tu valoración ha sido enviada.");
-            
+
             // Refresh full list and especially the selected request
             const updatedRequests = await loadRequests();
-            
+
             // Sync local selection state selecting the updated job from the mapped list
             const updatedJob = updatedRequests.find(r => r._id === jobId || r.id === jobId);
             if (updatedJob) {
@@ -3239,81 +3370,16 @@ function MainApp() {
         }
     };
 
-    const [selectedRequest, setSelectedRequest] = useState(null);
-    const [selectedChatRequest, setSelectedChatRequest] = useState(null);
-    const [selectedBudget, setSelectedBudget] = useState(null);
-    const [showBudgetModal, setShowBudgetModal] = useState(false);
-    const [showCloseModal, setShowCloseModal] = useState(false);
-    const [previousView, setPreviousView] = useState(null); // Para navegación "Atrás" inteligente
-    const [pendingRequestData, setPendingRequestData] = useState(null);
-    const [isRegister, setIsRegister] = useState(false);
 
-    const [allRequests, setAllRequests] = useState([]);
-    const [allChats, setAllChats] = useState([]); // NEW: State for standalone chats
 
-    // --- BADGE COUNTERS ---
-    const [counts, setCounts] = useState({
-        client: { chats: 0, updates: 0 },
-        pro: { chats: 0, updates: 0 }
-    });
 
-    useEffect(() => {
-        if (!allRequests) return;
-
-        // Client Counts
-        let clientChatCount = 0;
-        let clientUpdateCount = 0;
-
-        // Pro Counts
-        let proChatCount = 0;
-        let proUpdateCount = 0;
-
-        allRequests.forEach(req => {
-            const isClientJob = !req.isVirtual;
-
-            if (isClientJob) {
-                // CLIENT MODE
-                // Updates: ONLY new offers or status changes in budgets
-                if (req.offers?.some(o => o.status === 'pending')) {
-                    clientUpdateCount++;
-                }
-
-                // Chats: unread messages for client
-                if (req.conversations) {
-                    req.conversations.forEach(conv => {
-                        clientChatCount += (conv.unreadCount || 0);
-                    });
-                }
-            } else {
-                // PROFESSIONAL MODE
-                // Updates: New available jobs OR status changes in my offers
-                if (req.proInteractionStatus === 'new' || req.proInteractionHasUnread) {
-                    proUpdateCount++;
-                }
-
-                // Chats: unread messages for pro
-                if (req.conversations) {
-                    req.conversations.forEach(conv => {
-                        proChatCount += (conv.unreadCount || 0);
-                    });
-                }
-            }
-        });
-
-        setCounts({
-            client: { chats: clientChatCount, updates: clientUpdateCount },
-            pro: { chats: proChatCount, updates: proUpdateCount }
-        });
-    }, [allRequests, proInteractions, currentUser]);
-
-    const [refreshing, setRefreshing] = useState(false);
 
     // --- FUNCTION: LOAD CHATS (Standalone) ---
     const loadChats = async (explicitMode = null) => {
         if (!isLoggedIn) return;
         try {
             // Updated: Fetch ALL chats regardless of role to show full history
-            const chats = await api.getChats({}); 
+            const chats = await api.getChats({});
             if (Array.isArray(chats)) {
                 setAllChats(chats);
             }
@@ -3347,22 +3413,22 @@ function MainApp() {
 
                 console.log(`[DEBUG loadRequests] Market: ${marketJobs.length}, MyJobs: ${myJobs.length}`);
                 if (myJobs.length > 0) {
-                     const jobWithOffers = myJobs.find(j => j.offers && j.offers.length > 0);
-                     if (jobWithOffers) {
-                         console.log(`[DEBUG loadRequests] Found job with offers in MyJobs: ${jobWithOffers._id}`, 
+                    const jobWithOffers = myJobs.find(j => j.offers && j.offers.length > 0);
+                    if (jobWithOffers) {
+                        console.log(`[DEBUG loadRequests] Found job with offers in MyJobs: ${jobWithOffers._id}`,
                             JSON.stringify(jobWithOffers.offers.map(o => ({
-                                id: o._id, proId: o.proId, status: o.status 
+                                id: o._id, proId: o.proId, status: o.status
                             }))));
-                     } else {
-                         console.log(`[DEBUG loadRequests] No offers found in any of the ${myJobs.length} MyJobs`);
-                     }
+                    } else {
+                        console.log(`[DEBUG loadRequests] No offers found in any of the ${myJobs.length} MyJobs`);
+                    }
                 }
 
                 // Tag My Jobs correctly based on ownership
                 // GET /me returns both Created(Client) and Interacted(Pro) jobs.
                 // We must distinguish them.
                 // const currentUserId = user?._id || user?.id; // MOVED UP
-                
+
                 const myJobsTagged = myJobs.map(j => {
                     const cVal = j.client;
                     const cId = (cVal && typeof cVal === 'object') ? cVal._id : cVal;
@@ -3395,30 +3461,30 @@ function MainApp() {
                 // FIX: Only filter if we have a valid logged in user AND the API returned all jobs instead of my jobs
                 // api.getMyJobs already filters by user in backend, so client-side filtering is risky if currentUser is stale.
                 // We will trust the backend response if isLoggedIn is true.
-                
-                if (isLoggedIn && currentUser && allData.length > 0) {
-                     // Verify if the backend actually returned "all jobs" (market) instead of "my jobs"
-                     // This could happen if getMyJobs fails back to getJobs or similar logic.
-                     // A simple heuristic: if ALL jobs belong to me, it's fine.
-                     // If I see jobs not mine, I should filter.
-                     const hasForeignJobs = allData.some(j => {
-                         const cId = j.client?._id || j.client;
-                         return !areIdsEqual(cId, currentUser._id);
-                     });
 
-                     /*
-                     if (hasForeignJobs) {
-                         console.log("Filtering foreign jobs from My Requests view");
-                         jobs = allData.filter(j => {
-                            const cId = j.client?._id || j.client;
-                            return areIdsEqual(cId, currentUser._id);
-                        });
-                     } else {
-                         jobs = allData;
-                     }
-                     */
-                     // BYPASS: No filtrar nada en lado cliente para "My Requests" por ahora
-                     jobs = allData;
+                if (isLoggedIn && currentUser && allData.length > 0) {
+                    // Verify if the backend actually returned "all jobs" (market) instead of "my jobs"
+                    // This could happen if getMyJobs fails back to getJobs or similar logic.
+                    // A simple heuristic: if ALL jobs belong to me, it's fine.
+                    // If I see jobs not mine, I should filter.
+                    const hasForeignJobs = allData.some(j => {
+                        const cId = j.client?._id || j.client;
+                        return !areIdsEqual(cId, currentUser._id);
+                    });
+
+                    /*
+                    if (hasForeignJobs) {
+                        console.log("Filtering foreign jobs from My Requests view");
+                        jobs = allData.filter(j => {
+                           const cId = j.client?._id || j.client;
+                           return areIdsEqual(cId, currentUser._id);
+                       });
+                    } else {
+                        jobs = allData;
+                    }
+                    */
+                    // BYPASS: No filtrar nada en lado cliente para "My Requests" por ahora
+                    jobs = allData;
                 } else {
                     jobs = allData;
                 }
@@ -3427,11 +3493,11 @@ function MainApp() {
                 // Ensure category is an object for Consistent UI rendering
                 let catObj = { name: 'General' };
                 if (job.category && typeof job.category === 'object') {
-                    catObj = { 
-                        _id: job.category._id, 
-                        name: job.category.name, 
-                        color: job.category.color, 
-                        icon: job.category.icon 
+                    catObj = {
+                        _id: job.category._id,
+                        name: job.category.name,
+                        color: job.category.color,
+                        icon: job.category.icon
                     };
                 } else if (typeof job.category === 'string') {
                     catObj = { name: job.category };
@@ -3445,11 +3511,11 @@ function MainApp() {
                     category: catObj,
                     subcategory: job.subcategory,
                     location: job.location,
-                    status: (job.status === 'active' || job.status === 'open') ? 'Abierto' : 
-                            (job.status === 'rated') ? 'TERMINADO' : 
-                            (job.status === 'completed' ? 'Culminada' : 
-                            (job.status === 'canceled' ? 'Cerrada' : 
-                            (job.status === 'in_progress' ? 'En Ejecución' : job.status))),
+                    status: (job.status === 'active' || job.status === 'open') ? 'Abierto' :
+                        (job.status === 'rated') ? 'TERMINADO' :
+                            (job.status === 'completed' ? 'Culminada' :
+                                (job.status === 'canceled' ? 'Cerrada' :
+                                    (job.status === 'in_progress' ? 'En Ejecución' : job.status))),
                     budget: job.budget,
                     images: job.images,
                     createdAt: job.createdAt,
@@ -3526,7 +3592,7 @@ function MainApp() {
                     loadRequests();
                     loadChats();
                 }
-            }, 15000); 
+            }, 15000);
         }
 
         return () => {
@@ -4088,25 +4154,23 @@ function MainApp() {
 
 
     const myClientRequests = allRequests.filter(r => {
-        if (r.clientId && currentUser?._id) return r.clientId === currentUser._id;
-        return r.clientEmail && currentUser?.email ? r.clientEmail === currentUser.email : r.clientName === currentUser?.name;
+        // STRICT filter for "My Requests" screen
+        if (r.clientId && currentUser?._id) return areIdsEqual(r.clientId, currentUser._id);
+        const emailMatch = r.clientEmail && currentUser?.email ? r.clientEmail === currentUser.email : false;
+        return emailMatch || r.clientName === currentUser?.name;
     });
 
     // --- LOGICA DE FILTRADO AVANZADO PARA PRO ---
-    const activeCategories = currentUser?.profiles
+    // Only calculate active categories if we are in PRO mode or checking pro capabilities
+    const activeCategories = (userMode === 'pro' && currentUser?.profiles)
         ? Object.keys(currentUser.profiles).filter(k => currentUser.profiles[k].isActive !== false)
         : [];
-
-    console.log(`[DEBUG Filter] User: ${currentUser?.name} | Categories:`, activeCategories);
-    if (activeCategories.length === 0 && currentUser?.role !== 'client') {
-        console.warn("[DEBUG Filter] No active categories found for pro/admin!");
-    }
 
     // 1. Filtrar base - SIN FILTROS (RAW)
     const matchingJobs = allRequests.filter(r => {
         // TEMPORAL: Retornar todo para verificar flujo de datos
         // Ya no filtramos por "My Own Job", "Profile Categories", "Zones" ni "Closed Status"
-        return true; 
+        return true;
     });
 
 
@@ -4129,10 +4193,18 @@ function MainApp() {
 
     // 3. Aplicar filtros de UI y Lógica de "Ofertas Anteriores"
     const availableJobsForPro = jobsWithStatus.filter(job => {
-        // --- FILTROS DE NEGOCIO ---
+        // --- 1. FILTROS DE UI (Categoría y Archivados) ---
+        const catMatch = filterCategory === 'Todas' || (job.category?.name || job.category) === filterCategory;
+        const isArchived = job.proStatus === 'Archivada' || job.status === 'canceled' || job.status === 'closed';
 
-        // 1. Ocultar mis propias solicitudes
-        // Extracción explícita de IDs para depuración y certeza
+        if (showArchivedOffers) {
+            if (!isArchived) return false;
+        } else {
+            if (isArchived) return false;
+        }
+        if (!catMatch) return false;
+
+        // --- 2. FILTROS DE NEGOCIO (Matching de Perfil) ---
         const myId = String(currentUser?._id || currentUser?.id || '').trim();
         let jobClientId = '';
         if (job.client) {
@@ -4143,71 +4215,46 @@ function MainApp() {
             }
         }
 
-        // AGGRESSIVE DEBUG: Si los IDs son iguales, retorna FALSE.
-        // Si hay coincidencia parcial o nula, lo deja pasar.
-        if (myId && jobClientId && myId === jobClientId) {
-             return false;
-        }
+        if (myId && jobClientId && myId === jobClientId) return false;
 
-        // EXTRA CHECK: Si el ID viene en job.clientId (algunos pipelines antiguos)
         if (job.clientId) {
-             const legacyClientId = String(job.clientId).trim();
-             if (myId && legacyClientId && myId === legacyClientId) return false;
+            const legacyClientId = String(job.clientId).trim();
+            if (myId && legacyClientId && myId === legacyClientId) return false;
         }
 
-        // EXTRA CHECK 2: Comparar por email si está disponible (como fallback)
         if (currentUser?.email && job.client?.email) {
             if (currentUser.email.trim().toLowerCase() === job.client.email.trim().toLowerCase()) {
                 return false;
             }
         }
 
-        // 2. Matching de Categoría, Subcategoría y Ubicación
         const myProfiles = currentUser?.profiles || {};
-
-        // Iteramos sobre las categorías ACTIVAS del profesional
         const activeProfileKeys = Object.keys(myProfiles).filter(key => {
             const p = myProfiles[key];
             return p && p.isActive !== false;
         });
 
-        // Si no tiene ningún perfil activo, no ve nada.
         if (activeProfileKeys.length === 0) return false;
 
         const jobCategoryName = job.category?.name || job.category;
         const jobSubcategoryName = job.subcategory?.name || job.subcategory;
-        // job.location suele ser un string directo (Zona)
         const jobLocation = job.location;
 
-        // Verificamos si el job encaja en AL MENOS UNO de los perfiles activos
         const isMatch = activeProfileKeys.some(profileCatName => {
-            // A. Coincidencia de Categoría (Nombre exacto)
             if (profileCatName !== jobCategoryName) return false;
-
             const profile = myProfiles[profileCatName];
-
-            // B. Coincidencia de Ubicación (Zones)
-            // Requisito: "Ubicaciones Que tenga dadas de alta"
             const profileZones = profile.zones || [];
             if (profileZones.length > 0) {
-                // Normalizamos ubicación del trabajo y zonas del perfil (trim) para evitar errores por espacios
                 const jobLocNormalized = (jobLocation || '').trim();
                 const hasZone = profileZones.some(z => z.trim() === jobLocNormalized);
-                
                 if (!hasZone) return false;
             } else {
-                // Si no tiene zonas dadas de alta, strict filtering: no match
-                // Motiva al usuario a configurar su perfil
                 return false;
             }
-
-            // C. Coincidencia de Subcategoría
-            // Requisito: "Sub Categorías Que tenga dadas de alta"
             const profileSubs = profile.subcategories || [];
             if (profileSubs.length > 0) {
                 if (jobSubcategoryName && !profileSubs.includes(jobSubcategoryName)) return false;
             }
-
             return true;
         });
 
@@ -4347,12 +4394,14 @@ function MainApp() {
                 {/* CLIENTE MIS PEDIDOS */}
                 {userMode === 'client' && view === 'my-requests' && (
                     <MyRequestsScreen
-                        allRequests={allRequests}
+                        allRequests={myClientRequests}
                         onRefresh={loadRequests}
                         navigation={{
                             navigate: (screen, params) => {
                                 if (screen === 'RequestDetail') {
                                     handleOpenJobDetail(params.item._id || params.item.id, 'request-detail-client');
+                                } else if (screen === 'Home') {
+                                    setView('home');
                                 }
                             },
                             addListener: () => { return () => { } }
@@ -4364,6 +4413,20 @@ function MainApp() {
                 {view === 'request-detail-client' && selectedRequest && (
                     <RequestDetailClient
                         request={selectedRequest}
+                        onViewUserProfile={(user) => {
+                            // 1. Set basic info immediately for quick navigation
+                            const basicUser = { ...user, _id: user.id || user._id };
+                            setSelectedUser(basicUser);
+                            setView('professional-profile-public');
+
+                            // 2. Fetch full profile (profiles, stats, etc) in background
+                            api.getPublicProfile(basicUser._id)
+                                .then(fullProfile => {
+                                    console.log("Full profile fetched:", fullProfile.name);
+                                    setSelectedUser(prev => ({ ...prev, ...fullProfile }));
+                                })
+                                .catch(e => console.error("Error fetching full profile:", e));
+                        }}
                         categories={categories}
                         onBack={() => setView('my-requests')}
                         onAcceptOffer={handleAcceptOffer}
@@ -4395,10 +4458,22 @@ function MainApp() {
                     <View style={{ flex: 1, backgroundColor: '#F3F4F6' }}>
                         {/* HEADER AZUL */}
                         <View style={{ backgroundColor: '#2563EB', paddingHorizontal: 16, paddingTop: 10, paddingBottom: 10, borderBottomLeftRadius: 24, borderBottomRightRadius: 24, elevation: 4 }}>
-                            <Text style={{ fontSize: 24, fontWeight: 'bold', color: 'white', marginBottom: 8 }}>Trabajos Disponibles</Text>
-                            {/* FILTERS - DROPDOWNS */}
+                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                                <Text style={{ fontSize: 24, fontWeight: 'bold', color: 'white' }}>Trabajos Disponibles</Text>
+                                <TouchableOpacity
+                                    onPress={() => setShowArchivedOffers(!showArchivedOffers)}
+                                    style={{
+                                        width: 40, height: 40, borderRadius: 20,
+                                        backgroundColor: showArchivedOffers ? 'white' : 'rgba(255,255,255,0.2)',
+                                        justifyContent: 'center', alignItems: 'center'
+                                    }}
+                                >
+                                    <Feather name="archive" size={20} color={showArchivedOffers ? '#2563EB' : 'white'} />
+                                </TouchableOpacity>
+                            </View>
+
+                            {/* FILTERS - CATEGORY ONLY */}
                             <View style={{ flexDirection: 'row', paddingHorizontal: 0, gap: 10, marginTop: 8 }}>
-                                {/* Category Dropdown */}
                                 <View style={{ flex: 1 }}>
                                     <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12, marginBottom: 4, fontWeight: 'bold' }}>Categoría</Text>
                                     <TouchableOpacity
@@ -4406,18 +4481,6 @@ function MainApp() {
                                         style={styles.dropdownButton}
                                     >
                                         <Text style={styles.dropdownButtonText} numberOfLines={1}>{filterCategory}</Text>
-                                        <Feather name="chevron-down" size={16} color="white" />
-                                    </TouchableOpacity>
-                                </View>
-
-                                {/* Status Dropdown */}
-                                <View style={{ flex: 1 }}>
-                                    <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12, marginBottom: 4, fontWeight: 'bold' }}>Estado</Text>
-                                    <TouchableOpacity
-                                        onPress={() => setStatusModalVisible(true)}
-                                        style={styles.dropdownButton}
-                                    >
-                                        <Text style={styles.dropdownButtonText} numberOfLines={1}>{filterStatus}</Text>
                                         <Feather name="chevron-down" size={16} color="white" />
                                     </TouchableOpacity>
                                 </View>
@@ -4461,44 +4524,6 @@ function MainApp() {
                                     </View>
                                 </TouchableOpacity>
                             </Modal>
-
-                            <Modal
-                                visible={statusModalVisible}
-                                transparent={true}
-                                animationType="fade"
-                                onRequestClose={() => setStatusModalVisible(false)}
-                            >
-                                <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setStatusModalVisible(false)}>
-                                    <View style={styles.modalContent}>
-                                        <Text style={styles.modalTitle}>Filtrar por Estado</Text>
-                                        <ScrollView style={{ maxHeight: 300 }}>
-                                            <TouchableOpacity
-                                                style={[styles.modalOption, filterStatus === 'Todas' && styles.modalOptionSelected]}
-                                                onPress={() => {
-                                                    setFilterStatus('Todas');
-                                                    setStatusModalVisible(false);
-                                                }}
-                                            >
-                                                <Text style={[styles.modalOptionText, filterStatus === 'Todas' && styles.modalOptionTextSelected]}>Todas</Text>
-                                                {filterStatus === 'Todas' && <Feather name="check" size={16} color="#2563EB" />}
-                                            </TouchableOpacity>
-                                            {['NUEVA', 'ABIERTA', 'CONTACTADA', 'PRESUPUESTADA', 'GANADA', 'PERDIDA', 'En Ejecución', 'VALIDANDO', 'VALORACIÓN', 'TERMINADO', 'Cerrada'].filter(s => jobsWithStatus.some(j => j.proStatus === s)).map((status, index) => (
-                                                <TouchableOpacity
-                                                    key={index}
-                                                    style={[styles.modalOption, filterStatus === status && styles.modalOptionSelected]}
-                                                    onPress={() => {
-                                                        setFilterStatus(status);
-                                                        setStatusModalVisible(false);
-                                                    }}
-                                                >
-                                                    <Text style={[styles.modalOptionText, filterStatus === status && styles.modalOptionTextSelected]}>{status}</Text>
-                                                    {filterStatus === status && <Feather name="check" size={16} color="#2563EB" />}
-                                                </TouchableOpacity>
-                                            ))}
-                                        </ScrollView>
-                                    </View>
-                                </TouchableOpacity>
-                            </Modal>
                         </View>
 
                         <ScrollView
@@ -4525,10 +4550,15 @@ function MainApp() {
                                             padding: 16,
                                             marginBottom: 12, // Reduced from 16 to match Orange List
                                             elevation: 2,
-                                            shadowColor: '#000',
-                                            shadowOffset: { width: 0, height: 2 },
-                                            shadowOpacity: 0.05,
-                                            shadowRadius: 4,
+                                            ...Platform.select({
+                                                web: { boxShadow: '0px 2px 4px rgba(0,0,0,0.05)' },
+                                                default: {
+                                                    shadowColor: '#000',
+                                                    shadowOffset: { width: 0, height: 2 },
+                                                    shadowOpacity: 0.05,
+                                                    shadowRadius: 4,
+                                                }
+                                            }),
                                             borderWidth: 1,
                                             borderColor: '#F3F4F6'
                                         }}
@@ -4615,25 +4645,6 @@ function MainApp() {
                                     </TouchableOpacity>
                                 ));
                             })()}
-
-                            < TouchableOpacity
-                                onPress={() => setShowArchivedOffers(!showArchivedOffers)}
-                                style={{
-                                    paddingVertical: 12,
-                                    paddingHorizontal: 16,
-                                    backgroundColor: '#F1F5F9',
-                                    borderRadius: 12,
-                                    marginTop: 12,
-                                    borderWidth: 1,
-                                    borderColor: '#E2E8F0',
-                                    borderStyle: 'dashed',
-                                    alignItems: 'center'
-                                }}
-                            >
-                                <Text style={{ color: '#64748B', fontWeight: 'bold', fontSize: 13 }}>
-                                    {showArchivedOffers ? 'OCULTAR OFERTAS ANTERIORES' : 'VER OFERTAS ANTERIORES'}
-                                </Text>
-                            </TouchableOpacity>
                         </ScrollView>
                     </View>
                 )}
@@ -4683,6 +4694,26 @@ function MainApp() {
                     />
                 )}
 
+                {/* PERFIL PRO PÚBLICO */}
+                {view === 'professional-profile-public' && selectedUser && (
+                    <ProfessionalProfileScreen
+                        user={selectedUser}
+                        isOwner={false}
+                        categories={categories}
+                        allSubcategories={
+                            categories.reduce((acc, cat) => ({ ...acc, [cat.name]: cat.subcategories }), {})
+                        }
+                        onBack={() => {
+                            // Si venimos de home (buscador) o request
+                            if (selectedRequest && userMode === 'client') {
+                                setView('request-detail-client');
+                            } else {
+                                setView('home');
+                            }
+                        }}
+                    />
+                )}
+
                 {/* CHAT LIST */}
                 {view === 'chat-list' && (
                     <ChatListScreen
@@ -4726,19 +4757,31 @@ function MainApp() {
                             onSwitchMode={setUserMode}
                         />
                     ) : (
-                        <ProfessionalProfileScreen
-                            user={currentUser}
-                            isOwner={true}
-                            categories={categories}
-                            allSubcategories={
-                                categories.reduce((acc, cat) => ({ ...acc, [cat.name]: cat.subcategories }), {})
-                            }
-                            allZones={LOCATIONS_DATA}
-                            onBack={() => setView('home')}
-                            onLogout={handleLogout}
-                            onUpdate={handleUpdateProfile}
-                            onSwitchMode={setUserMode}
-                        />
+                        <View style={{ flex: 1 }}>
+                            {/* Auto-refresh user data on mount */}
+                            <ProfessionalProfileRefresher
+                                user={currentUser}
+                                refreshUser={() => {
+                                    api.getMe().then(usr => {
+                                        updateUser(usr);
+                                    });
+                                }}
+                            >
+                                <ProfessionalProfileScreen
+                                    user={currentUser}
+                                    isOwner={true}
+                                    categories={categories}
+                                    allSubcategories={
+                                        categories.reduce((acc, cat) => ({ ...acc, [cat.name]: cat.subcategories }), {})
+                                    }
+                                    allZones={LOCATIONS_DATA}
+                                    onBack={() => setView('home')}
+                                    onLogout={handleLogout}
+                                    onUpdate={handleUpdateProfile}
+                                    onSwitchMode={setUserMode}
+                                />
+                            </ProfessionalProfileRefresher>
+                        </View>
                     )
                 )}
             </View>
@@ -4876,12 +4919,24 @@ const styles = StyleSheet.create({
     inputGroup: { marginBottom: 10 },
     inputWrapper: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 10, paddingHorizontal: 10, backgroundColor: '#F3F4F6', paddingVertical: 0 },
     mediaButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 10, backgroundColor: '#F3F4F6', borderRadius: 10, borderWidth: 1, borderColor: '#E5E7EB' },
-    searchButton: { backgroundColor: '#EA580C', flexDirection: 'row', justifyContent: 'center', padding: 14, borderRadius: 12, alignItems: 'center', shadowColor: '#EA580C', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 5, elevation: 5 },
+    searchButton: {
+        backgroundColor: '#EA580C', flexDirection: 'row', justifyContent: 'center', padding: 14, borderRadius: 12, alignItems: 'center',
+        ...Platform.select({
+            web: { boxShadow: '0px 4px 6px rgba(234, 88, 12, 0.3)' },
+            default: { shadowColor: '#EA580C', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 5, elevation: 5 }
+        })
+    },
     searchButtonText: { color: 'white', fontWeight: 'bold', fontSize: 16, marginRight: 5 },
 
     sectionTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 15, color: '#111827', marginTop: 10 },
     categoriesGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, justifyContent: 'space-between', paddingBottom: 20 },
-    catCard: { width: '22%', aspectRatio: 0.9, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: 'white', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 3, elevation: 2 },
+    catCard: {
+        width: '22%', aspectRatio: 0.9, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: 'white',
+        ...Platform.select({
+            web: { boxShadow: '0px 2px 3px rgba(0,0,0,0.05)' },
+            default: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 3, elevation: 2 }
+        })
+    },
     catText: { fontSize: 11, fontWeight: '600', marginTop: 8, color: '#374151', textAlign: 'center' },
 
     reqCard: { backgroundColor: 'white', padding: 15, borderRadius: 10, marginBottom: 10, borderLeftWidth: 4, borderLeftColor: '#EA580C', elevation: 2 },
@@ -4898,7 +4953,10 @@ const styles = StyleSheet.create({
         flexDirection: 'row', justifyContent: 'space-around', paddingTop: 10, backgroundColor: 'white', borderTopWidth: 1, borderColor: '#eee',
         paddingBottom: Platform.OS === 'android' ? 50 : 20,
         minHeight: Platform.OS === 'android' ? 90 : 70,
-        elevation: 20
+        ...Platform.select({
+            web: { boxShadow: '0px -2px 10px rgba(0,0,0,0.1)' },
+            default: { elevation: 20 }
+        })
     },
     navItem: { alignItems: 'center', padding: 5 },
 
@@ -4915,14 +4973,26 @@ const styles = StyleSheet.create({
     videoButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 12, borderTopWidth: 1, borderTopColor: '#F3F4F6', backgroundColor: '#F9FAFB' },
     videoButtonText: { color: '#2563EB', fontSize: 12, fontWeight: 'bold' },
 
-    testimonialCard: { backgroundColor: 'white', padding: 16, borderRadius: 16, marginRight: 16, width: 260, elevation: 2, marginBottom: 20 },
+    testimonialCard: {
+        backgroundColor: 'white', padding: 16, borderRadius: 16, marginRight: 16, width: 260, marginBottom: 20,
+        ...Platform.select({
+            web: { boxShadow: '0px 2px 4px rgba(0,0,0,0.1)' },
+            default: { elevation: 2 }
+        })
+    },
     testimonialText: { fontSize: 13, color: '#4B5563', fontStyle: 'italic', marginBottom: 8, lineHeight: 18 },
     testimonialUser: { fontSize: 12, fontWeight: 'bold', color: '#1F2937' },
 
     blogCard: { flexDirection: 'row', backgroundColor: 'white', borderRadius: 16, overflow: 'hidden', marginBottom: 12, borderWidth: 1, borderColor: '#E5E7EB', height: 90 },
 
     // ESTILOS FORMULARIO SEPARADO
-    serviceFormCard: { backgroundColor: 'white', borderRadius: 16, overflow: 'hidden', marginBottom: 15, elevation: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, borderWidth: 1, borderColor: '#E5E7EB' },
+    serviceFormCard: {
+        backgroundColor: 'white', borderRadius: 16, overflow: 'hidden', marginBottom: 15, borderWidth: 1, borderColor: '#E5E7EB',
+        ...Platform.select({
+            web: { boxShadow: '0px 2px 4px rgba(0,0,0,0.1)' },
+            default: { elevation: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4 }
+        })
+    },
     serviceFormHeader: { backgroundColor: 'white', padding: 15, paddingBottom: 5 },
     serviceFormTitle: { fontSize: 20, fontWeight: 'bold', color: '#111827' },
     serviceFormSubtitle: { color: '#6B7280', fontSize: 12, marginTop: 4, lineHeight: 16 },
@@ -4995,5 +5065,31 @@ const styles = StyleSheet.create({
     },
     modalOptionSelected: { backgroundColor: '#FFF7ED', paddingHorizontal: 10, borderRadius: 8, borderBottomWidth: 0 },
     modalOptionText: { fontSize: 15, color: '#475569' },
-    modalOptionTextSelected: { color: '#EA580C', fontWeight: 'bold' }
+    modalOptionTextSelected: { color: '#EA580C', fontWeight: 'bold' },
+
+    // Category Grid Modal Styles
+    categoryGridModalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
+    categoryGridModalContent: { backgroundColor: 'white', borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 25, maxHeight: '90%' },
+    categoryGridHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
+    categoryGridTitle: { fontSize: 22, fontWeight: 'bold', color: '#111827' },
+    categoryGridSubtitle: { fontSize: 13, color: '#6B7280', marginTop: 2 },
+    categoryGridCloseButton: { backgroundColor: '#F3F4F6', padding: 8, borderRadius: 20 },
+    categoryGridScroll: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', paddingBottom: 30 },
+    categoryGridItem: {
+        width: '31%',
+        aspectRatio: 1,
+        backgroundColor: 'white',
+        borderRadius: 20,
+        marginBottom: 15,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 1,
+        borderColor: '#E5E7EB',
+        ...Platform.select({
+            web: { boxShadow: '0px 2px 4px rgba(0,0,0,0.1)' },
+            default: { shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 3, elevation: 2 }
+        })
+    },
+    categoryGridIconWrapper: { padding: 12, borderRadius: 50, marginBottom: 8 },
+    categoryGridLabel: { fontSize: 12, fontWeight: 'bold', color: '#374151', textAlign: 'center' }
 });

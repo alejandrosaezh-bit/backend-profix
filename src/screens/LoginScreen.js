@@ -2,6 +2,8 @@ import { Feather } from '@expo/vector-icons';
 import { useContext, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Keyboard, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
 import { AuthContext } from '../context/AuthContext';
+import { api } from '../utils/api';
+import { OTA_VERSION } from '../utils/version';
 
 export default function LoginScreen({ navigation }) {
   const { login, register, isLoading } = useContext(AuthContext);
@@ -25,6 +27,17 @@ export default function LoginScreen({ navigation }) {
   const [phone, setPhone] = useState('');
   const [cedula, setCedula] = useState('');
   const [errorMessage, setErrorMessage] = useState(''); // Estado para mensajes de error en UI
+  const [diagStatus, setDiagStatus] = useState(''); // Estado para diagnóstico
+
+  const runDiagnostics = async () => {
+    setDiagStatus('Ejecutando pruebas exhaustivas...');
+    try {
+      const res = await api.checkConnection();
+      setDiagStatus(`${res.ok ? '✅ ÉXITO' : '❌ ERROR'}\nLogs: ${res.logs}`);
+    } catch (e) {
+      setDiagStatus(`❌ Error Critico: ${e.message}`);
+    }
+  };
 
   const handleSubmit = async () => {
     setErrorMessage(''); // Limpiar errores previos
@@ -57,67 +70,69 @@ export default function LoginScreen({ navigation }) {
       console.error("handleSubmit error:", error);
       // Mostrar error en la UI en lugar de usar Alert que puede cerrarse
       setErrorMessage(error.message || 'Error de autenticación');
+      // Doble confirmación visual
+      Alert.alert("Error de Registro", error.message || 'Error desconocido');
     }
   };
 
   const content = (
-        <ScrollView 
-          contentContainerStyle={[
-            styles.scrollContainer,
-            { paddingBottom: keyboardVisible ? 250 : 100 } // Aumentar padding cuando el teclado está visible
-          ]} 
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        >
-          {(!keyboardVisible || Platform.OS === 'web') && (
-            <View style={[styles.header, keyboardVisible && { marginBottom: 10 }]}>
-              <View style={[styles.logoContainer, keyboardVisible && { padding: 8, marginBottom: 4 }]}>
-                <Feather name="tool" size={keyboardVisible ? 24 : 40} color="white" />
-              </View>
-              {!keyboardVisible && <Text style={styles.title}>ProFix</Text>}
-              {!keyboardVisible && <Text style={styles.subtitle}>Soluciones rápidas y seguras</Text>}
+    <ScrollView
+      contentContainerStyle={[
+        styles.scrollContainer,
+        { paddingBottom: keyboardVisible ? 250 : 100 } // Aumentar padding cuando el teclado está visible
+      ]}
+      showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
+    >
+      {(!keyboardVisible || Platform.OS === 'web') && (
+        <View style={[styles.header, keyboardVisible && { marginBottom: 10 }]}>
+          <View style={[styles.logoContainer, keyboardVisible && { padding: 8, marginBottom: 4 }]}>
+            <Feather name="tool" size={keyboardVisible ? 24 : 40} color="white" />
+          </View>
+          {!keyboardVisible && <Text style={styles.title}>ProFix</Text>}
+          {!keyboardVisible && <Text style={styles.subtitle}>Soluciones rápidas y seguras</Text>}
+        </View>
+      )}
+
+      <View style={styles.formCard}>
+        <Text style={styles.formTitle}>{isRegistering ? 'Crear Cuenta' : 'Iniciar Sesión'}</Text>
+
+        {isRegistering && (
+          <>
+            <View style={styles.inputGroup}>
+              <Feather name="user" size={20} color="#000000" style={styles.inputIcon} />
+              <TextInput
+                placeholder="Nombre completo"
+                placeholderTextColor="#374151"
+                style={styles.input}
+                value={name}
+                onChangeText={setName}
+              />
             </View>
-          )}
-
-          <View style={styles.formCard}>
-            <Text style={styles.formTitle}>{isRegistering ? 'Crear Cuenta' : 'Iniciar Sesión'}</Text>
-
-            {isRegistering && (
-              <>
-                <View style={styles.inputGroup}>
-                  <Feather name="user" size={20} color="#000000" style={styles.inputIcon} />
-                  <TextInput
-                    placeholder="Nombre completo"
-                    placeholderTextColor="#374151"
-                    style={styles.input}
-                    value={name}
-                    onChangeText={setName}
-                  />
-                </View>
-                <View style={styles.inputGroup}>
-                  <Feather name="credit-card" size={20} color="#000000" style={styles.inputIcon} />
-                  <TextInput
-                    placeholder="Cédula de Identidad"
-                    placeholderTextColor="#374151"
-                    style={styles.input}
-                    value={cedula}
-                    onChangeText={setCedula}
-                    keyboardType="numeric"
-                  />
-                </View>
-                <View style={styles.inputGroup}>
-                  <Feather name="phone" size={20} color="#000000" style={styles.inputIcon} />
-                  <TextInput
-                    placeholder="Teléfono (Opcional)"
-                    placeholderTextColor="#374151"
-                    style={styles.input}
-                    value={phone}
-                    onChangeText={setPhone}
-                    keyboardType="phone-pad"
-                  />
-                </View>
-              </>
-            )}
+            <View style={styles.inputGroup}>
+              <Feather name="credit-card" size={20} color="#000000" style={styles.inputIcon} />
+              <TextInput
+                placeholder="Cédula de Identidad"
+                placeholderTextColor="#374151"
+                style={styles.input}
+                value={cedula}
+                onChangeText={setCedula}
+                keyboardType="numeric"
+              />
+            </View>
+            <View style={styles.inputGroup}>
+              <Feather name="phone" size={20} color="#000000" style={styles.inputIcon} />
+              <TextInput
+                placeholder="Teléfono (Opcional)"
+                placeholderTextColor="#374151"
+                style={styles.input}
+                value={phone}
+                onChangeText={setPhone}
+                keyboardType="phone-pad"
+              />
+            </View>
+          </>
+        )}
 
         <View style={styles.inputGroup}>
           <Feather name="mail" size={20} color="#000000" style={styles.inputIcon} />
@@ -153,33 +168,54 @@ export default function LoginScreen({ navigation }) {
           </View>
         ) : null}
 
-            <TouchableOpacity
-              style={styles.authButton}
-              onPress={handleSubmit}
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <ActivityIndicator color="white" />
-              ) : (
-                <Text style={styles.authButtonText}>
-                  {isRegistering ? 'Registrarse' : 'Entrar'}
-                </Text>
-              )}
-            </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.authButton}
+          onPress={handleSubmit}
+          disabled={isLoading}
+        >
+          {isLoading ? (
+            <ActivityIndicator color="white" />
+          ) : (
+            <Text style={styles.authButtonText}>
+              {isRegistering ? 'Registrarse' : 'Entrar'}
+            </Text>
+          )}
+        </TouchableOpacity>
 
-            <TouchableOpacity onPress={() => setIsRegistering(!isRegistering)} style={{ marginTop: 15 }}>
-              <Text style={styles.switchText}>
-                {isRegistering ? '¿Ya tienes cuenta? Inicia sesión' : '¿No tienes cuenta? Regístrate'}
-              </Text>
-            </TouchableOpacity>
+        <TouchableOpacity onPress={() => setIsRegistering(!isRegistering)} style={{ marginTop: 15 }}>
+          <Text style={styles.switchText}>
+            {isRegistering ? '¿Ya tienes cuenta? Inicia sesión' : '¿No tienes cuenta? Regístrate'}
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Zona de Diagnóstico e Información de Versión */}
+      <View style={{ marginTop: 30, alignItems: 'center', opacity: 0.8 }}>
+        <Text style={{ color: 'white', fontWeight: 'bold' }}>Versión: {OTA_VERSION}</Text>
+
+        <TouchableOpacity
+          onPress={runDiagnostics}
+          style={{ marginTop: 10, backgroundColor: 'rgba(0,0,0,0.2)', padding: 8, borderRadius: 8 }}
+        >
+          <Text style={{ color: 'white', fontSize: 12 }}>Diagnosticar Conexión</Text>
+        </TouchableOpacity>
+
+        {diagStatus ? (
+          <View style={{ marginTop: 10, backgroundColor: '#333', padding: 10, borderRadius: 5, width: '100%' }}>
+            <Text style={{ color: '#00FF00', fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace', fontSize: 10 }}>
+              {diagStatus}
+            </Text>
           </View>
-          {/* Espaciador para asegurar que el teclado no tape el último input */}
-          <View style={{ height: 100 }} />
-        </ScrollView>
+        ) : null}
+      </View>
+
+      {/* Espaciador para asegurar que el teclado no tape el último input */}
+      <View style={{ height: 100 }} />
+    </ScrollView>
   );
 
   return (
-    <KeyboardAvoidingView 
+    <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : (Platform.OS === 'web' ? undefined : 'height')}
       style={styles.container}
     >
@@ -202,34 +238,39 @@ const styles = StyleSheet.create({
   title: { fontSize: 28, fontWeight: 'bold', color: 'white' },
   subtitle: { fontSize: 14, color: 'rgba(255,255,255,0.9)' },
 
-  formCard: { 
-    backgroundColor: 'white', 
-    borderRadius: 20, 
-    padding: 20, 
+  formCard: {
+    backgroundColor: 'white',
+    borderRadius: 20,
+    padding: 20,
+    ...Platform.select({
+      web: { boxShadow: '0px 4px 5px rgba(0,0,0,0.3)' },
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 5,
+      }
+    }),
     elevation: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
     borderWidth: 1,
     borderColor: '#E5E7EB'
   },
   formTitle: { fontSize: 24, fontWeight: 'bold', color: '#000000', marginBottom: 20, textAlign: 'center' },
 
-  inputGroup: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    backgroundColor: '#FFFFFF', 
-    borderRadius: 12, 
-    marginBottom: 16, 
-    paddingHorizontal: 15, 
-    borderWidth: 2, 
+  inputGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    marginBottom: 16,
+    paddingHorizontal: 15,
+    borderWidth: 2,
     borderColor: '#000000' // Borde negro sólido para máximo contraste
   },
   inputIcon: { marginRight: 10 },
-  input: { 
-    flex: 1, 
-    paddingVertical: 14, 
+  input: {
+    flex: 1,
+    paddingVertical: 14,
     fontSize: 18, // Texto más grande para mejor lectura
     color: '#000000', // Negro puro
     fontWeight: '500'

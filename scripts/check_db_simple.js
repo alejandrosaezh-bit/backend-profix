@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-const uri = "mongodb+srv://dbconexta:n%254iQmDhLV%21R%25pW@conecta.jmuojga.mongodb.net/profix?appName=Conecta";
+const uri = "mongodb+srv://dbconexta:Clave2025profix@conecta.jmuojga.mongodb.net/profix?appName=Conecta";
 
 const categorySchema = new mongoose.Schema({
   name: String,

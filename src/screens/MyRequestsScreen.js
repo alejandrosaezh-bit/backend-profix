@@ -1,6 +1,7 @@
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, Modal, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { FlatList, Modal, Platform, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import BriefcaseLoader from '../components/BriefcaseLoader';
 import { api } from '../utils/api';
 
 export default function MyRequestsScreen({ navigation, allRequests: propsAllRequests, onRefresh: propsOnRefresh }) {
@@ -9,9 +10,8 @@ export default function MyRequestsScreen({ navigation, allRequests: propsAllRequ
   const [refreshing, setRefreshing] = useState(false);
   const [errorMsg, setErrorMsg] = useState(null);
   const [filterCategory, setFilterCategory] = useState('Todas');
-  const [filterStatus, setFilterStatus] = useState('Todas');
+  const [showArchived, setShowArchived] = useState(false);
   const [categoryModalVisible, setCategoryModalVisible] = useState(false);
-  const [statusModalVisible, setStatusModalVisible] = useState(false);
 
   // Sync with props if provided
   useEffect(() => {
@@ -114,13 +114,21 @@ export default function MyRequestsScreen({ navigation, allRequests: propsAllRequ
   };
 
   const categories = ['Todas', ...new Set(requests.map(r => r.category?.name || 'General'))].sort();
-  const statuses = ['Todas', 'NUEVA', 'CONTACTADA', 'PRESUPUESTADA', 'ACEPTADO', 'EN EJECUCIÓN', 'VALIDANDO', 'VALORACIÓN', 'TERMINADO'];
 
   const filteredRequests = requests.filter(req => {
     const catMatch = filterCategory === 'Todas' || (req.category?.name || 'General') === filterCategory;
     const label = getClientStatus(req);
-    const statusMatch = filterStatus === 'Todas' || label === filterStatus;
-    return catMatch && statusMatch;
+    const isArchived = label === 'TERMINADO' || label === 'ELIMINADA' || label === 'Cerrada';
+
+    // DEBUG LOG
+    // console.log(`[MyRequests] ID: ${req._id} | StatusLabel: ${label} | IsArchived: ${isArchived} | ShowArchivedMode: ${showArchived}`);
+
+    if (showArchived) {
+      if (!isArchived) return false;
+    } else {
+      if (isArchived) return false;
+    }
+    return catMatch;
   });
 
   const getStatusColors = (status) => {
@@ -135,13 +143,7 @@ export default function MyRequestsScreen({ navigation, allRequests: propsAllRequ
       case 'RECHAZADA': return { bg: '#FEF2F2', text: '#EF4444' }; // Red
       case 'ACEPTADO': return { bg: '#F0FDF4', text: '#16A34A' }; // Green
 
-      // NEW STATUSES
       case 'ELIMINADA': return { bg: '#FEF2F2', text: '#EF4444' }; // Red
-      case 'ACEPTADO': return { bg: '#ECFDF5', text: '#059669' }; // Green (Same as En Ejecución/Ganada)
-      case 'VALIDANDO': return { bg: '#FFF7ED', text: '#C2410C' }; // Orange (Action Req)
-      case 'VALORACIÓN': return { bg: '#EEF2FF', text: '#4F46E5' }; // Indigo (Review)
-      case 'TERMINADO': return { bg: '#1F2937', text: '#F9FAFB' }; // Black (Done)
-
       case 'Cerrada': return { bg: '#FEF2F2', text: '#EF4444' };
       default: return { bg: '#F3F4F6', text: '#6B7280' };
     }
@@ -224,10 +226,19 @@ export default function MyRequestsScreen({ navigation, allRequests: propsAllRequ
       <View style={styles.headerContainer}>
         <View style={styles.headerTop}>
           <Text style={styles.headerTitle}>Mis Solicitudes</Text>
-
+          <TouchableOpacity
+            onPress={() => setShowArchived(!showArchived)}
+            style={{
+              width: 40, height: 40, borderRadius: 20,
+              backgroundColor: showArchived ? 'white' : 'rgba(255,255,255,0.2)',
+              justifyContent: 'center', alignItems: 'center'
+            }}
+          >
+            <Feather name="archive" size={20} color={showArchived ? '#EA580C' : 'white'} />
+          </TouchableOpacity>
         </View>
 
-        {/* FILTERS - DROPDOWNS */}
+        {/* FILTERS - CATEGORY ONLY */}
         <View style={{ flexDirection: 'row', paddingHorizontal: 20, gap: 10 }}>
           {/* Category Dropdown */}
           <View style={{ flex: 1 }}>
@@ -237,18 +248,6 @@ export default function MyRequestsScreen({ navigation, allRequests: propsAllRequ
               style={styles.dropdownButton}
             >
               <Text style={styles.dropdownButtonText} numberOfLines={1}>{filterCategory}</Text>
-              <Feather name="chevron-down" size={16} color="white" />
-            </TouchableOpacity>
-          </View>
-
-          {/* Status Dropdown */}
-          <View style={{ flex: 1 }}>
-            <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12, marginBottom: 4, fontWeight: 'bold' }}>Estado</Text>
-            <TouchableOpacity
-              onPress={() => setStatusModalVisible(true)}
-              style={styles.dropdownButton}
-            >
-              <Text style={styles.dropdownButtonText} numberOfLines={1}>{filterStatus}</Text>
               <Feather name="chevron-down" size={16} color="white" />
             </TouchableOpacity>
           </View>
@@ -282,39 +281,12 @@ export default function MyRequestsScreen({ navigation, allRequests: propsAllRequ
             </View>
           </TouchableOpacity>
         </Modal>
-
-        <Modal
-          visible={statusModalVisible}
-          transparent={true}
-          animationType="fade"
-          onRequestClose={() => setStatusModalVisible(false)}
-        >
-          <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setStatusModalVisible(false)}>
-            <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>Filtrar por Estado</Text>
-              <ScrollView style={{ maxHeight: 300 }}>
-                {statuses.map((stat, index) => (
-                  <TouchableOpacity
-                    key={index}
-                    style={[styles.modalOption, filterStatus === stat && styles.modalOptionSelected]}
-                    onPress={() => {
-                      setFilterStatus(stat);
-                      setStatusModalVisible(false);
-                    }}
-                  >
-                    <Text style={[styles.modalOptionText, filterStatus === stat && styles.modalOptionTextSelected]}>{stat}</Text>
-                    {filterStatus === stat && <Feather name="check" size={16} color="#EA580C" />}
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
-          </TouchableOpacity>
-        </Modal>
       </View>
 
       {loading && !refreshing ? (
         <View style={styles.centerLoading}>
-          <ActivityIndicator size="large" color="#EA580C" />
+          <BriefcaseLoader />
+          <Text style={{ marginTop: 20, color: '#64748B', fontSize: 14, fontWeight: '500' }}>Cargando solicitudes...</Text>
         </View>
       ) : (
         <FlatList
@@ -324,14 +296,51 @@ export default function MyRequestsScreen({ navigation, allRequests: propsAllRequ
           contentContainerStyle={styles.listContent}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#EA580C']} />}
           ListEmptyComponent={
-            <View style={styles.emptyState}>
-              <Feather name="clipboard" size={50} color="#CBD5E1" />
-              <Text style={styles.emptyText}>No tienes solicitudes registradas.</Text>
+            <View style={styles.emptyContainer}>
+              {showArchived ? (
+                <>
+                  <MaterialCommunityIcons name="archive-off-outline" size={60} color="#CBD5E1" style={{ marginBottom: 15 }} />
+                  <Text style={styles.emptyTitle}>No tienes solicitudes archivadas</Text>
+                  <Text style={styles.emptyDescription}>
+                    Aquí encontrarás el historial de tus trabajos que han sido finalizados o cancelados.
+                  </Text>
+                  <TouchableOpacity
+                    style={[styles.createButton, { backgroundColor: 'white', borderColor: '#EA580C', borderWidth: 1, elevation: 0 }]}
+                    onPress={() => setShowArchived(false)}
+                  >
+                    <Text style={[styles.createButtonText, { color: '#EA580C' }]}>Volver a Activos</Text>
+                  </TouchableOpacity>
+                </>
+              ) : (
+                <>
+                  <Text style={styles.emptyTitle}>¡Comienza con tu primera solicitud!</Text>
+                  <Text style={styles.emptyDescription}>
+                    ProFix te conecta con los mejores profesionales. Describe lo que necesitas (ej. "Reparar fuga de agua") y recibe presupuestos al instante.
+                  </Text>
+
+                  <TouchableOpacity
+                    style={styles.createButton}
+                    onPress={() => navigation.navigate('Home')}
+                  >
+                    <Text style={styles.createButtonText}>Crear Solicitud Ahora</Text>
+                  </TouchableOpacity>
+
+                  <View style={styles.noteContainer}>
+                    <Text style={styles.noteText}>
+                      💡 Nota: Una vez que un trabajo finaliza, se moverá automáticamente a tu{' '}
+                      <Text style={styles.linkText} onPress={() => setShowArchived(true)}>
+                        Historial (Archivados)
+                      </Text>.
+                    </Text>
+                  </View>
+                </>
+              )}
             </View>
           }
         />
-      )}
-    </View>
+      )
+      }
+    </View >
   );
 }
 
@@ -345,11 +354,16 @@ const styles = StyleSheet.create({
     paddingBottom: 15,
     borderBottomLeftRadius: 30,
     borderBottomRightRadius: 30,
+    ...Platform.select({
+      web: { boxShadow: '0px 10px 15px rgba(234, 88, 12, 0.2)' },
+      default: {
+        shadowColor: '#EA580C',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.2,
+        shadowRadius: 15,
+      }
+    }),
     elevation: 10,
-    shadowColor: '#EA580C',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.2,
-    shadowRadius: 15,
   },
   headerTop: {
     flexDirection: 'row',
@@ -401,11 +415,16 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     padding: 16,
     marginBottom: 16,
+    ...Platform.select({
+      web: { boxShadow: '0px 4px 10px rgba(0,0,0,0.05)' },
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.05,
+        shadowRadius: 10,
+      }
+    }),
     elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
     borderWidth: 1,
     borderColor: '#F1F5F9'
   },
@@ -508,5 +527,33 @@ const styles = StyleSheet.create({
   },
   modalOptionSelected: { backgroundColor: '#FFF7ED', paddingHorizontal: 10, borderRadius: 8, borderBottomWidth: 0 },
   modalOptionText: { fontSize: 15, color: '#475569' },
-  modalOptionTextSelected: { color: '#EA580C', fontWeight: 'bold' }
+  modalOptionTextSelected: { color: '#EA580C', fontWeight: 'bold' },
+
+  // New Empty State Styles
+  emptyContainer: { alignItems: 'center', marginTop: 40, paddingHorizontal: 30 },
+  emptyTitle: { fontSize: 20, fontWeight: 'bold', color: '#1E293B', textAlign: 'center', marginBottom: 12 },
+  emptyDescription: { fontSize: 14, color: '#64748B', textAlign: 'center', marginBottom: 25, lineHeight: 22 },
+  createButton: {
+    backgroundColor: '#EA580C',
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+    borderRadius: 30,
+    elevation: 3,
+    shadowColor: '#EA580C',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    marginBottom: 40
+  },
+  createButtonText: { color: 'white', fontWeight: 'bold', fontSize: 16 },
+  noteContainer: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 16,
+    width: '100%',
+  },
+  noteText: { fontSize: 13, color: '#64748B', lineHeight: 20, textAlign: 'center' },
+  linkText: { color: '#EA580C', fontWeight: 'bold', textDecorationLine: 'underline' }
 });

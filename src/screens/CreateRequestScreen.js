@@ -113,7 +113,14 @@ export default function CreateRequestScreen({ navigation }) {
       console.error(err);
       // EXTRA DEBUG
       console.log('Error creando solicitud:', JSON.stringify(err, null, 2));
-      Alert.alert('Error Detallado', err.message || JSON.stringify(err) || 'No se pudo crear la solicitud (Error desconocido).');
+      const errorMsg = err.message || JSON.stringify(err) || 'Error desconocido';
+      
+      let friendlyError = errorMsg;
+      if (errorMsg.includes('Network request failed')) {
+          friendlyError = 'Error de conexión: El servidor tardó en responder. Es posible que la imagen sea muy pesada o el internet lento. Intente de nuevo sin imágenes o con la conexión WiFi.';
+      }
+      
+      Alert.alert('Error', friendlyError);
     } finally {
       setLoading(false);
     }

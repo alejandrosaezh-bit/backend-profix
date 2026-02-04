@@ -1,1 +1,1 @@
-export const OTA_VERSION = 'V19';
+export const OTA_VERSION = 'V29';
