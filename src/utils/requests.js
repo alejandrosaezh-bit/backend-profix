@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const REQUESTS_KEY = 'profix_requests_v1';
+const REQUESTS_KEY = 'profesional_cercano_requests_v1';
 
 export async function getRequests() {
   try {
@@ -41,7 +41,25 @@ export async function clearRequests() {
 export async function setRequests(list) {
   try {
     const payload = list || [];
-    await AsyncStorage.setItem(REQUESTS_KEY, JSON.stringify(payload));
+    const stringified = JSON.stringify(payload);
+
+    try {
+      await AsyncStorage.setItem(REQUESTS_KEY, stringified);
+    } catch (quotaErr) {
+      if (quotaErr.name === 'QuotaExceededError' || quotaErr.message.includes('quota')) {
+        console.warn('[requests] Quota exceeded. Clearing old requests to make space.');
+        // Try clearing and saving only the most recent ones
+        if (Array.isArray(payload) && payload.length > 5) {
+          const reduced = payload.slice(0, 5);
+          await AsyncStorage.setItem(REQUESTS_KEY, JSON.stringify(reduced));
+        } else {
+          await AsyncStorage.removeItem(REQUESTS_KEY);
+        }
+      } else {
+        throw quotaErr;
+      }
+    }
+
     // verify
     const raw = await AsyncStorage.getItem(REQUESTS_KEY);
     try {

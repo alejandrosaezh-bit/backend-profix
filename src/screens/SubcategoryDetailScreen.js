@@ -1,6 +1,6 @@
 import { Feather, FontAwesome5 } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
-import { Image, Linking, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image, Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { api } from '../utils/api';
 
 export default function SubcategoryDetailScreen({ category, subcategory, onBack, onRequestQuote }) {
@@ -118,69 +118,83 @@ export default function SubcategoryDetailScreen({ category, subcategory, onBack,
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#F9FAFB' },
+    container: { flex: 1, backgroundColor: '#F8F9FA' },
     header: {
-        flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, paddingTop: 20, borderBottomLeftRadius: 24, borderBottomRightRadius: 24,
-        ...Platform.select({
-            web: { boxShadow: '0px 4px 6px rgba(0,0,0,0.1)' },
-            default: { elevation: 4 }
-        })
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: 16,
+        paddingTop: 24,
+        paddingBottom: 24,
+        borderBottomLeftRadius: 32,
+        borderBottomRightRadius: 32,
+        elevation: 0,
+        borderWidth: 0
     },
-    headerTitle: { fontSize: 18, fontWeight: 'bold', color: 'white' },
-    headerSubtitle: { fontSize: 12, color: 'rgba(255,255,255,0.8)' },
-    content: { padding: 16 },
+    headerTitle: { fontSize: 22, fontWeight: 'bold', color: 'white' },
+    headerSubtitle: { fontSize: 13, color: 'rgba(255,255,255,0.9)', marginTop: 2 },
+    backButton: { width: 48, height: 48, borderRadius: 24, justifyContent: 'center', alignItems: 'center' },
+    content: { padding: 20 },
 
     ctaCard: {
-        backgroundColor: 'white', padding: 20, borderRadius: 16, marginBottom: 24, alignItems: 'center',
-        ...Platform.select({
-            web: { boxShadow: '0px 2px 4px rgba(0,0,0,0.1)' },
-            default: { elevation: 2 }
-        })
+        backgroundColor: 'white',
+        padding: 24,
+        borderRadius: 24,
+        marginBottom: 24,
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: '#E5E7EB'
     },
-    ctaTitle: { fontSize: 20, fontWeight: 'bold', color: '#1F2937', marginBottom: 8, textAlign: 'center' },
-    ctaText: { fontSize: 14, color: '#6B7280', textAlign: 'center', marginBottom: 16 },
-    ctaButton: { backgroundColor: '#EA580C', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 24 },
-    ctaButtonText: { color: 'white', fontWeight: 'bold', fontSize: 16 },
+    ctaTitle: { fontSize: 22, fontWeight: 'bold', color: '#111827', marginBottom: 12, textAlign: 'center' },
+    ctaText: { fontSize: 16, color: '#4B5563', textAlign: 'center', marginBottom: 20, lineHeight: 22 },
+    ctaButton: {
+        backgroundColor: '#EA580C',
+        paddingHorizontal: 24,
+        paddingVertical: 14,
+        borderRadius: 16,
+        minHeight: 48,
+        justifyContent: 'center'
+    },
+    ctaButtonText: { color: 'white', fontWeight: 'bold', fontSize: 18 },
 
     // AD STYLES V2
     adCard: {
         backgroundColor: 'white',
-        borderRadius: 12,
+        borderRadius: 20,
         marginBottom: 16,
         flexDirection: 'row',
         overflow: 'hidden',
-        minHeight: 120,
-        ...Platform.select({
-            web: { boxShadow: '0px 2px 8px rgba(0,0,0,0.1)' },
-            default: { elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4 }
-        })
+        minHeight: 140,
+        borderWidth: 1,
+        borderColor: '#E5E7EB'
     },
     adImage: {
-        width: 120,
+        width: 130,
         height: '100%',
     },
     adContent: {
         flex: 1,
-        padding: 12,
+        padding: 16,
         justifyContent: 'center'
     },
-    adTitle: { fontSize: 16, fontWeight: 'bold', color: '#1F2937', marginBottom: 4, flex: 1 },
-    adBadgeContainer: { backgroundColor: '#F3F4F6', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, marginLeft: 5 },
-    adBadgeText: { fontSize: 9, fontWeight: 'bold', color: '#6B7280' },
+    adTitle: { fontSize: 18, fontWeight: 'bold', color: '#111827', marginBottom: 6, flex: 1 },
+    adBadgeContainer: { backgroundColor: '#F3F4F6', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, marginLeft: 8 },
+    adBadgeText: { fontSize: 11, fontWeight: 'bold', color: '#6B7280' },
 
-    row: { flexDirection: 'row', alignItems: 'center', marginBottom: 3 },
-    adInfo: { fontSize: 12, color: '#4B5563', marginLeft: 6 },
+    row: { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
+    adInfo: { fontSize: 14, color: '#4B5563', marginLeft: 8 },
 
     whatsappButton: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
         backgroundColor: '#25D366',
-        paddingVertical: 8,
-        paddingHorizontal: 12,
-        borderRadius: 8,
-        marginTop: 8,
-        alignSelf: 'flex-start'
+        paddingVertical: 10,
+        paddingHorizontal: 16,
+        borderRadius: 12,
+        marginTop: 10,
+        alignSelf: 'flex-start',
+        minHeight: 48
     },
-    whatsappText: { color: 'white', fontWeight: 'bold', fontSize: 12, marginLeft: 6 }
+    whatsappText: { color: 'white', fontWeight: 'bold', fontSize: 14, marginLeft: 8 }
 });

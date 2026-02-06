@@ -1,10 +1,56 @@
-import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Feather, FontAwesome5, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useCallback, useEffect, useState } from 'react';
-import { FlatList, Modal, Platform, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { FlatList, Modal, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import BriefcaseLoader from '../components/BriefcaseLoader';
 import { api } from '../utils/api';
 
-export default function MyRequestsScreen({ navigation, allRequests: propsAllRequests, onRefresh: propsOnRefresh }) {
+// Icon mapping matching Admin Panel & app.js (Expanded)
+const CAT_ICONS = {
+  'home': { lib: Feather, name: 'home' },
+  'car': { lib: FontAwesome5, name: 'car' },
+  'heart': { lib: Feather, name: 'heart' },
+  'monitor': { lib: Feather, name: 'monitor' },
+  'scissors': { lib: Feather, name: 'scissors' },
+  'calendar': { lib: Feather, name: 'calendar' },
+  'cat': { lib: FontAwesome5, name: 'cat' },
+  'briefcase': { lib: Feather, name: 'briefcase' },
+  'tool': { lib: Feather, name: 'tool' },
+  'truck': { lib: Feather, name: 'truck' },
+  'shopping-bag': { lib: Feather, name: 'shopping-bag' },
+  'book': { lib: Feather, name: 'book' },
+  'music': { lib: Feather, name: 'music' },
+  'camera': { lib: Feather, name: 'camera' },
+  'smile': { lib: Feather, name: 'smile' },
+  'map-pin': { lib: Feather, name: 'map-pin' },
+  'wifi': { lib: Feather, name: 'wifi' },
+  'gift': { lib: Feather, name: 'gift' },
+  'coffee': { lib: Feather, name: 'coffee' },
+  'smartphone': { lib: Feather, name: 'smartphone' },
+  'droplet': { lib: Feather, name: 'droplet' },
+  'zap': { lib: Feather, name: 'zap' },
+  'lock': { lib: Feather, name: 'lock' },
+  'trash-2': { lib: Feather, name: 'trash-2' },
+  'wind': { lib: Feather, name: 'wind' },
+  'hammer': { lib: MaterialCommunityIcons, name: 'hammer' },
+  'wrench': { lib: MaterialCommunityIcons, name: 'wrench' },
+  'pipe-wrench': { lib: MaterialCommunityIcons, name: 'pipe-wrench' },
+  'paint-brush': { lib: FontAwesome5, name: 'paint-brush' },
+  'broom': { lib: MaterialCommunityIcons, name: 'broom' },
+  'flower': { lib: MaterialCommunityIcons, name: 'flower' },
+  'paw': { lib: FontAwesome5, name: 'paw' },
+  'baby-carriage': { lib: FontAwesome5, name: 'baby-carriage' },
+  'tshirt': { lib: FontAwesome5, name: 'tshirt' },
+  'utensils': { lib: FontAwesome5, name: 'utensils' },
+  'air-conditioner': { lib: MaterialCommunityIcons, name: 'air-conditioner' },
+  'snowflake': { lib: MaterialCommunityIcons, name: 'snowflake' },
+  'fan': { lib: MaterialCommunityIcons, name: 'fan' },
+  'water': { lib: MaterialCommunityIcons, name: 'water' },
+  'lightbulb-on': { lib: MaterialCommunityIcons, name: 'lightbulb-on' },
+  'shredder': { lib: MaterialCommunityIcons, name: 'shredder' },
+  'phone': { lib: MaterialCommunityIcons, name: 'phone' }
+};
+
+export default function MyRequestsScreen({ navigation, allRequests: propsAllRequests, onRefresh: propsOnRefresh, categories: globalCategories = [] }) {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -85,11 +131,8 @@ export default function MyRequestsScreen({ navigation, allRequests: propsAllRequ
     // 0. ELIMINADA (Canceled)
     if (request.status === 'canceled') return 'ELIMINADA';
 
-    // 1. TERMINADO (Any rating exists)
-    if (request.status === 'rated' || request.rating > 0 || request.proRating > 0 || request.clientRating > 0) return 'TERMINADO';
-
-    // 2. VALORACIÓN (Both finished)
-    if (request.status === 'completed' || (request.proFinished && request.clientFinished)) return 'VALORACIÓN';
+    // 1. TERMINADO (Rated, Completed or Both Finished)
+    if (request.status === 'rated' || request.status === 'completed' || request.rating > 0 || request.proRating > 0 || request.clientRating > 0 || (request.proFinished && request.clientFinished)) return 'TERMINADO';
 
     // 3. VALIDANDO (Pro Finished, waiting for Client)
     if (request.proFinished && !request.clientFinished) return 'VALIDANDO';
@@ -162,8 +205,34 @@ export default function MyRequestsScreen({ navigation, allRequests: propsAllRequ
       >
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-            <View style={styles.avatarContainer}>
-              <MaterialCommunityIcons name="clipboard-text-outline" size={24} color="#EA580C" />
+            <View style={[styles.avatarContainer, {
+              backgroundColor: (item.category?.color || (typeof item.category === 'string' && globalCategories.find(c => c.name === item.category)?.color)) || '#FFF7ED',
+              borderColor: '#E2E8F0' // Simplified border
+            }]}>
+              {(() => {
+                // Determine Category name and full Category object
+                const catName = typeof item.category === 'object' ? item.category.name : item.category;
+                const fullCat = (typeof item.category === 'object' && item.category.subcategories)
+                  ? item.category
+                  : globalCategories.find(c => c.name === catName);
+
+                const subName = typeof item.subcategory === 'object' ? item.subcategory.name : item.subcategory;
+
+                // Priority 1: Subcategory specific icon
+                const subObj = fullCat?.subcategories?.find(s => (s.name || s) === subName);
+                let iconKey = (typeof subObj === 'object' && subObj.icon) ? subObj.icon : null;
+
+                // Priority 2: Fallback to Category Icon if no subcategory icon
+                if (!iconKey) iconKey = fullCat?.icon || item.category?.icon;
+
+                const IconData = CAT_ICONS[iconKey];
+
+                if (IconData) {
+                  const IconLib = IconData.lib;
+                  return <IconLib name={IconData.name} size={30} color="#EA580C" />;
+                }
+                return <MaterialCommunityIcons name="clipboard-text-outline" size={30} color="#EA580C" />;
+              })()}
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.userName} numberOfLines={1}>{item.title}</Text>
@@ -175,7 +244,7 @@ export default function MyRequestsScreen({ navigation, allRequests: propsAllRequ
                 <Feather name="tag" size={12} color="#94A3B8" />
                 <Text style={styles.cardMetaText}>
                   {item.category && item.category.name ? item.category.name : 'Sin Categoría'}
-                  {item.subcategory && item.subcategory !== 'General' ? ' • ' + item.subcategory : ''}
+                  {item.subcategory && (item.subcategory !== 'General') ? ' • ' + (typeof item.subcategory === 'object' ? item.subcategory.name : item.subcategory) : ''}
                 </Text>
               </View>
             </View>
@@ -315,7 +384,7 @@ export default function MyRequestsScreen({ navigation, allRequests: propsAllRequ
                 <>
                   <Text style={styles.emptyTitle}>¡Comienza con tu primera solicitud!</Text>
                   <Text style={styles.emptyDescription}>
-                    ProFix te conecta con los mejores profesionales. Describe lo que necesitas (ej. "Reparar fuga de agua") y recibe presupuestos al instante.
+                    Profesional Cercano te conecta con los mejores profesionales. Describe lo que necesitas (ej. "Reparar fuga de agua") y recibe presupuestos al instante.
                   </Text>
 
                   <TouchableOpacity
@@ -345,66 +414,38 @@ export default function MyRequestsScreen({ navigation, allRequests: propsAllRequ
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8FAFC' },
+  container: { flex: 1, backgroundColor: '#F8F9FA' },
 
   // Header
   headerContainer: {
     backgroundColor: '#EA580C',
-    paddingTop: 10,
-    paddingBottom: 15,
-    borderBottomLeftRadius: 30,
-    borderBottomRightRadius: 30,
-    ...Platform.select({
-      web: { boxShadow: '0px 10px 15px rgba(234, 88, 12, 0.2)' },
-      default: {
-        shadowColor: '#EA580C',
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.2,
-        shadowRadius: 15,
-      }
-    }),
-    elevation: 10,
+    paddingTop: 12,
+    paddingBottom: 24,
+    borderBottomLeftRadius: 32,
+    borderBottomRightRadius: 32,
+    borderWidth: 0,
+    elevation: 0
   },
   headerTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: 24,
     marginBottom: 20
   },
   headerTitle: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: 'bold',
     color: 'white',
   },
   refreshButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     backgroundColor: 'rgba(255,255,255,0.2)',
     justifyContent: 'center',
     alignItems: 'center'
   },
-  filterScroll: {
-    paddingLeft: 20,
-    paddingRight: 10
-  },
-  filterPill: {
-    paddingHorizontal: 18,
-    paddingVertical: 9,
-    borderRadius: 25,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    marginRight: 10,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)'
-  },
-  filterPillActive: {
-    backgroundColor: 'white',
-    elevation: 4
-  },
-  filterText: { color: 'white', fontSize: 13, fontWeight: '700' },
-  filterTextActive: { color: '#EA580C' },
-  filterDivider: { width: 1, height: 24, backgroundColor: 'rgba(255,255,255,0.3)', alignSelf: 'center', marginHorizontal: 8 },
 
   // List
   listContent: { padding: 20, paddingBottom: 100 },
@@ -413,91 +454,71 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: 'white',
     borderRadius: 24,
-    padding: 16,
+    padding: 20,
     marginBottom: 16,
-    ...Platform.select({
-      web: { boxShadow: '0px 4px 10px rgba(0,0,0,0.05)' },
-      default: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.05,
-        shadowRadius: 10,
-      }
-    }),
-    elevation: 4,
     borderWidth: 1,
-    borderColor: '#F1F5F9'
+    borderColor: '#E5E7EB'
   },
   avatarContainer: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     backgroundColor: '#FFF7ED',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 15,
+    marginRight: 16,
     borderWidth: 1,
-    borderColor: '#FFEDD5'
+    borderColor: '#E2E8F0'
   },
-  userName: { fontSize: 16, fontWeight: 'bold', color: '#1E293B' },
-  cardMetaRow: { flexDirection: 'row', alignItems: 'center', marginTop: 4 },
-  cardMetaText: { fontSize: 13, color: '#64748B', marginLeft: 6, flex: 1 },
+  userName: { fontSize: 18, fontWeight: 'bold', color: '#111827' },
+  cardMetaRow: { flexDirection: 'row', alignItems: 'center', marginTop: 6 },
+  cardMetaText: { fontSize: 14, color: '#4B5563', marginLeft: 8, flex: 1 },
 
   statusBadge: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20 },
-  statusText: { fontSize: 10, fontWeight: 'bold' },
+  statusText: { fontSize: 11, fontWeight: 'bold' },
 
   cardFooter: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
-    paddingTop: 12,
-    marginTop: 12
+    borderTopColor: '#E5E7EB',
+    paddingTop: 16,
+    marginTop: 16
   },
-  cardTitle: { fontSize: 15, fontWeight: '700', color: '#334155', flex: 1, marginRight: 10 },
-
-  unreadBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FEF2F2',
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-    borderRadius: 12,
-    marginRight: 8
-  },
-  unreadDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#EF4444', marginRight: 6 },
-  unreadText: { fontSize: 10, color: '#EF4444', fontWeight: 'bold' },
+  cardTitle: { fontSize: 16, fontWeight: '700', color: '#111827', flex: 1, marginRight: 10 },
 
   countBadge: {
-    backgroundColor: '#F8FAFC',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 12,
+    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 14,
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#E2E8F0'
+    borderColor: '#E5E7EB',
+    minHeight: 40
   },
-  countText: { fontSize: 12, fontWeight: 'bold', color: '#475569', marginLeft: 6 },
+  countText: { fontSize: 13, fontWeight: 'bold', color: '#4B5563', marginLeft: 8 },
 
   centerLoading: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   emptyState: { alignItems: 'center', marginTop: 80 },
-  emptyText: { color: '#94A3B8', marginTop: 15, fontSize: 16, fontWeight: '500' },
+  emptyText: { color: '#6B7280', marginTop: 15, fontSize: 16, fontWeight: '500' },
 
   // Dropdown Styles
   dropdownButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: 'rgba(255,255,255,0.15)',
     paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 8,
+    paddingVertical: 12,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.3)'
+    borderColor: 'rgba(255,255,255,0.3)',
+    minHeight: 48
   },
-  dropdownButtonText: { color: 'white', fontWeight: '600', fontSize: 13, flex: 1 },
+  dropdownButtonText: { color: 'white', fontWeight: '600', fontSize: 14, flex: 1 },
 
   // Modal Styles
   modalOverlay: {
@@ -505,55 +526,54 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20
+    padding: 24
   },
   modalContent: {
     backgroundColor: 'white',
-    borderRadius: 16,
+    borderRadius: 24,
     width: '100%',
-    maxWidth: 340,
-    padding: 20,
+    maxWidth: 400,
+    padding: 24,
     elevation: 10,
     maxHeight: '80%'
   },
-  modalTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 15, color: '#1E293B', textAlign: 'center' },
+  modalTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 16, color: '#111827', textAlign: 'center' },
   modalOption: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 14,
+    paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9'
+    borderBottomColor: '#F1F5F9',
+    minHeight: 56
   },
-  modalOptionSelected: { backgroundColor: '#FFF7ED', paddingHorizontal: 10, borderRadius: 8, borderBottomWidth: 0 },
-  modalOptionText: { fontSize: 15, color: '#475569' },
+  modalOptionSelected: { backgroundColor: '#FFF7ED', paddingHorizontal: 16, borderRadius: 12, borderBottomWidth: 0 },
+  modalOptionText: { fontSize: 16, color: '#4B5563' },
   modalOptionTextSelected: { color: '#EA580C', fontWeight: 'bold' },
 
   // New Empty State Styles
   emptyContainer: { alignItems: 'center', marginTop: 40, paddingHorizontal: 30 },
-  emptyTitle: { fontSize: 20, fontWeight: 'bold', color: '#1E293B', textAlign: 'center', marginBottom: 12 },
-  emptyDescription: { fontSize: 14, color: '#64748B', textAlign: 'center', marginBottom: 25, lineHeight: 22 },
+  emptyTitle: { fontSize: 22, fontWeight: 'bold', color: '#111827', textAlign: 'center', marginBottom: 12 },
+  emptyDescription: { fontSize: 16, color: '#4B5563', textAlign: 'center', marginBottom: 32, lineHeight: 24 },
   createButton: {
     backgroundColor: '#EA580C',
-    paddingHorizontal: 24,
-    paddingVertical: 14,
-    borderRadius: 30,
-    elevation: 3,
-    shadowColor: '#EA580C',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    marginBottom: 40
+    paddingHorizontal: 28,
+    paddingVertical: 16,
+    borderRadius: 16,
+    elevation: 0,
+    marginBottom: 40,
+    minHeight: 56,
+    justifyContent: 'center'
   },
-  createButtonText: { color: 'white', fontWeight: 'bold', fontSize: 16 },
+  createButtonText: { color: 'white', fontWeight: 'bold', fontSize: 18 },
   noteContainer: {
     backgroundColor: 'white',
-    borderRadius: 12,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
-    padding: 16,
+    borderColor: '#E5E7EB',
+    padding: 20,
     width: '100%',
   },
-  noteText: { fontSize: 13, color: '#64748B', lineHeight: 20, textAlign: 'center' },
+  noteText: { fontSize: 14, color: '#4B5563', lineHeight: 22, textAlign: 'center' },
   linkText: { color: '#EA580C', fontWeight: 'bold', textDecorationLine: 'underline' }
 });

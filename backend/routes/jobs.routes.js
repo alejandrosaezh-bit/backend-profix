@@ -63,9 +63,8 @@ const calculateJobStatuses = (job, userId) => {
 
     // 1. CANCELED
     if (job.status === 'canceled') clientStatus = 'ELIMINADA';
-    // 2. TERMINADO (Rated or Client explicitly finished)
-    else if (job.status === 'rated' || (job.status === 'completed' && job.clientFinished && (job.rating > 0 || job.review))) clientStatus = 'TERMINADO';
-    else if (job.status === 'completed' && job.clientFinished) clientStatus = 'VALORACIÓN';
+    // 2. TERMINADO (Rated, Completed, or Client explicitly finished)
+    else if (job.status === 'rated' || job.status === 'completed' || job.status === 'Culminada' || job.clientFinished) clientStatus = 'TERMINADO';
     // 3. VALIDATING (Pro finished, Client pending)
     else if (job.proFinished && !job.clientFinished) clientStatus = 'VALIDANDO';
     // 4. IN PROGRESS (Started)
@@ -86,7 +85,7 @@ const calculateJobStatuses = (job, userId) => {
         (job.offers && job.offers.some(o => o.proId && (o.proId._id?.toString() === userIdStr || o.proId.toString() === userIdStr) && o.status === 'accepted'));
 
     if (amIWinner) {
-        if (job.status === 'rated' || (job.status === 'completed' && job.clientFinished)) proStatus = 'TERMINADO';
+        if (job.status === 'rated' || job.status === 'completed' || job.status === 'Culminada' || job.clientFinished) proStatus = 'TERMINADO';
         else if (job.proFinished) proStatus = 'VALIDANDO';
         else if (job.trackingStatus === 'started') proStatus = 'EN EJECUCIÓN';
         else proStatus = 'ACEPTADO';
@@ -716,20 +715,15 @@ router.post('/:id/interaction', protect, async (req, res) => {
 // @access  Public / Private (Opcional, pero idealmente solo Pros lo ven o público)
 router.get('/', async (req, res) => {
     try {
-        // Filtros básicos REST (Opcionales, pero los mantengo para no romper queries explícitas)
-        const { category, location } = req.query;
-        let query = {}; // MOSTRAR TODO | RESET QUERY from { status: ... }
+        // Filtros básicos REST
+        const { category, location, professional, client, status } = req.query;
+        let query = {};
 
-        if (req.query.status) {
-            // Si el frontend pide status especifico, respetarlo, pero por defecto (sin params) trae todo.
-            // Pero ojo, si el frontend espera 'active', podría llenarse de basura antigua.
-            // User asked "Eliminar todos los filtros", so... ALL.
-        } else {
-            // query.status = { $in: ['active', 'open'] }; // Default safe filter for "Available Jobs"
-        }
-
+        if (status) query.status = status;
         if (category) query.category = category;
         if (location) query.location = { $regex: location, $options: 'i' };
+        if (professional) query.professional = professional;
+        if (client) query.client = client;
 
         // DISABLE ALL SERVER SIDE EXCLUSIONS for now
         /*
@@ -757,7 +751,7 @@ router.get('/', async (req, res) => {
         }
         */
 
-        let jobs = await Job.find(query)
+        let jobs = await Job.find(query).select('-images -workPhotos -clientManagement')
             .populate('client', 'name avatar')
             .populate('category', 'name color icon')
             .populate('projectHistory.actor', 'name avatar email role')
@@ -863,6 +857,7 @@ router.get('/', async (req, res) => {
 router.get('/me', protect, async (req, res) => {
     try {
         let jobs = await Job.find({ client: req.user._id })
+            .select('-images -workPhotos -clientManagement')
             .populate('client', 'name avatar') // Ensure client is populated for ID checks
             .populate('category', 'name color icon')
             .populate('offers.proId', 'name email avatar rating reviewsCount')
@@ -888,6 +883,7 @@ router.get('/me', protect, async (req, res) => {
 
         // Find all chats where this user is a participant
         const allUserChats = await Chat.find({ participants: req.user._id })
+            .select('-messages.media')
             .populate('participants', 'name email avatar role cedula rating reviewsCount')
             .populate('job') // Populate job to check ownership
             .sort({ lastMessageDate: -1 })
@@ -944,6 +940,7 @@ router.get('/me', protect, async (req, res) => {
             console.log(`[GET /me DEBUG] Fetching ${uniqueJobIdsToFetch.length} extra jobs:`, uniqueJobIdsToFetch);
             try {
                 const fetchedJobs = await Job.find({ _id: { $in: uniqueJobIdsToFetch } })
+                    .select('-images -workPhotos -clientManagement')
                     .populate('category', 'name color icon')
                     .populate('client', 'name avatar email')
                     .populate('offers.proId', 'name email avatar rating reviewsCount')

@@ -1,5 +1,6 @@
 
 import { Feather, FontAwesome5, MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { StatusBar } from 'expo-status-bar';
@@ -7,7 +8,9 @@ import React, { useCallback, useContext, useEffect, useRef, useState } from 'rea
 import {
     ActivityIndicator,
     Alert,
+    Animated,
     Dimensions,
+    Easing,
     Image,
     Linking,
     LogBox,
@@ -90,6 +93,8 @@ const Home = Feather;
 const ChevronRight = Feather;
 const Layers = Feather;
 const Grid = Feather;
+const Video = Feather;
+const RefreshCw = Feather;
 
 const { width } = Dimensions.get('window');
 
@@ -130,12 +135,9 @@ const getClientStatus = (request) => {
     // PRIORITY ORDER: TERMINADO > VALORACIÓN > VALIDANDO > EN EJECUCIÓN > PRESUPUESTADA > CONTACTADA > ABIERTA > NUEVA
     if (request.status === 'canceled' || request.status === 'Cerrada') return 'ELIMINADA';
 
-    // 1. TERMINADO (Any rating exists or status is rated)
-    const isRated = request.status === 'rated' || request.status === 'TERMINADO' || request.clientRated || request.proRated || request.rating > 0 || request.proRating > 0;
+    // 1. TERMINADO (Any rating exists or status is rated/completed)
+    const isRated = !!(request.status === 'rated' || request.status === 'TERMINADO' || request.status === 'completed' || request.status === 'Culminada' || request.clientRated || request.proRated || request.rating > 0 || request.proRating > 0 || (request.proFinished && request.clientFinished));
     if (isRated) return 'TERMINADO';
-
-    // 2. VALORACIÓN (Both finished but no rating yet)
-    if (request.status === 'completed' || request.status === 'Culminada' || (request.proFinished && request.clientFinished)) return 'VALORACIÓN';
 
     // 3. VALIDANDO (Pro finished, Client hasn't confirmed)
     if (request.proFinished && !request.clientFinished) return 'VALIDANDO';
@@ -285,7 +287,7 @@ const DETAILED_CATEGORIES = {
 };
 
 const CATEGORY_EXAMPLES = {
-    "default": { title: "Ej. Necesito ayuda con...", description: "Describe detalladamente lo que necesitas..." },
+    "default": { title: "Ej: Fisioterapia a domicilio para dolor lumbar", description: "Danos más contexto para una mejor cotización: ¿Horarios preferidos? ¿Síntomas? ¿Marca del equipo?" },
     "Hogar": { title: "Ej. Reparación en casa", description: "Ej. Necesito arreglar un desperfecto en..." },
     "Bienes Raíces": { title: "Ej. Venta de apartamento", description: "Ej. Necesito avalúo para venta de inmueble en..." },
     "Hogar:Plomería": { title: "Ej. Fuga de agua en cocina", description: "Ej. Gotea la tubería debajo del fregadero y moja el mueble." },
@@ -382,7 +384,131 @@ const showConfirmation = (title, message, onConfirm, onCancel, confirmText = "Ac
     }
 };
 
+const SectionDivider = () => (
+    <View style={{
+        height: 12,
+        backgroundColor: '#A19C9B',
+        width: '100%',
+    }} />
+);
+
+const HandDrawnDivider = () => <SectionDivider />;
+
+// --- DATA PARA MENSAJERÍA DINÁMICA ---
+const HOME_COPY_OPTIONS = [
+    {
+        title: "Encuentra el experto que necesitas ahora",
+        subtitle: "Conecta al instante con profesionales en tu zona: mecánicos, fontaneros, médicos y más.",
+        buttonText: "Ver expertos disponibles"
+    },
+    {
+        title: "Soluciona tu problema o urgencia",
+        subtitle: "Publica tu necesidad y recibe propuestas rápidas de especialistas calificados cerca de ti.",
+        buttonText: "Solicitar servicio"
+    },
+    {
+        title: "Cualquier servicio, en un solo lugar",
+        subtitle: "Desde reparaciones urgentes hasta cuidados personales. Elige al profesional que mejor se adapte a ti.",
+        buttonText: "Buscar profesional"
+    },
+    {
+        title: "¿Qué servicio buscas hoy?",
+        subtitle: "Olvídate de buscar por horas. Dinos qué necesitas y los expertos vendrán a ti.",
+        buttonText: "Encontrar ayuda"
+    },
+    {
+        title: "Tu red de profesionales cercanos",
+        subtitle: "Acceso directo a expertos locales listos para trabajar en tu proyecto o urgencia.",
+        buttonText: "Ver quién está cerca"
+    }
+];
+const ROTATION_KEY = 'home_messaging_rotation_index';
+
+const QuickActionsRow = ({ onActionPress, categories }) => {
+    // 1. Flatten all subcategories and filter isUrgent
+    const urgentSubs = [];
+    (categories || []).forEach(cat => {
+        (cat.subcategories || []).forEach(sub => {
+            if (typeof sub === 'object' && sub.isUrgent) {
+                urgentSubs.push({
+                    name: sub.name,
+                    icon: sub.icon,
+                    category: cat.name,
+                    color: cat.color || '#F3F4F6'
+                });
+            }
+        });
+    });
+
+    // 2. Limit to 6
+    const actions = urgentSubs.slice(0, 6);
+
+    if (actions.length === 0) return null;
+
+    // Calcular el tamaño proporcional para que se vean más discretos pero claros
+    const ITEM_SIZE = width / 8.8;
+
+    return (
+        <View style={{
+            marginTop: 15,
+            marginBottom: 25,
+            flexDirection: 'row',
+            justifyContent: 'space-around', // Mejor distribución para tamaños pequeños
+            alignItems: 'center',
+            paddingHorizontal: 10
+        }}>
+            {actions.map((action, index) => {
+                const iconData = CAT_ICONS[action.icon] || { lib: Feather, name: 'layers' };
+                const Lib = iconData.lib;
+                return (
+                    <TouchableOpacity
+                        key={index}
+                        onPress={() => onActionPress(action.category, action.name)}
+                        style={{ alignItems: 'center' }}
+                        activeOpacity={0.6}
+                    >
+                        <View style={{
+                            width: ITEM_SIZE,
+                            height: ITEM_SIZE,
+                            borderRadius: ITEM_SIZE / 2,
+                            backgroundColor: '#F1F5F9', // Gris neutro claro
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            borderWidth: 1.5,
+                            borderColor: '#E2E8F0', // Borde sutil
+                            // Sombras muy minimalistas
+                            shadowColor: '#000',
+                            shadowOffset: { width: 0, height: 1 },
+                            shadowOpacity: 0.05,
+                            shadowRadius: 2,
+                            elevation: 1
+                        }}>
+                            <Lib name={iconData.name} size={ITEM_SIZE * 0.5} color="#475569" />
+                        </View>
+                    </TouchableOpacity>
+                );
+            })}
+        </View>
+    );
+};
+
 const Header = ({ userMode, toggleMode, isLoggedIn, onLoginPress, currentUser, onOpenProfile, clientCounts, proCounts }) => {
+    const rotateAnim = useRef(new Animated.Value(userMode === 'client' ? 0 : 1)).current;
+
+    useEffect(() => {
+        Animated.timing(rotateAnim, {
+            toValue: userMode === 'client' ? 0 : 1,
+            duration: 400,
+            useNativeDriver: true,
+            easing: Easing.bezier(0.4, 0, 0.2, 1)
+        }).start();
+    }, [userMode]);
+
+    const rotation = rotateAnim.interpolate({
+        inputRange: [0, 1],
+        outputRange: ['0deg', '180deg']
+    });
+
     const hasOtherModeNotifications = userMode === 'client'
         ? (proCounts?.chats > 0 || proCounts?.updates > 0)
         : (clientCounts?.chats > 0 || clientCounts?.updates > 0);
@@ -391,22 +517,45 @@ const Header = ({ userMode, toggleMode, isLoggedIn, onLoginPress, currentUser, o
         <View style={styles.header}>
             <View style={styles.headerLeft}>
                 <View style={[styles.logoIcon, { backgroundColor: userMode === 'client' ? '#F97316' : '#2563EB' }]}>
-                    {userMode === 'client' ? <Hammer color="white" size={18} /> : <Briefcase name="briefcase" color="white" size={18} />}
+                    {userMode === 'client' ? <Hammer color="white" size={16} /> : <Briefcase name="briefcase" color="white" size={16} />}
                 </View>
-                <Text style={styles.logoText}>ProFix</Text>
-                <View style={{ backgroundColor: '#E5E7EB', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, marginLeft: 8 }}>
-                    <Text style={{ fontSize: 10, fontWeight: 'bold', color: '#374151', fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace' }}>{OTA_VERSION}</Text>
+                <Text style={styles.logoText}>
+                    <Text style={{ color: '#2563EB' }}>Profesional</Text>{' '}
+                    <Text style={{ color: '#EA580C' }}>Cercano</Text>
+                </Text>
+                <View style={{ backgroundColor: '#F3F4F6', paddingHorizontal: 4, paddingVertical: 1, borderRadius: 3, marginLeft: 6 }}>
+                    <Text style={{ fontSize: 9, fontWeight: 'bold', color: '#9CA3AF' }}>{OTA_VERSION}</Text>
                 </View>
             </View>
+
             <View style={styles.headerRight}>
                 {isLoggedIn ? (
                     <TouchableOpacity
-                        style={[styles.modeButton, { backgroundColor: userMode === 'client' ? '#2563EB' : '#F97316', paddingHorizontal: 12 }]}
                         onPress={toggleMode}
+                        activeOpacity={0.8}
+                        style={{
+                            width: 38,
+                            height: 38,
+                            borderRadius: 19,
+                            backgroundColor: userMode === 'client' ? '#DBEAFE' : '#FFEDD5',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            borderWidth: 1,
+                            borderColor: userMode === 'client' ? '#2563EB' : '#F97316',
+                            elevation: 2,
+                            shadowColor: '#000',
+                            shadowOffset: { width: 0, height: 1 },
+                            shadowOpacity: 0.1,
+                            shadowRadius: 2
+                        }}
                     >
-                        <Text style={[styles.modeButtonText, { color: 'white' }]}>
-                            {userMode === 'client' ? 'Cambiar a Profesional' : 'Cambiar a Cliente'}
-                        </Text>
+                        <Animated.View style={{ transform: [{ rotate: rotation }], alignItems: 'center', justifyContent: 'center' }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                <MaterialCommunityIcons name="arrow-up" size={14} color="#2563EB" style={{ marginRight: -4 }} />
+                                <MaterialCommunityIcons name="arrow-down" size={14} color="#EA580C" style={{ marginLeft: -4 }} />
+                            </View>
+                        </Animated.View>
+
                         {hasOtherModeNotifications && (
                             <View style={{
                                 position: 'absolute',
@@ -428,7 +577,7 @@ const Header = ({ userMode, toggleMode, isLoggedIn, onLoginPress, currentUser, o
                 )}
             </View>
         </View>
-    )
+    );
 };
 
 const CustomDropdown = ({ label, value, options, onSelect, placeholder }) => {
@@ -469,7 +618,7 @@ const CategoryGridModal = ({ visible, onClose, onSelect, categories }) => {
             <View style={styles.categoryGridModalOverlay}>
                 <View style={styles.categoryGridModalContent}>
                     <View style={styles.categoryGridHeader}>
-                        <View>
+                        <View style={{ flex: 1, marginRight: 10 }}>
                             <Text style={styles.categoryGridTitle}>¿Qué área necesitas?</Text>
                             <Text style={styles.categoryGridSubtitle}>Selecciona la categoría de tu solicitud</Text>
                         </View>
@@ -488,9 +637,9 @@ const CategoryGridModal = ({ visible, onClose, onSelect, categories }) => {
                                 }}
                             >
                                 <View style={[styles.categoryGridIconWrapper, { backgroundColor: cat.color || '#F3F4F6' }]}>
-                                    <cat.icon size={30} color={cat.iconColor || '#EA580C'} />
+                                    <cat.icon size={28} color={cat.iconColor || '#EA580C'} />
                                 </View>
-                                <Text style={styles.categoryGridLabel}>{cat.name}</Text>
+                                <Text style={styles.categoryGridLabel} numberOfLines={1}>{cat.name}</Text>
                             </TouchableOpacity>
                         ))}
                     </ScrollView>
@@ -500,7 +649,204 @@ const CategoryGridModal = ({ visible, onClose, onSelect, categories }) => {
     );
 };
 
-const SubcategoryGridModal = ({ visible, onClose, onSelect, subcategories, categoryName }) => {
+const CAT_ICONS = {
+    // Hogar
+    'home': { lib: Feather, name: 'home' },
+    'hammer': { lib: MaterialCommunityIcons, name: 'hammer' },
+    'wrench': { lib: MaterialCommunityIcons, name: 'wrench' },
+    'format-paint': { lib: MaterialCommunityIcons, name: 'format-paint' },
+    'broom': { lib: MaterialCommunityIcons, name: 'broom' },
+    'flower': { lib: MaterialCommunityIcons, name: 'flower' },
+    'truck-delivery': { lib: MaterialCommunityIcons, name: 'truck-delivery' },
+    'lightbulb-on': { lib: MaterialCommunityIcons, name: 'lightbulb-on' },
+    'water': { lib: MaterialCommunityIcons, name: 'water' },
+    'door': { lib: MaterialCommunityIcons, name: 'door' },
+    'sofa': { lib: MaterialCommunityIcons, name: 'sofa' },
+    'bed': { lib: MaterialCommunityIcons, name: 'bed' },
+    'air-conditioner': { lib: MaterialCommunityIcons, name: 'air-conditioner' },
+    'radiator': { lib: MaterialCommunityIcons, name: 'radiator' },
+    'fire': { lib: MaterialCommunityIcons, name: 'fire' },
+    'snowflake': { lib: MaterialCommunityIcons, name: 'snowflake' },
+    'fan': { lib: MaterialCommunityIcons, name: 'fan' },
+    'thermometer': { lib: MaterialCommunityIcons, name: 'thermometer' },
+    'vacuum': { lib: MaterialCommunityIcons, name: 'vacuum' },
+    'mop': { lib: MaterialCommunityIcons, name: 'mop' },
+    'lamp': { lib: MaterialCommunityIcons, name: 'lamp' },
+    'fence': { lib: MaterialCommunityIcons, name: 'fence' },
+    'key-variant': { lib: MaterialCommunityIcons, name: 'key-variant' },
+    'microwave': { lib: MaterialCommunityIcons, name: 'microwave' },
+    'fridge': { lib: MaterialCommunityIcons, name: 'fridge' },
+    'washing-machine': { lib: MaterialCommunityIcons, name: 'washing-machine' },
+
+    // Salud
+    'heart': { lib: Feather, name: 'heart' },
+    'doctor': { lib: MaterialCommunityIcons, name: 'doctor' },
+    'hospital-box': { lib: MaterialCommunityIcons, name: 'hospital-box' },
+    'yoga': { lib: MaterialCommunityIcons, name: 'yoga' },
+    'dumbbell': { lib: MaterialCommunityIcons, name: 'dumbbell' },
+    'human-handsup': { lib: MaterialCommunityIcons, name: 'human-handsup' },
+    'tooth': { lib: MaterialCommunityIcons, name: 'tooth' },
+    'pill': { lib: MaterialCommunityIcons, name: 'pill' },
+    'eye': { lib: MaterialCommunityIcons, name: 'eye' },
+    'spa': { lib: MaterialCommunityIcons, name: 'spa' },
+    'meditation': { lib: MaterialCommunityIcons, name: 'meditation' },
+    'bandage': { lib: MaterialCommunityIcons, name: 'bandage' },
+    'stethoscope': { lib: MaterialCommunityIcons, name: 'stethoscope' },
+    'bottle-tonic-plus': { lib: MaterialCommunityIcons, name: 'bottle-tonic-plus' },
+
+    // Profesionales
+    'briefcase': { lib: Feather, name: 'briefcase' },
+    'calculator': { lib: MaterialCommunityIcons, name: 'calculator' },
+    'laptop': { lib: MaterialCommunityIcons, name: 'laptop' },
+    'palette': { lib: MaterialCommunityIcons, name: 'palette' },
+    'code-braces': { lib: MaterialCommunityIcons, name: 'code-braces' },
+    'compass-outline': { lib: MaterialCommunityIcons, name: 'compass-outline' },
+    'fountain-pen-tip': { lib: MaterialCommunityIcons, name: 'fountain-pen-tip' },
+    'translate': { lib: MaterialCommunityIcons, name: 'translate' },
+    'account-check': { lib: MaterialCommunityIcons, name: 'account-check' },
+    'file-document-edit': { lib: MaterialCommunityIcons, name: 'file-document-edit' },
+    'microphone': { lib: MaterialCommunityIcons, name: 'microphone' },
+    'headset': { lib: MaterialCommunityIcons, name: 'headset' },
+
+    // Mascotas
+    'paw': { lib: FontAwesome5, name: 'paw' },
+    'dog': { lib: MaterialCommunityIcons, name: 'dog' },
+    'cat': { lib: MaterialCommunityIcons, name: 'cat' },
+    'bone': { lib: MaterialCommunityIcons, name: 'bone' },
+    'fish': { lib: MaterialCommunityIcons, name: 'fish' },
+    'bird': { lib: MaterialCommunityIcons, name: 'bird' },
+    'rabbit': { lib: MaterialCommunityIcons, name: 'rabbit' },
+
+    // Educación
+    'school': { lib: MaterialCommunityIcons, name: 'school' },
+    'book-open-variant': { lib: MaterialCommunityIcons, name: 'book-open-variant' },
+    'certificate': { lib: MaterialCommunityIcons, name: 'certificate' },
+    'brain': { lib: MaterialCommunityIcons, name: 'brain' },
+    'lightbulb': { lib: MaterialCommunityIcons, name: 'lightbulb' },
+    'pencil': { lib: MaterialCommunityIcons, name: 'pencil' },
+    'microscope': { lib: MaterialCommunityIcons, name: 'microscope' },
+    'earth': { lib: MaterialCommunityIcons, name: 'earth' },
+
+    // Eventos
+    'calendar': { lib: Feather, name: 'calendar' },
+    'party-popper': { lib: MaterialCommunityIcons, name: 'party-popper' },
+    'music': { lib: Feather, name: 'music' },
+    'camera': { lib: Feather, name: 'camera' },
+    'silverware-fork-knife': { lib: MaterialCommunityIcons, name: 'silverware-fork-knife' },
+    'cake-variant': { lib: MaterialCommunityIcons, name: 'cake-variant' },
+    'glass-wine': { lib: MaterialCommunityIcons, name: 'glass-wine' },
+    'theater': { lib: MaterialCommunityIcons, name: 'theater' },
+    'balloon': { lib: MaterialCommunityIcons, name: 'balloon' },
+    'fireworks': { lib: MaterialCommunityIcons, name: 'fireworks' },
+
+    // Tecnología
+    'monitor': { lib: Feather, name: 'monitor' },
+    'cellphone': { lib: MaterialCommunityIcons, name: 'cellphone' },
+    'shield-lock': { lib: MaterialCommunityIcons, name: 'shield-lock' },
+    'network': { lib: MaterialCommunityIcons, name: 'network' },
+    'router-wireless': { lib: MaterialCommunityIcons, name: 'router-wireless' },
+    'database': { lib: MaterialCommunityIcons, name: 'database' },
+    'printer': { lib: MaterialCommunityIcons, name: 'printer' },
+    'robot': { lib: MaterialCommunityIcons, name: 'robot' },
+    'chip': { lib: MaterialCommunityIcons, name: 'chip' },
+    'keyboard': { lib: MaterialCommunityIcons, name: 'keyboard' },
+
+    // Compras
+    'shopping-bag': { lib: Feather, name: 'shopping-bag' },
+    'tshirt-crew': { lib: MaterialCommunityIcons, name: 'tshirt-crew' },
+    'hanger': { lib: MaterialCommunityIcons, name: 'hanger' },
+    'shoe-heel': { lib: MaterialCommunityIcons, name: 'shoe-heel' },
+    'tag': { lib: Feather, name: 'tag' },
+    'gift': { lib: Feather, name: 'gift' },
+    'diamond-stone': { lib: MaterialCommunityIcons, name: 'diamond-stone' },
+    'watch': { lib: MaterialCommunityIcons, name: 'watch' },
+    'cart': { lib: MaterialCommunityIcons, name: 'cart' },
+    'store': { lib: MaterialCommunityIcons, name: 'store' },
+
+    // Inmobiliaria
+    'home-city': { lib: MaterialCommunityIcons, name: 'home-city' },
+    'key': { lib: MaterialCommunityIcons, name: 'key' },
+    'file-document-outline': { lib: MaterialCommunityIcons, name: 'file-document-outline' },
+    'percent': { lib: MaterialCommunityIcons, name: 'percent' },
+    'sign-real-estate': { lib: MaterialCommunityIcons, name: 'sign-real-estate' },
+    'building': { lib: FontAwesome5, name: 'building' },
+    'office-building': { lib: MaterialCommunityIcons, name: 'office-building' },
+
+    // Automoción
+    'car': { lib: FontAwesome5, name: 'car' },
+    'car-wrench': { lib: MaterialCommunityIcons, name: 'car-wrench' },
+    'gas-station': { lib: MaterialCommunityIcons, name: 'gas-station' },
+    'shield-car': { lib: MaterialCommunityIcons, name: 'shield-car' },
+    'steering': { lib: MaterialCommunityIcons, name: 'steering' },
+    'bike': { lib: MaterialCommunityIcons, name: 'bike' },
+    'truck': { lib: Feather, name: 'truck' },
+    'bus': { lib: FontAwesome5, name: 'bus' },
+    'tools': { lib: MaterialCommunityIcons, name: 'tools' },
+
+    // Finanzas
+    'bank': { lib: MaterialCommunityIcons, name: 'bank' },
+    'cash': { lib: MaterialCommunityIcons, name: 'cash' },
+    'finance': { lib: MaterialCommunityIcons, name: 'finance' },
+    'chart-line': { lib: MaterialCommunityIcons, name: 'chart-line' },
+    'credit-card': { lib: Feather, name: 'credit-card' },
+    'wallet': { lib: MaterialCommunityIcons, name: 'wallet' },
+    'hand-coin': { lib: MaterialCommunityIcons, name: 'hand-coin' },
+
+    // Viajes
+    'airplane': { lib: MaterialCommunityIcons, name: 'airplane' },
+    'map-pin': { lib: Feather, name: 'map-pin' },
+    'beach': { lib: MaterialCommunityIcons, name: 'beach' },
+    'hotel': { lib: MaterialCommunityIcons, name: 'hotel' },
+    'compass': { lib: Feather, name: 'compass' },
+    'train': { lib: MaterialCommunityIcons, name: 'train' },
+    'passport': { lib: MaterialCommunityIcons, name: 'passport' },
+
+    // Legal
+    'gavel': { lib: MaterialCommunityIcons, name: 'gavel' },
+    'scale-balance': { lib: MaterialCommunityIcons, name: 'scale-balance' },
+    'file-sign': { lib: MaterialCommunityIcons, name: 'file-sign' },
+    'police-badge': { lib: MaterialCommunityIcons, name: 'police-badge' },
+    'copyright': { lib: MaterialCommunityIcons, name: 'copyright' },
+    'book-lock': { lib: MaterialCommunityIcons, name: 'book-lock' },
+
+    // Marketing
+    'bullhorn': { lib: MaterialCommunityIcons, name: 'bullhorn' },
+    'facebook': { lib: MaterialCommunityIcons, name: 'facebook' },
+    'instagram': { lib: MaterialCommunityIcons, name: 'instagram' },
+    'google-ads': { lib: MaterialCommunityIcons, name: 'google-ads' },
+    'target': { lib: Feather, name: 'target' },
+    'rocket': { lib: MaterialCommunityIcons, name: 'rocket' },
+
+    // Construcción
+    'hard-hat': { lib: MaterialCommunityIcons, name: 'hard-hat' },
+    'excavator': { lib: MaterialCommunityIcons, name: 'excavator' },
+    'floor-plan': { lib: MaterialCommunityIcons, name: 'floor-plan' },
+    'wall': { lib: MaterialCommunityIcons, name: 'wall' },
+    'tape-measure': { lib: MaterialCommunityIcons, name: 'tape-measure' },
+    'ladder': { lib: MaterialCommunityIcons, name: 'ladder' },
+    'blueprint': { lib: MaterialCommunityIcons, name: 'blueprint' },
+
+    // Legacy / Others
+    'scissors': { lib: Feather, name: 'scissors' },
+    'book': { lib: Feather, name: 'book' },
+    'smile': { lib: Feather, name: 'smile' },
+    'wifi': { lib: Feather, name: 'wifi' },
+    'coffee': { lib: Feather, name: 'coffee' },
+    'smartphone': { lib: Feather, name: 'smartphone' },
+    'droplet': { lib: Feather, name: 'droplet' },
+    'zap': { lib: Feather, name: 'zap' },
+    'lock': { lib: Feather, name: 'lock' },
+    'trash-2': { lib: Feather, name: 'trash-2' },
+    'wind': { lib: Feather, name: 'wind' },
+    'pipe-wrench': { lib: MaterialCommunityIcons, name: 'pipe-wrench' },
+    'paint-brush': { lib: FontAwesome5, name: 'paint-brush' },
+    'baby-carriage': { lib: FontAwesome5, name: 'baby-carriage' },
+    'tshirt': { lib: FontAwesome5, name: 'tshirt' },
+    'utensils': { lib: FontAwesome5, name: 'utensils' },
+    'circle': { lib: Feather, name: 'circle' }
+};
+
+const SubcategoryGridModal = ({ visible, onClose, onSelect, subcategories, categoryName, color, iconColor }) => {
     return (
         <Modal visible={visible} transparent={true} animationType="slide" onRequestClose={onClose}>
             <View style={styles.categoryGridModalOverlay}>
@@ -515,21 +861,36 @@ const SubcategoryGridModal = ({ visible, onClose, onSelect, subcategories, categ
                         </TouchableOpacity>
                     </View>
                     <ScrollView contentContainerStyle={styles.categoryGridScroll}>
-                        {subcategories.map((sub, index) => (
-                            <TouchableOpacity
-                                key={index}
-                                style={styles.categoryGridItem}
-                                onPress={() => {
-                                    onSelect(sub);
-                                    onClose();
-                                }}
-                            >
-                                <View style={[styles.categoryGridIconWrapper, { backgroundColor: '#EFF6FF' }]}>
-                                    <Layers name="layers" size={28} color="#2563EB" />
-                                </View>
-                                <Text style={styles.categoryGridLabel} numberOfLines={2}>{sub}</Text>
-                            </TouchableOpacity>
-                        ))}
+                        {subcategories.map((sub, index) => {
+                            const subName = typeof sub === 'object' ? sub.name : sub;
+
+                            // Dynamic Icon Logic
+                            let IconComponent = Layers;
+                            let activeIconColor = iconColor || "#2563EB";
+                            let iconName = "layers";
+
+                            if (typeof sub === 'object' && sub.icon && CAT_ICONS[sub.icon]) {
+                                const iconData = CAT_ICONS[sub.icon];
+                                IconComponent = iconData.lib;
+                                iconName = iconData.name;
+                            }
+
+                            return (
+                                <TouchableOpacity
+                                    key={index}
+                                    style={styles.categoryGridItem}
+                                    onPress={() => {
+                                        onSelect(subName);
+                                        onClose();
+                                    }}
+                                >
+                                    <View style={[styles.categoryGridIconWrapper, { backgroundColor: color || '#EFF6FF' }]}>
+                                        <IconComponent name={iconName} size={28} color={activeIconColor} />
+                                    </View>
+                                    <Text style={styles.categoryGridLabel} numberOfLines={2}>{subName}</Text>
+                                </TouchableOpacity>
+                            );
+                        })}
                         {subcategories.length === 0 && (
                             <Text style={{ textAlign: 'center', width: '100%', color: '#9CA3AF', marginTop: 20 }}>No hay especialidades disponibles.</Text>
                         )}
@@ -546,22 +907,30 @@ const HomeSections = ({ onSelectCategory, onSelectPost, categories, articles }) 
     const displayArticles = (articles && articles.length > 0) ? articles : BLOG_POSTS;
 
     return (
-        <View style={{ marginTop: 10 }}>
+        <View style={{ backgroundColor: '#A19C9B' }}>
             {/* Categorías */}
-            <Text style={styles.sectionTitle}>Categorías Populares</Text>
-            <View style={styles.categoriesGrid}>
-                {displayCategories.map(cat => (
-                    <TouchableOpacity key={cat.id} style={[styles.catCard, { backgroundColor: 'white' }]} onPress={() => onSelectCategory(cat)}>
-                        <View style={{ backgroundColor: cat.color, padding: 12, borderRadius: 50 }}>
-                            <cat.icon size={32} color={cat.iconColor} />
-                        </View>
-                        <Text style={styles.catText}>{cat.name}</Text>
-                    </TouchableOpacity>
-                ))}
+            <View style={{ backgroundColor: 'white', borderRadius: 32, paddingHorizontal: 24, paddingVertical: 24 }}>
+                <Text style={styles.sectionTitle}>Categorías Populares</Text>
+                <View style={styles.categoriesGrid}>
+                    {displayCategories.slice(0, 9).map(cat => (
+                        <TouchableOpacity
+                            key={cat.id}
+                            style={styles.catCard}
+                            onPress={() => onSelectCategory(cat)}
+                        >
+                            <View style={[styles.catIconCircle, { backgroundColor: cat.color || '#F3F4F6', marginBottom: 6 }]}>
+                                <cat.icon size={24} color={cat.iconColor || "#EA580C"} />
+                            </View>
+                            <Text style={[styles.catTextCard, { textAlign: 'center' }]} numberOfLines={2}>{cat.name}</Text>
+                        </TouchableOpacity>
+                    ))}
+                </View>
             </View>
 
+            <SectionDivider />
+
             {/* Cómo funciona */}
-            <View style={styles.howToCard}>
+            <View style={[styles.howToCard, { marginBottom: 0, borderBottomLeftRadius: 32, borderBottomRightRadius: 32, borderTopLeftRadius: 32, borderTopRightRadius: 32, borderRadius: 32, borderWidth: 0, marginHorizontal: 0 }]}>
                 <View style={styles.howToHeader}>
                     <Text style={styles.howToTitle}>¿Cómo funciona?</Text>
                     <Text style={styles.howToSubtitle}>Resuelve tu problema en 3 pasos</Text>
@@ -580,27 +949,40 @@ const HomeSections = ({ onSelectCategory, onSelectPost, categories, articles }) 
                         <Text style={styles.stepLabel}>Elige</Text>
                     </View>
                 </View>
-                <View style={{ alignItems: 'center', paddingBottom: 15 }}>
-                    <Image source={{ uri: 'https://ui-avatars.com/api/?name=Video&background=0D8ABC&color=fff' }} style={{ width: '90%', height: 150, borderRadius: 10 }} />
+                <View style={{ alignItems: 'center', paddingBottom: 25 }}>
+                    <View style={{ width: '90%', height: 180, borderRadius: 20, overflow: 'hidden', position: 'relative', marginTop: 10, elevation: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4 }}>
+                        <Image
+                            source={{ uri: 'https://images.unsplash.com/photo-1581578731522-5b17b88bb7d5?auto=format&fit=crop&w=800&q=80' }}
+                            style={{ width: '100%', height: '100%' }}
+                        />
+                        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.15)' }}>
+                            <View style={{ backgroundColor: '#FF0000', width: 68, height: 48, borderRadius: 14, justifyContent: 'center', alignItems: 'center' }}>
+                                <Feather name="play" size={28} color="white" />
+                            </View>
+                        </View>
+                    </View>
                 </View>
             </View>
-
         </View>
     );
 };
 
 // --- 4. FORMULARIO PRINCIPAL (CON LOGICA DE GPS Y CAMARA) ---
-const ServiceForm = ({ onSubmit, isLoggedIn, onTriggerLogin, initialCategory, initialSubcategory, categories = [], allSubcategories = {} }) => {
+const ServiceForm = ({ onSubmit, isLoggedIn, onTriggerLogin, initialCategory, initialSubcategory, categories = [], allSubcategories = {}, currentUser, dynamicCopy }) => {
+    const copy = dynamicCopy || HOME_COPY_OPTIONS[0];
     const [formData, setFormData] = useState({
         category: initialCategory || '', subcategory: initialSubcategory || '', title: '', description: '', location: ''
     });
     const [images, setImages] = useState([]);
+    const [videos, setVideos] = useState([]); // Added video state
     const [isLocating, setIsLocating] = useState(false);
     const [suggestions, setSuggestions] = useState([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [showCategoryGrid, setShowCategoryGrid] = useState(false);
     const [showSubcategoryGrid, setShowSubcategoryGrid] = useState(false);
+    const [locationDetected, setLocationDetected] = useState(false);
     const titleInputRef = useRef(null);
+    const locationInputRef = useRef(null);
 
     useEffect(() => {
         if (initialCategory) setFormData(prev => ({ ...prev, category: initialCategory }));
@@ -611,6 +993,7 @@ const ServiceForm = ({ onSubmit, isLoggedIn, onTriggerLogin, initialCategory, in
 
     const handleLocationChange = (text) => {
         setFormData(prev => ({ ...prev, location: text }));
+        setLocationDetected(false);
         if (text.length > 2) {
             const filtered = FLAT_ZONES_SUGGESTIONS.filter(z => z.toLowerCase().includes(text.toLowerCase()));
             setSuggestions(filtered.slice(0, 3)); // Max 3 sugerencias
@@ -623,10 +1006,12 @@ const ServiceForm = ({ onSubmit, isLoggedIn, onTriggerLogin, initialCategory, in
     const handleSelectSuggestion = (zone) => {
         setFormData(prev => ({ ...prev, location: zone }));
         setShowSuggestions(false);
+        setLocationDetected(true);
     };
 
     const handleLocateMe = async () => {
         setIsLocating(true);
+        setLocationDetected(false);
         try {
             let { status } = await Location.requestForegroundPermissionsAsync();
             if (status !== 'granted') {
@@ -651,6 +1036,7 @@ const ServiceForm = ({ onSubmit, isLoggedIn, onTriggerLogin, initialCategory, in
 
                 const formatted = `${zone}, ${city} `;
                 setFormData(prev => ({ ...prev, location: formatted }));
+                setLocationDetected(true);
             } else {
                 showAlert('Error', 'No pudimos determinar tu zona.');
             }
@@ -679,6 +1065,41 @@ const ServiceForm = ({ onSubmit, isLoggedIn, onTriggerLogin, initialCategory, in
         if (!result.canceled) {
             const base64Img = `data:image/jpeg;base64,${result.assets[0].base64}`;
             setImages([...images, base64Img]);
+        }
+    };
+
+    const pickVideo = async () => {
+        const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (permissionResult.granted === false) {
+            showAlert("Permiso requerido", "Necesitas dar permiso para acceder a la galería.");
+            return;
+        }
+
+        let result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Videos,
+            allowsEditing: true,
+            quality: 1,
+        });
+
+        if (!result.canceled) {
+            setVideos([...videos, result.assets[0].uri]);
+        }
+    };
+
+    const recordVideo = async () => {
+        const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
+        const audioResult = await ImagePicker.requestMicrophonePermissionsAsync();
+        if (permissionResult.granted === false || audioResult.granted === false) {
+            showAlert("Permiso requerido", "Necesitas acceso a cámara y micrófono.");
+            return;
+        }
+
+        let result = await ImagePicker.launchCameraAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Videos,
+        });
+
+        if (!result.canceled) {
+            setVideos([...videos, result.assets[0].uri]);
         }
     };
 
@@ -713,6 +1134,25 @@ const ServiceForm = ({ onSubmit, isLoggedIn, onTriggerLogin, initialCategory, in
         }
     };
 
+    const userName = currentUser?.name?.split(' ')[0] || '';
+
+    // Personalización dinámica del título según el nombre del usuario
+    const getDynamicTitle = () => {
+        const title = copy.title;
+        if (!userName) return title;
+
+        // Insertar nombre de forma natural
+        if (title.toLowerCase().startsWith('encuentra')) return `Alejandro, ${title.charAt(0).toLowerCase() + title.slice(1)}`;
+        if (title.toLowerCase().startsWith('soluciona')) return `Alejandro, ${title.charAt(0).toLowerCase() + title.slice(1)}`;
+        if (title.toLowerCase().startsWith('cualquier')) return `Alejandro, ${title.charAt(0).toLowerCase() + title.slice(1)}`;
+        if (title.toLowerCase().startsWith('¿qué')) return `Alejandro, ${title}`;
+        if (title.toLowerCase().startsWith('tu red')) return `Tu red, Alejandro`;
+
+        return `${userName}, ${title.charAt(0).toLowerCase() + title.slice(1)}`;
+    };
+
+    const personalizedGreeting = getDynamicTitle();
+
     // Lógica para placeholders dinámicos
     const getPlaceholders = () => {
         if (formData.category && formData.subcategory) {
@@ -727,26 +1167,41 @@ const ServiceForm = ({ onSubmit, isLoggedIn, onTriggerLogin, initialCategory, in
 
     const placeholders = getPlaceholders();
 
+    const handleQuickAction = (cat, sub) => {
+        setFormData(prev => ({ ...prev, category: cat, subcategory: sub }));
+        // Esperamos a que el re-render muestre los campos y luego enfocamos
+        setTimeout(() => {
+            if (titleInputRef.current) {
+                titleInputRef.current.focus();
+            }
+        }, 400);
+    };
+
     return (
         <View style={styles.serviceFormCard}>
-            <View style={styles.serviceFormHeader}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 5 }}>
-                    <Text style={{ fontSize: 32, marginRight: 12 }}>👷</Text>
-                    <Text style={[styles.serviceFormTitle, { flex: 1 }]}>¿Qué necesitas solucionar?</Text>
+            <View style={[styles.serviceFormHeader, { flexDirection: 'row', alignItems: 'center' }]}>
+                <View style={{ flex: 1, paddingRight: 15 }}>
+                    <Text style={styles.serviceFormTitle}>{personalizedGreeting}</Text>
                 </View>
-                <Text style={styles.serviceFormSubtitle}>Describe tu problema, recibe ofertas de profesionales verificados y elige la mejor opción.</Text>
+                <View style={{ width: 85, height: 85, backgroundColor: '#FFF5ED', borderRadius: 20, justifyContent: 'center', alignItems: 'center', overflow: 'hidden' }}>
+                    <MaterialCommunityIcons name="toolbox" size={50} color="#EA580C" style={{ opacity: 0.9 }} />
+                    <View style={{ position: 'absolute', right: 5, bottom: 5 }}>
+                        <MaterialCommunityIcons name="map-marker" size={30} color="#2563EB" />
+                    </View>
+                </View>
             </View>
             <View style={styles.serviceFormContent}>
+                <QuickActionsRow onActionPress={handleQuickAction} categories={categories} />
                 <View style={{ marginBottom: 16 }}>
-                    <Text style={styles.label}>CATEGORÍA</Text>
+                    <Text style={styles.label}>Tipo de servicio</Text>
                     <TouchableOpacity
                         style={styles.pickerContainer}
                         onPress={() => setShowCategoryGrid(true)}
                     >
-                        <Text style={[styles.input, { color: formData.category ? '#1F2937' : '#9CA3AF' }]}>
-                            {formData.category || "Selecciona..."}
+                        <Text style={[styles.input, { color: formData.category ? '#1F2937' : '#9CA3AF', fontWeight: 'bold', fontSize: 17 }]}>
+                            {formData.category || "Seleccione..."}
                         </Text>
-                        <ChevronDown name="chevron-down" size={20} color="#6B7280" />
+                        <ChevronDown name="chevron-down" size={20} color="#EA580C" />
                     </TouchableOpacity>
                 </View>
 
@@ -763,15 +1218,15 @@ const ServiceForm = ({ onSubmit, isLoggedIn, onTriggerLogin, initialCategory, in
 
                 {formData.category ? (
                     <View style={{ marginBottom: 16 }}>
-                        <Text style={styles.label}>SUBCATEGORÍA</Text>
+                        <Text style={styles.label}>Especifica el servicio</Text>
                         <TouchableOpacity
                             style={styles.pickerContainer}
                             onPress={() => setShowSubcategoryGrid(true)}
                         >
-                            <Text style={[styles.input, { color: formData.subcategory ? '#1F2937' : '#9CA3AF' }]}>
-                                {formData.subcategory || "Específico..."}
+                            <Text style={[styles.input, { color: formData.subcategory ? '#1F2937' : '#9CA3AF', fontWeight: 'bold', fontSize: 17 }]}>
+                                {formData.subcategory || "Seleccione..."}
                             </Text>
-                            <ChevronDown name="chevron-down" size={20} color="#6B7280" />
+                            <ChevronDown name="chevron-down" size={20} color="#EA580C" />
                         </TouchableOpacity>
                     </View>
                 ) : null}
@@ -781,70 +1236,151 @@ const ServiceForm = ({ onSubmit, isLoggedIn, onTriggerLogin, initialCategory, in
                     onClose={() => setShowSubcategoryGrid(false)}
                     categoryName={formData.category}
                     subcategories={allSubcategories[formData.category] || []}
+                    color={categories.find(c => c.name === formData.category)?.color}
+                    iconColor={categories.find(c => c.name === formData.category)?.iconColor}
                     onSelect={(s) => {
                         setFormData({ ...formData, subcategory: s });
-                        // Auto-focus Title after selection
-                        if (titleInputRef.current) {
-                            setTimeout(() => titleInputRef.current.focus(), 300);
-                        }
+                        // Auto-focus Title after selection - wait for render
+                        setTimeout(() => {
+                            if (titleInputRef.current) {
+                                titleInputRef.current.focus();
+                            }
+                        }, 400);
                     }}
                 />
-                <View style={styles.inputGroup}>
-                    <Text style={styles.label}>TÍTULO</Text>
-                    <TextInput
-                        ref={titleInputRef}
-                        style={styles.inputBox}
-                        placeholder={placeholders.title}
-                        placeholderTextColor="#9CA3AF"
-                        value={formData.title}
-                        onChangeText={t => setFormData({ ...formData, title: t })}
-                    />
-                </View>
-                <View style={styles.inputGroup}>
-                    <Text style={styles.label}>DESCRIPCIÓN</Text>
-                    <TextInput style={[styles.inputBox, { height: 80, textAlignVertical: 'top' }]} multiline placeholder={placeholders.description} placeholderTextColor="#9CA3AF" value={formData.description} onChangeText={t => setFormData({ ...formData, description: t })} />
-                </View>
+                {formData.category && formData.subcategory ? (
+                    <>
+                        <View style={styles.inputGroup}>
+                            <Text style={styles.label}>Ponle un título a tu necesidad</Text>
+                            <TextInput
+                                ref={titleInputRef}
+                                style={styles.inputBox}
+                                placeholder="Ej: El aire acondicionado hace un ruido extraño"
+                                placeholderTextColor="#9CA3AF"
+                                value={formData.title}
+                                onChangeText={t => setFormData({ ...formData, title: t })}
+                            />
+                        </View>
+                        <View style={styles.inputGroup}>
+                            <Text style={styles.label}>Explícanos qué sucede</Text>
+                            <TextInput
+                                style={[styles.inputBox, { height: 120, textAlignVertical: 'top' }]}
+                                multiline
+                                placeholder="Cuanto más detalles nos des, mejor será el presupuesto. Ej: ¿Desde cuándo pasa? ¿Marca del aparato? ¿Hay escaleras? ¿Necesitas repuestos?"
+                                placeholderTextColor="#9CA3AF"
+                                value={formData.description}
+                                onChangeText={t => setFormData({ ...formData, description: t })}
+                            />
+                        </View>
+                    </>
+                ) : null}
                 <View style={[styles.inputGroup, { zIndex: 10 }]}>
-                    <Text style={styles.label}>UBICACIÓN (ZONA)</Text>
-                    <View style={styles.inputWrapper}>
-                        <MapPin name="map-pin" size={18} color="#666" style={{ marginRight: 5 }} />
-                        <TextInput
-                            style={{ flex: 1, paddingVertical: 12 }}
-                            placeholder="Ej. Chacao, Caracas"
-                            placeholderTextColor="#9CA3AF"
-                            value={formData.location}
-                            onChangeText={handleLocationChange}
-                        />
-                        <TouchableOpacity onPress={handleLocateMe}>
-                            {isLocating ? <ActivityIndicator size="small" color="#EA580C" /> : <Crosshair name="crosshair" size={20} color="#2563EB" />}
+                    <Text style={styles.label}>¿Dónde necesitas el servicio?</Text>
+
+                    <Text style={[styles.privacyNote, { textAlign: 'left', marginBottom: 8, marginTop: 4 }]}>
+                        Solo detectaremos tu municipio. Tu dirección exacta se mantiene privada.
+                    </Text>
+
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
+                        <View style={[styles.inputWrapper, { flex: 1, marginTop: 0 }]}>
+                            <TextInput
+                                ref={locationInputRef}
+                                style={{ flex: 1, paddingVertical: 12, fontSize: 17, color: '#111827', fontWeight: 'bold' }}
+                                placeholder="Ej: Chacao, Hatillo..."
+                                placeholderTextColor="#9CA3AF"
+                                value={formData.location}
+                                onChangeText={handleLocationChange}
+                            />
+                            {locationDetected && (
+                                <Feather name="check-circle" size={20} color="#10B981" style={{ marginLeft: 5 }} />
+                            )}
+                        </View>
+
+                        <TouchableOpacity
+                            style={[styles.locationIconButton, { marginLeft: 12 }]}
+                            onPress={handleLocateMe}
+                            disabled={isLocating}
+                        >
+                            {isLocating ? (
+                                <ActivityIndicator size="small" color="#EF4444" />
+                            ) : (
+                                <MaterialCommunityIcons name="map-marker" size={28} color="#EF4444" />
+                            )}
                         </TouchableOpacity>
                     </View>
                     {showSuggestions && suggestions.length > 0 && (
-                        <View style={{
-                            position: 'absolute', top: 65, left: 0, right: 0,
-                            backgroundColor: 'white', borderWidth: 1, borderColor: '#ddd',
-                            borderRadius: 8, elevation: 5, zIndex: 20
-                        }}>
+                        <View style={styles.suggestionsContainer}>
                             {suggestions.map((s, i) => (
-                                <TouchableOpacity key={i} style={{ padding: 12, borderBottomWidth: i === suggestions.length - 1 ? 0 : 1, borderBottomColor: '#eee' }} onPress={() => handleSelectSuggestion(s)}>
-                                    <Text>{s}</Text>
+                                <TouchableOpacity
+                                    key={i}
+                                    style={styles.suggestionItem}
+                                    onPress={() => handleSelectSuggestion(s)}
+                                >
+                                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                        <MapPin name="map-pin" size={14} color="#6B7280" style={{ marginRight: 8 }} />
+                                        <Text style={styles.suggestionText}>{s}</Text>
+                                    </View>
                                 </TouchableOpacity>
                             ))}
                         </View>
                     )}
                 </View>
-                <View style={styles.inputGroup}>
-                    <Text style={styles.label}>Sube una foto o vídeo (recomendado)</Text>
-                    <View style={{ flexDirection: 'row', gap: 10 }}>
-                        <TouchableOpacity style={styles.mediaButton} onPress={pickImage}><ImagePlus name="image" size={20} color="#4B5563" /><Text style={{ marginLeft: 5 }}>Sube una foto</Text></TouchableOpacity>
-                        <TouchableOpacity style={styles.mediaButton} onPress={takePhoto}><Camera name="camera" size={20} color="#4B5563" /><Text style={{ marginLeft: 5 }}>Usar cámara</Text></TouchableOpacity>
+                {formData.location ? (
+                    <View style={[styles.inputGroup, { alignItems: 'center', marginTop: 10 }]}>
+                        <TouchableOpacity
+                            style={{
+                                width: 80,
+                                height: 80,
+                                borderRadius: 40,
+                                backgroundColor: '#F3F4F6',
+                                justifyContent: 'center',
+                                alignItems: 'center',
+                                marginBottom: 15, // Changed from marginTop to marginBottom
+                                borderWidth: 2,
+                                borderColor: '#EA580C',
+                                borderStyle: 'dashed'
+                            }}
+                            onPress={() => {
+                                if (Platform.OS === 'web') {
+                                    pickImage();
+                                    return;
+                                }
+                                Alert.alert(
+                                    "Añadir Multimedia",
+                                    "¿Qué deseas añadir?",
+                                    [
+                                        { text: "Sube una foto", onPress: pickImage },
+                                        { text: "Tomar una foto", onPress: takePhoto },
+                                        { text: "Grabar un vídeo", onPress: recordVideo },
+                                        { text: "Galería de videos", onPress: pickVideo },
+                                        { text: "Cancelar", style: "cancel" }
+                                    ]
+                                );
+                            }}
+                        >
+                            <Camera name="camera" size={32} color="#EA580C" />
+                        </TouchableOpacity>
+
+                        <Text style={[styles.label, { textAlign: 'center' }]}>
+                            Añadir fotos y Vídeos <Text style={{ fontSize: 13, fontWeight: 'normal', color: '#6B7280' }}>(opcional)</Text>
+                        </Text>
+                        <Text style={[styles.helperText, { textAlign: 'center' }]}>Las fotos y vídeos ayudan a recibir presupuestos exactos.</Text>
+
+                        {(images.length > 0 || videos.length > 0) && (
+                            <ScrollView horizontal style={{ marginTop: 20 }}>
+                                {images.map((img, i) => <Image key={`img-${i}`} source={{ uri: img }} style={{ width: 80, height: 80, borderRadius: 12, marginRight: 10 }} />)}
+                                {videos.map((vid, i) => (
+                                    <View key={`vid-${i}`} style={{ width: 80, height: 80, borderRadius: 12, backgroundColor: '#000', justifyContent: 'center', alignItems: 'center', marginRight: 10 }}>
+                                        <PlayCircle color="white" size={32} />
+                                    </View>
+                                ))}
+                            </ScrollView>
+                        )}
                     </View>
-                    <ScrollView horizontal style={{ marginTop: 10 }}>
-                        {images.map((img, i) => <Image key={i} source={{ uri: img }} style={{ width: 60, height: 60, borderRadius: 8, marginRight: 5 }} />)}
-                    </ScrollView>
-                </View>
+                ) : null}
+
                 <TouchableOpacity style={styles.searchButton} onPress={handlePreSubmit}>
-                    <Text style={styles.searchButtonText}>Pedir Presupuesto</Text>
+                    <Text style={styles.searchButtonText}>{copy.buttonText}</Text>
                     <ChevronRight color="white" size={20} />
                 </TouchableOpacity>
             </View>
@@ -854,7 +1390,7 @@ const ServiceForm = ({ onSubmit, isLoggedIn, onTriggerLogin, initialCategory, in
 
 // --- 5. PANTALLAS DE DETALLE ---
 
-const RequestDetailClient = ({ request, onBack, onAcceptOffer, onOpenChat, onUpdateRequest, selectedBudget, setSelectedBudget, showBudgetModal, setShowBudgetModal, categories = [], onRejectOffer, onConfirmStart, onAddWorkPhoto, onFinish, onRate, onCloseRequest, currentUser, onAddTimelineEvent, onTogglePortfolio, onViewUserProfile }) => {
+const RequestDetailClient = ({ request, onBack, onAcceptOffer, onOpenChat, onUpdateRequest, selectedBudget, setSelectedBudget, showBudgetModal, setShowBudgetModal, categories = [], onRejectOffer, onConfirmStart, onAddWorkPhoto, onFinish, onRate, onCloseRequest, currentUser, onAddTimelineEvent, onTogglePortfolio, onViewUserProfile, onViewImage }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [rejectionReason, setRejectionReason] = useState("");
     const [data, setData] = useState(request);
@@ -1031,12 +1567,11 @@ const RequestDetailClient = ({ request, onBack, onAcceptOffer, onOpenChat, onUpd
                     }
                 })
             }}>
-                <TouchableOpacity onPress={onBack} style={{ marginBottom: 15 }}>
-                    <Feather name="arrow-left" size={24} color="white" />
-                </TouchableOpacity>
-
                 {isEditing ? (
                     <View>
+                        <TouchableOpacity onPress={onBack} style={{ marginBottom: 15 }}>
+                            <Feather name="arrow-left" size={24} color="white" />
+                        </TouchableOpacity>
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
                             <Text style={{ fontSize: 10, color: 'rgba(255,255,255,0.8)', fontWeight: 'bold', letterSpacing: 1 }}>EDITANDO SOLICITUD</Text>
                             <TouchableOpacity
@@ -1064,9 +1599,12 @@ const RequestDetailClient = ({ request, onBack, onAcceptOffer, onOpenChat, onUpd
                     </View>
                 ) : (
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                        <TouchableOpacity onPress={onBack} style={{ marginRight: 12, marginTop: 4 }}>
+                            <Feather name="arrow-left" size={24} color="white" />
+                        </TouchableOpacity>
                         <View style={{ flex: 1, marginRight: 15 }}>
                             <Text style={{ fontSize: 12, color: 'rgba(255,255,255,0.9)', fontWeight: 'bold', textTransform: 'uppercase', marginBottom: 4 }}>
-                                {typeof data.category === 'object' ? data.category.name : data.category} • {data.subcategory || 'General'}
+                                {(typeof data.category === 'object' ? data.category.name : data.category)} • {(typeof data.subcategory === 'object' ? data.subcategory.name : (data.subcategory || 'General'))}
                             </Text>
                             <Text style={{ fontSize: 24, fontWeight: 'bold', color: 'white', lineHeight: 28 }}>{data.title}</Text>
 
@@ -1156,7 +1694,9 @@ const RequestDetailClient = ({ request, onBack, onAcceptOffer, onOpenChat, onUpd
                             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                                 {data.images && data.images.map((img, i) => (
                                     <View key={i} style={{ position: 'relative', marginRight: 10 }}>
-                                        <Image source={{ uri: img }} style={{ width: 100, height: 100, borderRadius: 12, borderWidth: 1, borderColor: '#E5E7EB' }} />
+                                        <TouchableOpacity onPress={() => onViewImage(img)}>
+                                            <Image source={{ uri: img }} style={{ width: 100, height: 100, borderRadius: 12, borderWidth: 1, borderColor: '#E5E7EB' }} />
+                                        </TouchableOpacity>
                                         {isEditing && (
                                             <TouchableOpacity
                                                 style={{ position: 'absolute', top: -8, right: -8, backgroundColor: 'white', borderRadius: 12, width: 24, height: 24, alignItems: 'center', justifyContent: 'center', elevation: 2 }}
@@ -1548,6 +2088,7 @@ const RequestDetailClient = ({ request, onBack, onAcceptOffer, onOpenChat, onUpd
                         onFinish={handleFinishInternal}
                         onRate={handleRateInternal}
                         onTogglePortfolio={onTogglePortfolio}
+                        onViewImage={onViewImage}
                     />
                 )}
 
@@ -1780,10 +2321,8 @@ const RequestDetailClient = ({ request, onBack, onAcceptOffer, onOpenChat, onUpd
     );
 };
 
-const JobDetailPro = ({ job: initialJob, onBack, onSendQuote, onOpenChat, proStatus, onUpdateStatus, onArchive, onGoToQuote, onViewProfile, currentUser, onConfirmStart, onAddWorkPhoto, onFinish, onRate, onAddTimelineEvent, onStartJob, categories, userMode, onTogglePortfolio }) => {
+const JobDetailPro = ({ job: initialJob, onBack, onSendQuote, onOpenChat, proStatus, onUpdateStatus, onArchive, onGoToQuote, onViewProfile, currentUser, onConfirmStart, onAddWorkPhoto, onFinish, onRate, onAddTimelineEvent, onStartJob, categories, userMode, onTogglePortfolio, onViewImage }) => {
     const [job, setJob] = useState(initialJob);
-    const [showImageModal, setShowImageModal] = useState(false);
-    const [selectedImage, setSelectedImage] = useState(null);
     const [showMyProposal, setShowMyProposal] = useState(false);
 
     // Sync with prop updates
@@ -1856,15 +2395,7 @@ const JobDetailPro = ({ job: initialJob, onBack, onSendQuote, onOpenChat, proSta
 
     return (
         <View style={{ flex: 1, backgroundColor: '#F8FAFC' }}>
-            {/* Modal para ver imagen ampliada */}
-            <Modal visible={showImageModal} transparent onRequestClose={() => setShowImageModal(false)}>
-                <View style={{ flex: 1, backgroundColor: 'black', justifyContent: 'center', alignItems: 'center' }}>
-                    <TouchableOpacity style={{ position: 'absolute', top: 40, right: 20, zIndex: 1 }} onPress={() => setShowImageModal(false)}>
-                        <Feather name="x" size={30} color="white" />
-                    </TouchableOpacity>
-                    {selectedImage && <Image source={{ uri: selectedImage }} style={{ width: '100%', height: '80%', resizeMode: 'contain' }} />}
-                </View>
-            </Modal>
+            {/* Modal para ver imagen ampliada eliminado - se usa el global */}
 
             {/* Modal para ver MI propuesta */}
             <Modal visible={showMyProposal} transparent animationType="slide" onRequestClose={() => setShowMyProposal(false)}>
@@ -2026,7 +2557,7 @@ const JobDetailPro = ({ job: initialJob, onBack, onSendQuote, onOpenChat, proSta
                                 if (typeof c === 'object' && c.name) return c.name;
                                 const found = categories && categories.find(cat => cat.id === c || cat._id === c);
                                 return found ? found.name : c;
-                            })()} • {job.subcategory || 'General'}
+                            })()} • {(typeof job.subcategory === 'object' ? job.subcategory.name : (job.subcategory || 'General'))}
                         </Text>
                         <Text style={{ fontSize: 24, fontWeight: 'bold', color: 'white', marginTop: 4 }}>{job.title}</Text>
                         <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
@@ -2118,7 +2649,7 @@ const JobDetailPro = ({ job: initialJob, onBack, onSendQuote, onOpenChat, proSta
                                 {job.images.map((img, i) => (
                                     <TouchableOpacity
                                         key={i}
-                                        onPress={() => { setSelectedImage(img); setShowImageModal(true); }}
+                                        onPress={() => onViewImage(img)}
                                     >
                                         <Image source={{ uri: img }} style={{ width: 120, height: 120, borderRadius: 12, marginRight: 12, borderWidth: 1, borderColor: '#F1F5F9' }} />
                                     </TouchableOpacity>
@@ -2343,6 +2874,7 @@ const JobDetailPro = ({ job: initialJob, onBack, onSendQuote, onOpenChat, proSta
                             onFinish={handleFinishInternal}
                             onRate={handleRateInternal}
                             onTogglePortfolio={onTogglePortfolio}
+                            onViewImage={onViewImage}
                         />
                     )
                 }
@@ -2376,7 +2908,7 @@ const RatingForm = ({ onSubmit, revieweeName, isForPro, onCancel }) => {
     return (
         <View style={{ backgroundColor: '#F8FAFC', borderRadius: 20, padding: 20, borderWidth: 1, borderColor: '#E2E8F0', marginTop: 10 }}>
             <Text style={{ fontSize: 18, fontWeight: 'bold', textAlign: 'center', color: '#1F2937', marginBottom: 5 }}>Valorar a {revieweeName}</Text>
-            <Text style={{ fontSize: 12, color: '#64748B', textAlign: 'center', marginBottom: 15 }}>Tu opinión ayuda a mantener la calidad en ProFix</Text>
+            <Text style={{ fontSize: 12, color: '#64748B', textAlign: 'center', marginBottom: 15 }}>Tu opinión ayuda a mantener la calidad en Profesional Cercano</Text>
 
             <View style={{ flexDirection: 'row', justifyContent: 'center', marginBottom: 20 }}>
                 {[1, 2, 3, 4, 5].map(s => (
@@ -2443,11 +2975,11 @@ const RatingForm = ({ onSubmit, revieweeName, isForPro, onCancel }) => {
 };
 
 const CloseRequestModal = ({ visible, onClose, onSubmit, offers }) => {
-    const [reason, setReason] = useState('Lo hice con alguien de ProFix');
+    const [reason, setReason] = useState('Lo hice con alguien de Profesional Cercano');
     const [selectedPro, setSelectedPro] = useState(null);
 
     const reasons = [
-        'Lo hice con alguien de ProFix',
+        'Lo hice con alguien de Profesional Cercano',
         'Lo hice por fuera de la app',
         'Ya no deseo realizar el trabajo',
         'Otros'
@@ -2466,7 +2998,7 @@ const CloseRequestModal = ({ visible, onClose, onSubmit, offers }) => {
                                 key={i}
                                 onPress={() => {
                                     setReason(r);
-                                    if (r !== 'Lo hice con alguien de ProFix') setSelectedPro(null);
+                                    if (r !== 'Lo hice con alguien de Profesional Cercano') setSelectedPro(null);
                                 }}
                                 style={{
                                     flexDirection: 'row',
@@ -2486,7 +3018,7 @@ const CloseRequestModal = ({ visible, onClose, onSubmit, offers }) => {
                             </TouchableOpacity>
                         ))}
 
-                        {reason === 'Lo hice con alguien de ProFix' && (
+                        {reason === 'Lo hice con alguien de Profesional Cercano' && (
                             <View style={{ marginTop: 15 }}>
                                 <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#374151', marginBottom: 10 }}>¿Con quién realizaste el trabajo?</Text>
                                 {offers && offers.length > 0 ? (
@@ -2539,7 +3071,7 @@ const CloseRequestModal = ({ visible, onClose, onSubmit, offers }) => {
     );
 };
 
-const ProjectTimeline = ({ job, userMode, currentUser, onConfirmStart, onAddTimelineEvent, onFinish, onRate, onTogglePortfolio }) => {
+const ProjectTimeline = ({ job, userMode, currentUser, onConfirmStart, onAddTimelineEvent, onFinish, onRate, onTogglePortfolio, onViewImage }) => {
     const [note, setNote] = useState('');
     const [isPrivate, setIsPrivate] = useState(false);
     const [showDatePicker, setShowDatePicker] = useState(false);
@@ -2931,7 +3463,9 @@ const ProjectTimeline = ({ job, userMode, currentUser, onConfirmStart, onAddTime
 
                                         {e.mediaUrl && (
                                             <View style={{ marginTop: 8, position: 'relative', width: 150 }}>
-                                                <Image source={{ uri: e.mediaUrl }} style={{ width: 150, height: 100, borderRadius: 8 }} />
+                                                <TouchableOpacity onPress={() => onViewImage(e.mediaUrl)}>
+                                                    <Image source={{ uri: e.mediaUrl }} style={{ width: 150, height: 100, borderRadius: 8 }} />
+                                                </TouchableOpacity>
                                                 <TouchableOpacity
                                                     onPress={() => onTogglePortfolio(e.mediaUrl, categoryTitle)}
                                                     style={{
@@ -3014,6 +3548,26 @@ const ProfessionalProfileRefresher = ({ user, refreshUser, children }) => {
     return React.cloneElement(React.Children.only(children), { user });
 };
 
+const ImageLightbox = ({ visible, imageUrl, onClose }) => {
+    if (!imageUrl) return null;
+    return (
+        <Modal visible={visible} transparent={true} animationType="fade" onRequestClose={onClose}>
+            <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.95)', justifyContent: 'center', alignItems: 'center' }}>
+                <TouchableOpacity
+                    style={{ position: 'absolute', top: 50, right: 20, zIndex: 10, padding: 10, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 20 }}
+                    onPress={onClose}
+                >
+                    <Feather name="x" size={30} color="white" />
+                </TouchableOpacity>
+                <Image
+                    source={{ uri: imageUrl }}
+                    style={{ width: '100%', height: '85%', resizeMode: 'contain' }}
+                />
+            </View>
+        </Modal>
+    );
+};
+
 function MainApp() {
     /* AUTH CONTEXT INTEGRATION */
     const { userToken, userInfo, logout, updateUser, isLoading } = useContext(AuthContext);
@@ -3024,6 +3578,22 @@ function MainApp() {
     const [allRequests, setAllRequests] = useState([]);
     const [allChats, setAllChats] = useState([]);
     const [refreshing, setRefreshing] = useState(false);
+    const [dynamicCopy, setDynamicCopy] = useState(HOME_COPY_OPTIONS[0]);
+
+    useEffect(() => {
+        const rotateMessaging = async () => {
+            try {
+                const lastIdxStr = await AsyncStorage.getItem(ROTATION_KEY);
+                const lastIdx = lastIdxStr ? parseInt(lastIdxStr, 10) : -1;
+                const nextIdx = (lastIdx + 1) % HOME_COPY_OPTIONS.length;
+                setDynamicCopy(HOME_COPY_OPTIONS[nextIdx]);
+                await AsyncStorage.setItem(ROTATION_KEY, nextIdx.toString());
+            } catch (e) {
+                console.warn("Error rotating home messaging:", e);
+            }
+        };
+        rotateMessaging();
+    }, []);
 
     // --- ESTADO UI/NAV ---
     const [userMode, setUserMode] = useState('client');
@@ -3061,6 +3631,7 @@ function MainApp() {
     const [selectedBudget, setSelectedBudget] = useState(null);
     const [previousView, setPreviousView] = useState(null);
     const [pendingRequestData, setPendingRequestData] = useState(null);
+    const [fullscreenImage, setFullscreenImage] = useState(null);
 
     // --- EFECTOS INICIALES ---
     useEffect(() => {
@@ -3132,9 +3703,8 @@ function MainApp() {
     const getClientStatus = (request) => {
         if (!request) return 'NUEVA';
         if (request.status === 'canceled' || request.status === 'Cerrada') return 'ELIMINADA';
-        const isRated = request.status === 'rated' || request.status === 'TERMINADO' || request.clientRated || request.proRated || (request.rating > 0) || (request.proRating > 0);
+        const isRated = !!(request.status === 'rated' || request.status === 'TERMINADO' || request.status === 'completed' || request.status === 'Culminada' || request.clientRated || request.proRated || (request.rating > 0) || (request.proRating > 0) || (request.proFinished && request.clientFinished));
         if (isRated) return 'TERMINADO';
-        if (request.status === 'completed' || request.status === 'Culminada' || (request.proFinished && request.clientFinished)) return 'VALORACIÓN';
         if (request.proFinished && !request.clientFinished) return 'VALIDANDO';
         if (request.status === 'in_progress' || request.status === 'started' || request.status === 'En Ejecución') return 'EN EJECUCIÓN';
         const activeOffers = request.offers?.filter(o => o.status !== 'rejected');
@@ -3361,7 +3931,7 @@ function MainApp() {
             const updatedRequests = await loadRequests();
 
             // Sync local selection state selecting the updated job from the mapped list
-            const updatedJob = updatedRequests.find(r => r._id === jobId || r.id === jobId);
+            const updatedJob = (updatedRequests || []).find(r => r._id === jobId || r.id === jobId);
             if (updatedJob) {
                 setSelectedRequest(updatedJob);
             }
@@ -3509,10 +4079,10 @@ function MainApp() {
                     title: job.title,
                     description: job.description,
                     category: catObj,
-                    subcategory: job.subcategory,
+                    subcategory: typeof job.subcategory === 'object' ? job.subcategory.name : job.subcategory,
                     location: job.location,
                     status: (job.status === 'active' || job.status === 'open') ? 'Abierto' :
-                        (job.status === 'rated') ? 'TERMINADO' :
+                        (job.status === 'rated' || job.status === 'VALORACIÓN') ? 'TERMINADO' :
                             (job.status === 'completed' ? 'Culminada' :
                                 (job.status === 'canceled' ? 'Cerrada' :
                                     (job.status === 'in_progress' ? 'En Ejecución' : job.status))),
@@ -3555,8 +4125,8 @@ function MainApp() {
 
             // SORT: Active first, Closed last. Newest first within groups.
             mappedJobs.sort((a, b) => {
-                const isClosedA = a.status === 'Culminada' || a.status === 'Cerrada';
-                const isClosedB = b.status === 'Culminada' || b.status === 'Cerrada';
+                const isClosedA = a.status === 'Culminada' || a.status === 'Cerrada' || a.status === 'TERMINADO';
+                const isClosedB = b.status === 'Culminada' || b.status === 'Cerrada' || b.status === 'TERMINADO';
 
                 if (isClosedA !== isClosedB) {
                     return isClosedA ? 1 : -1;
@@ -3564,6 +4134,7 @@ function MainApp() {
                 return new Date(b.createdAt) - new Date(a.createdAt);
             });
 
+            setRequests(mappedJobs);
             setAllRequests(mappedJobs);
             return mappedJobs;
         } catch (e) {
@@ -3602,6 +4173,18 @@ function MainApp() {
             }
         };
     }, [isLoggedIn, userMode, view]); // Eliminado 'refreshing' para evitar bucle infinito
+
+    // AUTO-REDIRECT TO ADMIN PANEL
+    useEffect(() => {
+        if (currentUser) {
+            const name = currentUser.name?.trim().toLowerCase();
+            const email = currentUser.email?.trim().toLowerCase();
+            if ((name === 'admin' || email === 'admin@profesionalcercano.com') && view !== 'admin') {
+                console.log("Auto-redirecting Admin to Panel...");
+                setView('admin');
+            }
+        }
+    }, [currentUser, view]);
 
     const handleOpenJobDetail = async (jobId, targetView) => {
         try {
@@ -4195,7 +4778,13 @@ function MainApp() {
     const availableJobsForPro = jobsWithStatus.filter(job => {
         // --- 1. FILTROS DE UI (Categoría y Archivados) ---
         const catMatch = filterCategory === 'Todas' || (job.category?.name || job.category) === filterCategory;
-        const isArchived = job.proStatus === 'Archivada' || job.status === 'canceled' || job.status === 'closed';
+        const isArchived = job.proStatus === 'Archivada' ||
+            job.proStatus === 'TERMINADO' ||
+            job.status === 'canceled' ||
+            job.status === 'closed' ||
+            job.status === 'TERMINADO' ||
+            job.status === 'Culminada' ||
+            job.status === 'rated';
 
         if (showArchivedOffers) {
             if (!isArchived) return false;
@@ -4285,7 +4874,7 @@ function MainApp() {
                         const name = currentUser?.name?.trim().toLowerCase();
                         const email = currentUser?.email?.trim().toLowerCase();
 
-                        if (name === 'admin' || email === 'admin@profix.com') {
+                        if (name === 'admin' || email === 'admin@profesionalcercano.com' || email === 'admin@profix.com' || currentUser?.role === 'admin') {
                             setView('admin');
                             return;
                         }
@@ -4331,7 +4920,8 @@ function MainApp() {
             <View style={{ flex: 1 }}>
                 {/* CLIENTE HOME */}
                 {userMode === 'client' && view === 'home' && (
-                    <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: 20 }}>
+                    <ScrollView style={{ flex: 1, backgroundColor: '#A19C9B' }} contentContainerStyle={{ paddingBottom: 0 }}>
+                        <SectionDivider />
                         <ServiceForm
                             onSubmit={createRequest} // Acceso directo para pruebas, idealmente pasar por handleCreateNewRequest
                             isLoggedIn={isLoggedIn}
@@ -4342,13 +4932,17 @@ function MainApp() {
                             allSubcategories={
                                 categories.reduce((acc, cat) => ({ ...acc, [cat.name]: cat.subcategories }), {})
                             }
+                            currentUser={currentUser}
+                            dynamicCopy={dynamicCopy}
                         />
+                        <SectionDivider />
                         <HomeSections
                             onSelectCategory={(cat) => { setSelectedCategory(cat); setView('category-detail'); }}
                             onSelectPost={(post) => { setSelectedBlogPost(post); setView('blog-post'); }}
                             categories={categories}
                             articles={articles}
                         />
+                        <SectionDivider />
                     </ScrollView>
                 )}
 
@@ -4388,7 +4982,7 @@ function MainApp() {
 
                 {/* ADMIN PANEL */}
                 {view === 'admin' && (
-                    <AdminScreens onBack={() => setView('home')} />
+                    <AdminScreens onBack={() => setView('home')} onLogout={handleLogout} />
                 )}
 
                 {/* CLIENTE MIS PEDIDOS */}
@@ -4396,6 +4990,7 @@ function MainApp() {
                     <MyRequestsScreen
                         allRequests={myClientRequests}
                         onRefresh={loadRequests}
+                        categories={categories}
                         navigation={{
                             navigate: (screen, params) => {
                                 if (screen === 'RequestDetail') {
@@ -4413,6 +5008,7 @@ function MainApp() {
                 {view === 'request-detail-client' && selectedRequest && (
                     <RequestDetailClient
                         request={selectedRequest}
+                        onViewImage={setFullscreenImage}
                         onViewUserProfile={(user) => {
                             // 1. Set basic info immediately for quick navigation
                             const basicUser = { ...user, _id: user.id || user._id };
@@ -4441,11 +5037,13 @@ function MainApp() {
                         onFinish={handleFinishJob}
                         onRate={handleRateMutual}
                         onTogglePortfolio={handleTogglePortfolio}
-                        onUpdateRequest={(updated) => {
+                        onUpdateRequest={async (updated) => {
                             const newReqs = allRequests.map(r => r.id === updated.id ? updated : r);
                             setAllRequests(newReqs);
-                            setRequests(newReqs);
-                            setSelectedRequest(updated);
+                            // Force refresh detail view
+                            const updatedRequests = await loadRequests();
+                            const updatedSelected = (updatedRequests || []).find(r => (r._id === updated.id || r.id === updated.id));
+                            if (updatedSelected) setSelectedRequest(updatedSelected);
                         }}
                         onCloseRequest={() => setShowCloseModal(true)}
                         currentUser={currentUser}
@@ -4455,7 +5053,7 @@ function MainApp() {
 
                 {/* PRO HOME */}
                 {userMode === 'pro' && view === 'home' && (
-                    <View style={{ flex: 1, backgroundColor: '#F3F4F6' }}>
+                    <View style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
                         {/* HEADER AZUL */}
                         <View style={{ backgroundColor: '#2563EB', paddingHorizontal: 16, paddingTop: 10, paddingBottom: 10, borderBottomLeftRadius: 24, borderBottomRightRadius: 24, elevation: 4 }}>
                             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
@@ -4653,6 +5251,7 @@ function MainApp() {
                 {view === 'job-detail-pro' && selectedRequest && (
                     <JobDetailPro
                         job={selectedRequest}
+                        onViewImage={setFullscreenImage}
                         onBack={() => setView('home')}
                         onSendQuote={handleProSendQuote}
                         onOpenChat={handleOpenChat}
@@ -4698,6 +5297,7 @@ function MainApp() {
                 {view === 'professional-profile-public' && selectedUser && (
                     <ProfessionalProfileScreen
                         user={selectedUser}
+                        onViewImage={setFullscreenImage}
                         isOwner={false}
                         categories={categories}
                         allSubcategories={
@@ -4769,6 +5369,7 @@ function MainApp() {
                             >
                                 <ProfessionalProfileScreen
                                     user={currentUser}
+                                    onViewImage={setFullscreenImage}
                                     isOwner={true}
                                     categories={categories}
                                     allSubcategories={
@@ -4799,9 +5400,9 @@ function MainApp() {
                 </View>
             </Modal>
 
-            {/* NAV INFERIOR (CON FIX DE PADDING PARA ANDROID) */}
+            {/* NAV INFERIOR (CON FIX DE PADDING PARA ANDROID, OCULTO EN ADMIN) */}
             {
-                true && (
+                view !== 'admin' && (
                     <View style={styles.bottomNav}>
                         <TouchableOpacity style={styles.navItem} onPress={() => {
                             if (view === 'home' && isLoggedIn) loadRequests();
@@ -4874,6 +5475,12 @@ function MainApp() {
                 offers={selectedRequest?.offers || []}
             />
 
+            <ImageLightbox
+                visible={!!fullscreenImage}
+                imageUrl={fullscreenImage}
+                onClose={() => setFullscreenImage(null)}
+            />
+
             {/* El portafolio ahora se gestiona directamente desde la línea de tiempo */}
         </SafeAreaView >
     );
@@ -4893,120 +5500,316 @@ export default function App() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#F3F4F6',
+        backgroundColor: '#FFFFFF', // Solid White
         // BAJAR CONTENIDO DE BARRA DE ESTADO
         paddingTop: Platform.OS === 'android' ? (RNStatusBar.currentHeight || 30) + 5 : 5
     },
-    header: { flexDirection: 'row', justifyContent: 'space-between', padding: 15, backgroundColor: 'white', elevation: 2 },
+    header: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        paddingHorizontal: 24, // Wider margins
+        paddingVertical: 8, // Further reduced to match screenshot
+        backgroundColor: 'white',
+        borderBottomWidth: 0, // Removed to match requested boxed look
+    },
     headerLeft: { flexDirection: 'row', alignItems: 'center' },
-    logoIcon: { padding: 6, borderRadius: 8, marginRight: 8 },
-    logoText: { fontSize: 20, fontWeight: 'bold', color: '#333' },
+    logoIcon: { padding: 8, borderRadius: 12, marginRight: 10 },
+    logoText: { fontSize: 18, fontWeight: 'bold', color: '#111827' }, // Reduced to 18px
     headerRight: { flexDirection: 'row', alignItems: 'center' },
-    modeButton: { backgroundColor: '#eee', padding: 6, borderRadius: 15, marginRight: 10 },
-    modeButtonText: { fontSize: 12, fontWeight: 'bold', color: '#555' },
-    loginButtonHeader: { backgroundColor: '#EA580C', padding: 6, borderRadius: 15, marginRight: 10 },
-    loginButtonHeaderText: { color: 'white', fontSize: 12, fontWeight: 'bold' },
-    content: { flex: 1, padding: 15 },
+    modeButton: {
+        width: 48,
+        height: 48,
+        borderRadius: 24,
+        justifyContent: 'center',
+        alignItems: 'center'
+    },
+    modeButtonText: { fontSize: 13, fontWeight: 'bold', color: '#4B5563' }, // Grey-600
+    loginButtonHeader: {
+        backgroundColor: '#EA580C',
+        paddingHorizontal: 20,
+        borderRadius: 24,
+        minHeight: 48,
+        justifyContent: 'center'
+    },
+    loginButtonHeaderText: { color: 'white', fontSize: 15, fontWeight: 'bold' },
+    content: { flex: 1, paddingHorizontal: 24, paddingVertical: 16 }, // Wider margins
 
-    heroCard: { backgroundColor: 'white', borderRadius: 15, overflow: 'hidden', marginBottom: 20, elevation: 3 },
-    heroHeader: { backgroundColor: '#EA580C', padding: 20 },
-    heroTitle: { fontSize: 22, fontWeight: 'bold', color: 'white' },
-    heroSubtitle: { color: 'rgba(255,255,255,0.9)' },
-    formContainer: { padding: 20 },
-    label: { fontSize: 12, fontWeight: 'bold', color: '#374151', marginBottom: 6 },
-    pickerContainer: { flexDirection: 'row', justifyContent: 'space-between', borderWidth: 1, borderColor: '#E5E7EB', padding: 14, borderRadius: 10, backgroundColor: '#F3F4F6' },
-    inputBox: { borderWidth: 1, borderColor: '#E5E7EB', padding: 10, borderRadius: 10, backgroundColor: '#F3F4F6', fontSize: 14 },
-    inputGroup: { marginBottom: 10 },
-    inputWrapper: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 10, paddingHorizontal: 10, backgroundColor: '#F3F4F6', paddingVertical: 0 },
-    mediaButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 10, backgroundColor: '#F3F4F6', borderRadius: 10, borderWidth: 1, borderColor: '#E5E7EB' },
+    heroCard: {
+        backgroundColor: 'white',
+        borderRadius: 0, // Fallback to full-bleed
+        marginBottom: 20,
+    },
+    heroHeader: { backgroundColor: '#EA580C', padding: 24 },
+    heroTitle: { fontSize: 26, fontWeight: 'bold', color: 'white' },
+    heroSubtitle: { fontSize: 17, color: 'rgba(255,255,255,0.9)' },
+    formContainer: { paddingVertical: 20 },
+    label: { fontSize: 15, fontWeight: 'bold', color: '#1F2937', marginBottom: 8 }, // Consistent 15px
+    pickerContainer: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        borderWidth: 1.5,
+        borderColor: '#9CA3AF',
+        paddingHorizontal: 16,
+        paddingVertical: 14,
+        borderRadius: 12,
+        backgroundColor: '#F9FAFB',
+        minHeight: 56,
+        alignItems: 'center'
+    },
+    input: {
+        fontSize: 16,
+        color: '#111827'
+    },
+    inputBox: {
+        borderWidth: 1.5,
+        borderColor: '#9CA3AF',
+        paddingHorizontal: 16,
+        paddingVertical: 14,
+        borderRadius: 12,
+        backgroundColor: '#F9FAFB',
+        fontSize: 17,
+        fontWeight: 'bold',
+        color: '#111827',
+        minHeight: 56
+    },
+    inputGroup: { marginBottom: 16 },
+    helperText: { fontSize: 12, color: '#6B7280', marginBottom: 12, marginTop: -4, textAlign: 'center' },
+    inputWrapper: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        borderWidth: 1.5,
+        borderColor: '#9CA3AF',
+        borderRadius: 12,
+        paddingHorizontal: 16,
+        backgroundColor: '#F9FAFB',
+        minHeight: 56
+    },
+    locationIconButton: {
+        width: 56,
+        height: 56,
+        backgroundColor: '#F9FAFB',
+        borderRadius: 12,
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 1.5,
+        borderColor: '#9CA3AF',
+    },
+    locationButtonText: {
+        color: '#EA580C',
+        fontWeight: 'bold',
+        fontSize: 16
+    },
+    privacyNote: {
+        fontSize: 12,
+        color: '#6B7280',
+        marginLeft: 4,
+        lineHeight: 18
+    },
+    suggestionsContainer: {
+        position: 'absolute',
+        top: 155,
+        left: 0,
+        right: 0,
+        backgroundColor: 'white',
+        borderWidth: 1,
+        borderColor: '#E5E7EB',
+        borderRadius: 12,
+        elevation: 8,
+        zIndex: 100,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 10
+    },
+    suggestionItem: {
+        paddingVertical: 14,
+        paddingHorizontal: 16,
+        borderBottomWidth: 1,
+        borderBottomColor: '#F3F4F6'
+    },
+    suggestionText: {
+        fontSize: 16,
+        color: '#374151'
+    },
+    mediaButton: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 14,
+        backgroundColor: 'white',
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: '#E5E7EB',
+        minHeight: 48
+    },
     searchButton: {
-        backgroundColor: '#EA580C', flexDirection: 'row', justifyContent: 'center', padding: 14, borderRadius: 12, alignItems: 'center',
-        ...Platform.select({
-            web: { boxShadow: '0px 4px 6px rgba(234, 88, 12, 0.3)' },
-            default: { shadowColor: '#EA580C', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 5, elevation: 5 }
-        })
+        backgroundColor: '#EA580C',
+        flexDirection: 'row',
+        justifyContent: 'center',
+        padding: 20,
+        borderRadius: 16,
+        alignItems: 'center',
+        minHeight: 64,
+        marginTop: 20,
+        marginBottom: 30
     },
-    searchButtonText: { color: 'white', fontWeight: 'bold', fontSize: 16, marginRight: 5 },
+    searchButtonText: { color: 'white', fontWeight: 'bold', fontSize: 17, marginRight: 8 },
 
-    sectionTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 15, color: '#111827', marginTop: 10 },
-    categoriesGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, justifyContent: 'space-between', paddingBottom: 20 },
+    sectionTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 16, color: '#111827', marginTop: 0 },
+    categoriesGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        justifyContent: 'space-between',
+        paddingBottom: 24,
+        marginTop: 8
+    },
     catCard: {
-        width: '22%', aspectRatio: 0.9, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: 'white',
-        ...Platform.select({
-            web: { boxShadow: '0px 2px 3px rgba(0,0,0,0.05)' },
-            default: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 3, elevation: 2 }
-        })
+        width: '31%',
+        backgroundColor: '#F9FAFB',
+        padding: 12,
+        borderRadius: 20,
+        marginBottom: 12,
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 1.5,
+        borderColor: '#E5E7EB',
+        aspectRatio: 0.95
     },
-    catText: { fontSize: 11, fontWeight: '600', marginTop: 8, color: '#374151', textAlign: 'center' },
+    catIconCircle: {
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    catTextCard: {
+        fontSize: 12,
+        fontWeight: 'bold',
+        color: '#374151',
+        flex: 0
+    },
 
-    reqCard: { backgroundColor: 'white', padding: 15, borderRadius: 10, marginBottom: 10, borderLeftWidth: 4, borderLeftColor: '#EA580C', elevation: 2 },
-    proHeaderCard: { backgroundColor: '#2563EB', padding: 20, borderRadius: 15, marginBottom: 20 },
-    jobCard: { backgroundColor: 'white', padding: 15, borderRadius: 10, marginBottom: 10, elevation: 2 },
-    offerCard: { backgroundColor: 'white', padding: 15, borderRadius: 10, marginBottom: 10, borderWidth: 1, borderColor: '#eee' },
+    reqCard: {
+        backgroundColor: 'white',
+        padding: 20,
+        borderRadius: 16,
+        marginBottom: 12,
+        borderWidth: 1,
+        borderColor: '#E5E7EB'
+    },
+    proHeaderCard: { backgroundColor: '#2563EB', padding: 24, borderRadius: 16, marginBottom: 20 },
+    jobCard: {
+        backgroundColor: 'white',
+        padding: 20,
+        borderRadius: 16,
+        marginBottom: 12,
+        borderWidth: 1,
+        borderColor: '#E5E7EB'
+    },
+    offerCard: {
+        backgroundColor: 'white',
+        padding: 20,
+        borderRadius: 16,
+        marginBottom: 12,
+        borderWidth: 1,
+        borderColor: '#E5E7EB'
+    },
 
-    modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-    modalContent: { backgroundColor: 'white', padding: 25, borderTopLeftRadius: 20, borderTopRightRadius: 20 },
-    mainAuthButton: { padding: 15, borderRadius: 10, alignItems: 'center' },
+    modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
+    modalContent: { backgroundColor: 'white', padding: 24, borderTopLeftRadius: 24, borderTopRightRadius: 24 },
+    mainAuthButton: { padding: 16, borderRadius: 12, alignItems: 'center', minHeight: 48 },
 
-    // NAV INFERIOR CON FIX AGRESIVO DE PADDING PARA ANDROID
+    // NAV INFERIOR
     bottomNav: {
-        flexDirection: 'row', justifyContent: 'space-around', paddingTop: 10, backgroundColor: 'white', borderTopWidth: 1, borderColor: '#eee',
-        paddingBottom: Platform.OS === 'android' ? 50 : 20,
-        minHeight: Platform.OS === 'android' ? 90 : 70,
-        ...Platform.select({
-            web: { boxShadow: '0px -2px 10px rgba(0,0,0,0.1)' },
-            default: { elevation: 20 }
-        })
+        flexDirection: 'row',
+        justifyContent: 'space-around',
+        paddingTop: 12,
+        backgroundColor: 'white',
+        borderTopWidth: 1,
+        borderColor: '#E5E7EB',
+        paddingBottom: Platform.OS === 'android' ? 32 : 24,
+        minHeight: 80
     },
-    navItem: { alignItems: 'center', padding: 5 },
+    navItem: { alignItems: 'center', padding: 8, flex: 1, minHeight: 48 },
 
     // ESTILOS EXTRA SECCIONES
-    howToCard: { backgroundColor: 'white', borderRadius: 20, overflow: 'hidden', borderWidth: 1, borderColor: '#E5E7EB', marginBottom: 20 },
-    howToHeader: { backgroundColor: '#4B5563', padding: 16, alignItems: 'center' },
-    howToTitle: { color: 'white', fontSize: 18, fontWeight: 'bold' },
-    howToSubtitle: { color: '#D1D5DB', fontSize: 12 },
-    stepsRow: { flexDirection: 'row', padding: 20, justifyContent: 'space-between' },
+    howToCard: {
+        backgroundColor: 'white',
+        borderRadius: 32,
+        overflow: 'hidden',
+        borderWidth: 0,
+        marginBottom: 24,
+        paddingBottom: 10
+    },
+    howToHeader: { backgroundColor: '#F8F9FA', padding: 20, alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#E5E7EB' },
+    howToTitle: { color: '#111827', fontSize: 20, fontWeight: 'bold' },
+    howToSubtitle: { color: '#4B5563', fontSize: 14, marginTop: 4 },
+    stepsRow: { flexDirection: 'row', padding: 24, justifyContent: 'space-between' },
     step: { alignItems: 'center', flex: 1 },
-    stepBadge: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
-    stepNumber: { fontWeight: 'bold', fontSize: 16 },
-    stepLabel: { fontSize: 12, color: '#4B5563', fontWeight: '500' },
-    videoButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 12, borderTopWidth: 1, borderTopColor: '#F3F4F6', backgroundColor: '#F9FAFB' },
-    videoButtonText: { color: '#2563EB', fontSize: 12, fontWeight: 'bold' },
+    stepBadge: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
+    stepNumber: { fontWeight: 'bold', fontSize: 18 },
+    stepLabel: { fontSize: 14, color: '#4B5563', fontWeight: '500' },
+    videoButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 16,
+        borderTopWidth: 1,
+        borderTopColor: '#E5E7EB',
+        backgroundColor: 'white',
+        minHeight: 48
+    },
+    videoButtonText: { color: '#2563EB', fontSize: 14, fontWeight: 'bold' },
 
     testimonialCard: {
-        backgroundColor: 'white', padding: 16, borderRadius: 16, marginRight: 16, width: 260, marginBottom: 20,
-        ...Platform.select({
-            web: { boxShadow: '0px 2px 4px rgba(0,0,0,0.1)' },
-            default: { elevation: 2 }
-        })
+        backgroundColor: 'white',
+        padding: 20,
+        borderRadius: 20,
+        marginRight: 16,
+        width: 280,
+        marginBottom: 24,
+        borderWidth: 1,
+        borderColor: '#E5E7EB'
     },
-    testimonialText: { fontSize: 13, color: '#4B5563', fontStyle: 'italic', marginBottom: 8, lineHeight: 18 },
-    testimonialUser: { fontSize: 12, fontWeight: 'bold', color: '#1F2937' },
+    testimonialText: { fontSize: 15, color: '#4B5563', fontStyle: 'italic', marginBottom: 12, lineHeight: 22 },
+    testimonialUser: { fontSize: 14, fontWeight: 'bold', color: '#111827' },
 
-    blogCard: { flexDirection: 'row', backgroundColor: 'white', borderRadius: 16, overflow: 'hidden', marginBottom: 12, borderWidth: 1, borderColor: '#E5E7EB', height: 90 },
+    blogCard: {
+        flexDirection: 'row',
+        backgroundColor: 'white',
+        borderRadius: 20,
+        overflow: 'hidden',
+        marginBottom: 16,
+        borderWidth: 1,
+        borderColor: '#E5E7EB',
+        height: 100
+    },
 
     // ESTILOS FORMULARIO SEPARADO
     serviceFormCard: {
-        backgroundColor: 'white', borderRadius: 16, overflow: 'hidden', marginBottom: 15, borderWidth: 1, borderColor: '#E5E7EB',
-        ...Platform.select({
-            web: { boxShadow: '0px 2px 4px rgba(0,0,0,0.1)' },
-            default: { elevation: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4 }
-        })
+        backgroundColor: 'white',
+        borderRadius: 32, // Apply to all corners
+        marginBottom: 0,
+        borderWidth: 0,
+        paddingHorizontal: 24,
+        paddingBottom: 25, // Added padding at the bottom
     },
-    serviceFormHeader: { backgroundColor: 'white', padding: 15, paddingBottom: 5 },
-    serviceFormTitle: { fontSize: 20, fontWeight: 'bold', color: '#111827' },
-    serviceFormSubtitle: { color: '#6B7280', fontSize: 12, marginTop: 4, lineHeight: 16 },
-    serviceFormContent: { padding: 15, paddingTop: 5 },
-    blogContent: { flex: 1, padding: 12, justifyContent: 'center' },
-    blogCategory: { fontSize: 10, color: '#2563EB', fontWeight: 'bold', textTransform: 'uppercase', marginBottom: 4 },
-    blogTitle: { fontSize: 14, fontWeight: 'bold', color: '#1F2937', marginBottom: 4 },
-    blogLink: { fontSize: 12, color: '#6B7280' },
+    serviceFormHeader: { backgroundColor: 'white', paddingVertical: 15, paddingBottom: 10 },
+    serviceFormTitle: { fontSize: 22, fontWeight: 'bold', color: '#111811', lineHeight: 28 },
+    serviceFormSubtitle: { color: '#4B5563', fontSize: 14, marginTop: 8, lineHeight: 20 },
+    serviceFormContent: { paddingVertical: 10 },
+    blogContent: { flex: 1, padding: 16, justifyContent: 'center' },
+    blogCategory: { fontSize: 12, color: '#2563EB', fontWeight: 'bold', textTransform: 'uppercase', marginBottom: 6 },
+    blogTitle: { fontSize: 16, fontWeight: 'bold', color: '#111827', marginBottom: 4 },
+    blogLink: { fontSize: 14, color: '#4B5563' },
 
     // BADGES
     badgeContainer: {
         position: 'absolute',
-        top: -5,
-        right: -10,
+        top: -4,
+        right: -8,
         backgroundColor: '#EF4444',
         borderRadius: 10,
         minWidth: 20,
@@ -5014,7 +5817,7 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         paddingHorizontal: 4,
-        borderWidth: 1.5,
+        borderWidth: 2,
         borderColor: 'white'
     },
     badgeText: {
@@ -5028,14 +5831,15 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        backgroundColor: 'rgba(255,255,255,0.2)',
+        backgroundColor: 'rgba(255,255,255,0.15)',
         paddingHorizontal: 16,
-        paddingVertical: 10,
-        borderRadius: 8,
+        paddingVertical: 12,
+        borderRadius: 12,
         borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.3)'
+        borderColor: 'rgba(255,255,255,0.3)',
+        minHeight: 48
     },
-    dropdownButtonText: { color: 'white', fontWeight: '600', fontSize: 13, flex: 1 },
+    dropdownButtonText: { color: 'white', fontWeight: '600', fontSize: 14, flex: 1 },
 
     // Modal Styles
     modalOverlay: {
@@ -5043,37 +5847,46 @@ const styles = StyleSheet.create({
         backgroundColor: 'rgba(0,0,0,0.5)',
         justifyContent: 'center',
         alignItems: 'center',
-        padding: 20
+        padding: 24
     },
     modalContent: {
         backgroundColor: 'white',
-        borderRadius: 16,
+        borderRadius: 24,
         width: '100%',
-        maxWidth: 340,
-        padding: 20,
-        elevation: 10,
+        maxWidth: 400,
+        padding: 24,
+        borderWidth: 1,
+        borderColor: '#E5E7EB',
         maxHeight: '80%'
     },
-    modalTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 15, color: '#1E293B', textAlign: 'center' },
+    modalTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 16, color: '#111827', textAlign: 'center' },
     modalOption: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingVertical: 14,
+        paddingVertical: 16,
         borderBottomWidth: 1,
-        borderBottomColor: '#F1F5F9'
+        borderBottomColor: '#F1F5F9',
+        minHeight: 56
     },
-    modalOptionSelected: { backgroundColor: '#FFF7ED', paddingHorizontal: 10, borderRadius: 8, borderBottomWidth: 0 },
-    modalOptionText: { fontSize: 15, color: '#475569' },
+    modalOptionSelected: { backgroundColor: '#FFF7ED', paddingHorizontal: 16, borderRadius: 12, borderBottomWidth: 0 },
+    modalOptionText: { fontSize: 16, color: '#475569' },
     modalOptionTextSelected: { color: '#EA580C', fontWeight: 'bold' },
 
     // Category Grid Modal Styles
     categoryGridModalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
-    categoryGridModalContent: { backgroundColor: 'white', borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 25, maxHeight: '90%' },
+    categoryGridModalContent: {
+        backgroundColor: 'white',
+        borderTopLeftRadius: 32,
+        borderTopRightRadius: 32,
+        padding: 24,
+        height: '100%', // Full Screen
+        maxHeight: '100%'
+    },
     categoryGridHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
     categoryGridTitle: { fontSize: 22, fontWeight: 'bold', color: '#111827' },
     categoryGridSubtitle: { fontSize: 13, color: '#6B7280', marginTop: 2 },
-    categoryGridCloseButton: { backgroundColor: '#F3F4F6', padding: 8, borderRadius: 20 },
+    categoryGridCloseButton: { backgroundColor: '#F3F4F6', padding: 8, borderRadius: 20, minWidth: 48, minHeight: 48, justifyContent: 'center', alignItems: 'center' },
     categoryGridScroll: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', paddingBottom: 30 },
     categoryGridItem: {
         width: '31%',
@@ -5085,11 +5898,9 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         borderWidth: 1,
         borderColor: '#E5E7EB',
-        ...Platform.select({
-            web: { boxShadow: '0px 2px 4px rgba(0,0,0,0.1)' },
-            default: { shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 3, elevation: 2 }
-        })
+        minHeight: 48,
+        minWidth: 48
     },
     categoryGridIconWrapper: { padding: 12, borderRadius: 50, marginBottom: 8 },
-    categoryGridLabel: { fontSize: 12, fontWeight: 'bold', color: '#374151', textAlign: 'center' }
+    categoryGridLabel: { fontSize: 12, fontWeight: 'bold', color: '#111827', textAlign: 'center' }
 });

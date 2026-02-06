@@ -12,6 +12,7 @@ const https = require('https'); // For Expo Push
 router.get('/', protect, async (req, res) => {
     try {
         let chats = await Chat.find({ participants: req.user._id })
+            .select('-messages.media')
             .populate('participants', 'name avatar email role')
             .populate('job', 'title client')
             .sort({ lastMessageDate: -1 });
@@ -22,7 +23,7 @@ router.get('/', protect, async (req, res) => {
         // --- FILTRO POR ROL (Estricto) ---
         // Separar chats de Cliente vs Profesional
         const role = (req.query.role || '').toLowerCase();
-        
+
         if (role === 'client') {
             // MOSTRAR: Solo chats donde SOY EL DUEÑO de la solicitud
             chats = chats.filter(c => {
@@ -62,7 +63,7 @@ router.get('/', protect, async (req, res) => {
             }));
             console.log(`[GET /api/chats] role=${role} user=${req.user._id} count=${chats.length}`);
             console.log(`[GET /api/chats] sample=`, JSON.stringify(summary));
-        } catch (logErr) {}
+        } catch (logErr) { }
 
         res.json(chats);
     } catch (error) {

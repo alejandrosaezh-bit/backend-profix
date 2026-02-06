@@ -1,7 +1,8 @@
 import * as SecureStore from 'expo-secure-store';
+import { API_URL } from './api';
 
-const ACCESS_TOKEN_KEY = 'profix_access_token';
-const ID_TOKEN_KEY = 'profix_id_token';
+const ACCESS_TOKEN_KEY = 'profesional_cercano_access_token';
+const ID_TOKEN_KEY = 'profesional_cercano_id_token';
 
 export async function saveTokens({ accessToken, idToken }) {
   try {
@@ -44,8 +45,7 @@ export async function clearTokens() {
  */
 export async function sendTokenToBackend(accessToken) {
   if (!accessToken) throw new Error('No access token provided');
-  // URL de Producción (Render)
-  const BACKEND_URL = 'https://profix-backend-h56b.onrender.com/api';
+  const BACKEND_URL = API_URL;
 
   try {
     const res = await fetch(`${BACKEND_URL}/auth/google`, {

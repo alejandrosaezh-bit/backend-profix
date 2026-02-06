@@ -33,7 +33,7 @@ app.use((req, res, next) => {
 
 // Rutas
 app.get('/', (req, res) => {
-    res.send('API ProFix Corriendo...');
+    res.send('API Profesional Cercano Corriendo...');
 });
 
 // Rutas de Autenticación

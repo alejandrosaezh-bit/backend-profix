@@ -11,7 +11,7 @@ const CustomDropdown = ({ label, value, options, onSelect, placeholder }) => {
     <View style={{ marginBottom: 16 }}>
       <Text style={styles.inputLabel}>{label}</Text>
       <TouchableOpacity style={styles.pickerContainer} onPress={() => setModalVisible(true)}>
-        <Text style={[styles.input, { color: value ? '#1F2937' : '#9CA3AF' }]}>{value || placeholder}</Text>
+        <Text style={[styles.input, { color: value ? '#111827' : '#4B5563' }]}>{value || placeholder}</Text>
         <Feather name="chevron-down" size={20} color="#6B7280" />
       </TouchableOpacity>
       <Modal visible={modalVisible} transparent={true} animationType="fade">
@@ -236,11 +236,8 @@ export default function RequestDetailScreen({ route, navigation }) {
     // 0. CANCELADA -> ELIMINADA
     if (request.status === 'canceled') return 'ELIMINADA';
 
-    // 1. TERMINADO (Any rating exists)
-    if (request.status === 'rated' || (request.rating > 0) || (request.proRating > 0)) return 'TERMINADO';
-
-    // 2. VALORACIÓN (Both finished)
-    if (request.status === 'completed' || (request.proFinished && request.clientFinished)) return 'VALORACIÓN';
+    // 1. TERMINADO (Any rating exists or status is rated/completed)
+    if (request.status === 'rated' || request.status === 'completed' || request.status === 'Culminada' || (request.rating > 0) || (request.proRating > 0) || (request.proFinished && request.clientFinished)) return 'TERMINADO';
 
     // 3. VALIDANDO (Waiting for client confirmation)
     if (request.proFinished && !request.clientFinished) return 'VALIDANDO';
@@ -269,7 +266,7 @@ export default function RequestDetailScreen({ route, navigation }) {
       case 'VALORACIÓN': return { bg: '#8B5CF6', text: 'white' };
       case 'TERMINADO': return { bg: '#1F2937', text: 'white' };
       case 'ELIMINADA': return { bg: '#EF4444', text: 'white' };
-      case 'CANCELADA': return { bg: '#EF4444', text: 'white' }; 
+      case 'CANCELADA': return { bg: '#EF4444', text: 'white' };
       default: return { bg: '#6B7280', text: 'white' };
     }
   };
@@ -278,7 +275,7 @@ export default function RequestDetailScreen({ route, navigation }) {
   const statusColors = getStatusStyle(statusLabel);
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#F3F4F6' }}>
+    <View style={{ flex: 1, backgroundColor: '#F8F9FA' }}>
       {/* HEADER */}
       <View style={styles.header}>
         {isEditing ? (
@@ -294,7 +291,7 @@ export default function RequestDetailScreen({ route, navigation }) {
               onChangeText={t => setData({ ...data, title: t })}
               style={styles.headerTitleInput}
               placeholder="Título"
-              placeholderTextColor="rgba(255,255,255,0.5)"
+              placeholderTextColor="rgba(255,255,255,0.7)"
             />
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <Feather name="map-pin" size={14} color="white" />
@@ -303,7 +300,7 @@ export default function RequestDetailScreen({ route, navigation }) {
                 onChangeText={t => setData({ ...data, location: t })}
                 style={styles.headerLocationInput}
                 placeholder="Ubicación"
-                placeholderTextColor="rgba(255,255,255,0.5)"
+                placeholderTextColor="rgba(255,255,255,0.7)"
               />
             </View>
           </View>
@@ -312,7 +309,7 @@ export default function RequestDetailScreen({ route, navigation }) {
             <View style={styles.headerTopRow}>
               <View style={{ flex: 1, marginRight: 10 }}>
                 <Text style={styles.headerCategory}>
-                  {typeof data.category === 'object' ? data.category.name : data.category} • {data.subcategory || 'General'}
+                  {(typeof data.category === 'object' ? data.category.name : data.category)} • {(typeof data.subcategory === 'object' ? data.subcategory.name : (data.subcategory || 'General'))}
                 </Text>
                 <Text style={styles.headerTitle} numberOfLines={1}>{data.title}</Text>
               </View>
@@ -476,55 +473,95 @@ export default function RequestDetailScreen({ route, navigation }) {
 }
 
 const styles = StyleSheet.create({
-  header: { backgroundColor: '#EA580C', paddingHorizontal: 20, paddingTop: 20, paddingBottom: 20, borderBottomLeftRadius: 24, borderBottomRightRadius: 24, elevation: 4, marginBottom: 16 },
-  headerTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 },
-  headerLabel: { fontSize: 10, color: 'rgba(255,255,255,0.8)', fontWeight: 'bold', letterSpacing: 1 },
-  headerCategory: { fontSize: 10, color: 'rgba(255,255,255,0.9)', fontWeight: 'bold', textTransform: 'uppercase', marginBottom: 2 },
-  headerTitle: { fontSize: 20, fontWeight: 'bold', color: 'white', lineHeight: 24 },
-  headerTitleInput: { fontSize: 22, fontWeight: 'bold', color: 'white', borderBottomWidth: 1, borderColor: 'white', paddingVertical: 4, marginBottom: 10 },
-  headerLocationInput: { flex: 1, marginLeft: 6, borderBottomWidth: 1, borderColor: 'white', paddingVertical: 2, fontSize: 12, color: 'white' },
+  header: {
+    backgroundColor: '#EA580C',
+    paddingHorizontal: 20,
+    paddingTop: 24,
+    paddingBottom: 24,
+    borderBottomLeftRadius: 32,
+    borderBottomRightRadius: 32,
+    elevation: 0,
+    marginBottom: 20
+  },
+  headerTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 },
+  headerLabel: { fontSize: 11, color: 'rgba(255,255,255,0.8)', fontWeight: 'bold', letterSpacing: 1 },
+  headerCategory: { fontSize: 12, color: 'rgba(255,255,255,0.9)', fontWeight: 'bold', textTransform: 'uppercase', marginBottom: 4 },
+  headerTitle: { fontSize: 24, fontWeight: 'bold', color: 'white', lineHeight: 28 },
+  headerTitleInput: { fontSize: 24, fontWeight: 'bold', color: 'white', borderBottomWidth: 1, borderColor: 'white', paddingVertical: 4, marginBottom: 15 },
+  headerLocationInput: { flex: 1, marginLeft: 8, borderBottomWidth: 1, borderColor: 'white', paddingVertical: 4, fontSize: 14, color: 'white' },
 
-  saveButton: { backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20 },
-  saveButtonText: { color: 'white', fontWeight: 'bold', fontSize: 12 },
-  editButton: { backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
-  editButtonText: { color: 'white', fontWeight: 'bold', fontSize: 10 },
+  saveButton: { backgroundColor: 'white', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12, minHeight: 40, justifyContent: 'center' },
+  saveButtonText: { color: '#EA580C', fontWeight: 'bold', fontSize: 14 },
+  editButton: { backgroundColor: 'rgba(255,255,255,0.25)', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12, minHeight: 40, justifyContent: 'center' },
+  editButtonText: { color: 'white', fontWeight: 'bold', fontSize: 14 },
 
-  statusBadge: { backgroundColor: 'white', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8, marginRight: 8 },
-  statusText: { color: '#EA580C', fontSize: 10, fontWeight: 'bold' },
-  headerInfoText: { color: 'white', fontSize: 11, marginLeft: 2 },
+  statusBadge: { backgroundColor: 'white', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, marginRight: 12 },
+  statusText: { color: '#EA580C', fontSize: 11, fontWeight: 'bold' },
+  headerInfoText: { color: 'white', fontSize: 13, marginLeft: 4 },
 
-  card: { backgroundColor: 'white', padding: 20, borderRadius: 16, marginBottom: 20, elevation: 2, marginHorizontal: 20 },
-  description: { color: '#374151', fontSize: 15, lineHeight: 24 },
-  textArea: { color: '#374151', fontSize: 15, lineHeight: 24, minHeight: 80, textAlignVertical: 'top', borderBottomWidth: 1, borderColor: '#E5E7EB' },
+  card: { backgroundColor: 'white', padding: 24, borderRadius: 24, marginBottom: 24, borderWidth: 1, borderColor: '#E5E7EB', marginHorizontal: 20 },
+  description: { color: '#111827', fontSize: 16, lineHeight: 26 },
+  textArea: { color: '#111827', fontSize: 16, lineHeight: 26, minHeight: 100, textAlignVertical: 'top', borderBottomWidth: 1, borderColor: '#E5E7EB', paddingTop: 12 },
 
-  sectionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  sectionTitle: { fontSize: 12, fontWeight: 'bold', color: '#6B7280' },
-  addButton: { flexDirection: 'row', alignItems: 'center' },
-  addButtonText: { fontSize: 12, color: '#EA580C', marginLeft: 4, fontWeight: 'bold' },
+  sectionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+  sectionTitle: { fontSize: 13, fontWeight: 'bold', color: '#6B7280', letterSpacing: 1 },
+  addButton: { flexDirection: 'row', alignItems: 'center', minHeight: 40, paddingHorizontal: 8 },
+  addButtonText: { fontSize: 14, color: '#EA580C', marginLeft: 6, fontWeight: 'bold' },
 
-  imageThumb: { width: 100, height: 100, borderRadius: 12, borderWidth: 1, borderColor: '#E5E7EB' },
-  deleteImageButton: { position: 'absolute', top: -8, right: -8, backgroundColor: 'white', borderRadius: 12, width: 24, height: 24, alignItems: 'center', justifyContent: 'center', elevation: 2 },
+  imageThumb: { width: 110, height: 110, borderRadius: 16, borderWidth: 1, borderColor: '#E5E7EB' },
+  deleteImageButton: { position: 'absolute', top: -10, right: -10, backgroundColor: 'white', borderRadius: 14, width: 28, height: 28, alignItems: 'center', justifyContent: 'center', elevation: 4, borderWidth: 1, borderColor: '#E5E7EB' },
 
-  inputLabel: { fontSize: 12, fontWeight: 'bold', color: '#6B7280', marginBottom: 4, marginTop: 10 },
-  pickerContainer: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 8, padding: 12, backgroundColor: '#F9FAFB' },
-  input: { fontSize: 14 },
+  inputLabel: { fontSize: 14, fontWeight: 'bold', color: '#111827', marginBottom: 8, marginTop: 12 },
+  pickerContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 12,
+    padding: 16,
+    backgroundColor: '#F9FAFB',
+    minHeight: 56
+  },
+  input: { fontSize: 16, color: '#111827' },
 
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
-  modalContent: { backgroundColor: 'white', borderRadius: 12, padding: 20, maxHeight: '80%', elevation: 5 },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 15, alignItems: 'center' },
-  modalTitle: { fontSize: 18, fontWeight: 'bold', color: '#333' },
-  modalOption: { paddingVertical: 15, borderBottomWidth: 1, borderColor: '#F3F4F6' },
-  modalOptionText: { fontSize: 16, color: '#374151' },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 24 },
+  modalContent: { backgroundColor: 'white', borderRadius: 24, padding: 24, maxHeight: '80%', elevation: 10, borderWidth: 1, borderColor: '#E5E7EB' },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20, alignItems: 'center' },
+  modalTitle: { fontSize: 20, fontWeight: 'bold', color: '#111827' },
+  modalOption: { paddingVertical: 16, borderBottomWidth: 1, borderColor: '#F3F4F6', minHeight: 56, justifyContent: 'center' },
+  modalOptionText: { fontSize: 16, color: '#4B5563' },
 
-  bigSectionTitle: { fontSize: 18, fontWeight: 'bold', color: '#111827', marginBottom: 15 },
-  emptyOffers: { alignItems: 'center', padding: 20, backgroundColor: 'white', borderRadius: 16, borderStyle: 'dashed', borderWidth: 1, borderColor: '#CBD5E1' },
+  bigSectionTitle: { fontSize: 20, fontWeight: 'bold', color: '#111827', marginBottom: 20 },
+  emptyOffers: { alignItems: 'center', padding: 32, backgroundColor: 'white', borderRadius: 24, borderStyle: 'dashed', borderWidth: 1, borderColor: '#CBD5E1' },
 
-  offerCard: { backgroundColor: 'white', padding: 16, borderRadius: 12, marginBottom: 12, elevation: 1 },
-  offerProName: { fontSize: 16, fontWeight: 'bold', color: '#1F2937' },
-  offerPrice: { fontSize: 18, fontWeight: 'bold', color: '#059669', marginVertical: 4 },
-  offerDesc: { color: '#4B5563', fontSize: 14, marginBottom: 10 },
-  offerStatus: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8 },
-  chatButton: { flexDirection: 'row', alignItems: 'center', padding: 8, backgroundColor: '#EFF6FF', borderRadius: 8, alignSelf: 'flex-start' },
+  offerCard: { backgroundColor: 'white', padding: 20, borderRadius: 20, marginBottom: 16, borderWidth: 1, borderColor: '#E5E7EB' },
+  offerProName: { fontSize: 18, fontWeight: 'bold', color: '#111827' },
+  offerPrice: { fontSize: 20, fontWeight: 'bold', color: '#059669', marginVertical: 6 },
+  offerDesc: { color: '#4B5563', fontSize: 15, marginBottom: 12, lineHeight: 22 },
+  offerStatus: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 },
+  chatButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: '#EFF6FF',
+    borderRadius: 12,
+    alignSelf: 'flex-start',
+    minHeight: 40
+  },
 
-  deleteButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 15, marginHorizontal: 20, marginBottom: 30, backgroundColor: '#FEF2F2', borderRadius: 12, borderWidth: 1, borderColor: '#FCA5A5' }
+  deleteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+    marginHorizontal: 20,
+    marginBottom: 40,
+    backgroundColor: '#FEF2F2',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#FCA5A5',
+    minHeight: 56
+  }
 });

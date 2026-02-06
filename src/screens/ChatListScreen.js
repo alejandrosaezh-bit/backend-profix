@@ -100,7 +100,7 @@ export default function ChatListScreen({ currentUser, requests, chats = [], onSe
             let isArchived = false;
             // Usar status del job embebido o del request asociado si está cargado
             const status = relatedRequest?.status || chat.job?.status;
-            if (status === 'canceled' || status === 'closed' || status === 'ELIMINADA' || status === 'Cerrada') {
+            if (status === 'canceled' || status === 'closed' || status === 'ELIMINADA' || status === 'Cerrada' || status === 'TERMINADO' || status === 'FINALIZADA' || status === 'rejected' || status === 'lost') {
                 isArchived = true;
             }
 
@@ -178,7 +178,7 @@ export default function ChatListScreen({ currentUser, requests, chats = [], onSe
                     // En estructura legacy, a veces 'messages' no viene, solo contadores.
                     // Si el usuario exige "chat no vacio", asumimos que legacy con unreadCount > 0 tiene algo?
 
-                    let isArchived = (req.status === 'canceled' || req.status === 'Cerrada');
+                    let isArchived = (req.status === 'canceled' || req.status === 'closed' || req.status === 'Cerrada' || req.status === 'TERMINADO' || req.status === 'FINALIZADA' || req.status === 'ELIMINADA' || req.status === 'rejected' || req.status === 'lost');
 
                     activeChats.push({
                         id: convId,
@@ -345,99 +345,99 @@ export default function ChatListScreen({ currentUser, requests, chats = [], onSe
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#F8FAFC' },
+    container: { flex: 1, backgroundColor: '#F8F9FA' },
 
     // Header Styles
     headerContainer: {
-        paddingTop: 10,
-        paddingBottom: 25,
-        borderBottomLeftRadius: 30,
-        borderBottomRightRadius: 30,
-        elevation: 10,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.1,
-        shadowRadius: 10,
+        paddingTop: 12,
+        paddingBottom: 24,
+        borderBottomLeftRadius: 32,
+        borderBottomRightRadius: 32,
+        borderWidth: 0,
+        elevation: 0
     },
     headerTop: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        paddingHorizontal: 20,
-        marginBottom: 15
+        paddingHorizontal: 24,
+        marginBottom: 20
     },
     headerTitle: {
-        fontSize: 22, // Bigger title
+        fontSize: 24,
         fontWeight: 'bold',
         color: 'white',
     },
     archiveButton: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
+        width: 48,
+        height: 48,
+        borderRadius: 24,
         backgroundColor: 'rgba(255,255,255,0.2)',
         justifyContent: 'center',
         alignItems: 'center'
     },
 
     // Filter Dropdown Styles
-    filterContainer: { paddingHorizontal: 20 },
-    filterLabel: { color: 'rgba(255,255,255,0.8)', fontSize: 12, marginBottom: 5, fontWeight: 'bold' },
+    filterContainer: { paddingHorizontal: 24 },
+    filterLabel: { color: 'rgba(255,255,255,0.8)', fontSize: 13, marginBottom: 8, fontWeight: 'bold' },
     dropdownInput: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        backgroundColor: 'rgba(255,255,255,0.2)',
+        backgroundColor: 'rgba(255,255,255,0.15)',
         borderRadius: 12,
         paddingHorizontal: 16,
         paddingVertical: 12,
+        minHeight: 48,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.3)'
     },
     dropdownText: { color: 'white', fontWeight: '600', fontSize: 14 },
 
     // Card Styles
     chatItem: {
         backgroundColor: 'white',
-        padding: 16,
-        borderRadius: 20,
-        marginBottom: 12,
-        elevation: 2,
-        shadowColor: '#000',
-        shadowOpacity: 0.05,
-        shadowRadius: 5,
-        shadowOffset: { width: 0, height: 2 },
+        padding: 20,
+        borderRadius: 24,
+        marginBottom: 16,
         borderWidth: 1,
-        borderColor: '#F1F5F9',
+        borderColor: '#E5E7EB',
         flexDirection: 'row'
     },
-    avatarContainer: { marginRight: 15, justifyContent: 'flex-start', paddingTop: 5 },
-    avatar: { width: 55, height: 55, borderRadius: 27.5, backgroundColor: '#F1F5F9' },
-    badge: { position: 'absolute', top: 0, right: 0, backgroundColor: '#EF4444', minWidth: 20, height: 20, borderRadius: 10, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: 'white' },
-    badgeText: { color: 'white', fontSize: 10, fontWeight: 'bold' },
+    avatarContainer: { marginRight: 16, justifyContent: 'flex-start' },
+    avatar: { width: 60, height: 60, borderRadius: 30, backgroundColor: '#F3F4F6' },
+    badge: { position: 'absolute', top: 0, right: 0, backgroundColor: '#EF4444', minWidth: 22, height: 22, borderRadius: 11, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: 'white' },
+    badgeText: { color: 'white', fontSize: 11, fontWeight: 'bold' },
 
     chatContent: { flex: 1 },
-    topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 2 },
-    chatTitle: { fontSize: 16, fontWeight: 'bold', color: '#1E293B', flex: 1, marginRight: 10 },
-    chatTime: { fontSize: 12, color: '#94A3B8' },
+    topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 },
+    chatTitle: { fontSize: 18, fontWeight: 'bold', color: '#111827', flex: 1, marginRight: 10 },
+    chatTime: { fontSize: 13, color: '#6B7280' },
 
-    middleRow: { marginBottom: 6 },
-    jobTitle: { fontSize: 13, color: '#64748B', fontStyle: 'italic' },
+    middleRow: { marginBottom: 8 },
+    jobTitle: { fontSize: 14, color: '#4B5563', fontStyle: 'italic' },
 
     bottomRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-    chatSubtitle: { fontSize: 14, color: '#334155', flex: 1, marginRight: 12 },
-    unreadText: { fontWeight: '600', color: '#0F172A' },
+    chatSubtitle: { fontSize: 15, color: '#4B5563', flex: 1, marginRight: 12 },
+    unreadText: { fontWeight: '600', color: '#111827' },
 
     // Responder Button
+    statusBadge: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20 },
+    statusText: { fontSize: 11, fontWeight: 'bold' },
+
     responderButton: {
         paddingHorizontal: 16,
-        paddingVertical: 6,
+        paddingVertical: 10,
         borderRadius: 12,
         borderWidth: 1,
-        borderColor: '#EA580C', // Orange border active
+        borderColor: '#EA580C',
         backgroundColor: 'white',
+        minHeight: 40,
+        justifyContent: 'center'
     },
-    responderText: { fontSize: 12, fontWeight: 'bold', color: '#EA580C' },
+    responderText: { fontSize: 13, fontWeight: 'bold', color: '#EA580C' },
 
     emptyState: { alignItems: 'center', justifyContent: 'center', padding: 40, marginTop: 50 },
-    emptyText: { fontSize: 16, color: '#64748B', marginTop: 15, fontWeight: '500' },
-    emptySubtext: { fontSize: 13, color: '#94A3B8', textAlign: 'center', marginTop: 8, maxWidth: 200 }
+    emptyText: { fontSize: 18, color: '#4B5563', marginTop: 16, fontWeight: '600' },
+    emptySubtext: { fontSize: 15, color: '#6B7280', textAlign: 'center', marginTop: 8, maxWidth: 240, lineHeight: 22 }
 });

@@ -36,6 +36,8 @@ const ICON_MAP = {
     'General': 'grid'
 };
 
+
+
 export default function ProfessionalProfileScreen({
     user,
     isOwner = false,
@@ -45,7 +47,8 @@ export default function ProfessionalProfileScreen({
     onBack,
     onUpdate,
     onLogout,
-    onSwitchMode
+    onSwitchMode,
+    onViewImage
 }) {
     // Si no hay usuario (ej: durante logout), no renderizar nada para evitar errores
     if (!user) return null;
@@ -81,12 +84,12 @@ export default function ProfessionalProfileScreen({
                 setReviews(reviewsData || []);
 
                 // 2. Real Jobs Stats
-                // Fetch all jobs assigned to this user
-                const allJobs = await api.getJobs({ assignedTo: user._id });
+                // Fetch all jobs where this user is the assigned professional
+                const allJobs = await api.getJobs({ professional: user._id });
                 if (Array.isArray(allJobs)) {
                     setJobsList(allJobs); // Save for portfolio usage
-                    const activeCount = allJobs.filter(j => ['En Ejecución', 'Asignada', 'Aceptada'].includes(j.status)).length;
-                    const completedCount = allJobs.filter(j => ['Finalizada', 'Cerrado'].includes(j.status)).length;
+                    const activeCount = allJobs.filter(j => ['En Ejecución', 'Asignada', 'Aceptada', 'in_progress', 'active'].includes(j.status)).length;
+                    const completedCount = allJobs.filter(j => ['Finalizada', 'Cerrado', 'Cerrada', 'TERMINADO', 'completed', 'rated', 'Culminada'].includes(j.status) || j.proFinished).length;
                     const totalFinished = completedCount + allJobs.filter(j => j.status === 'Cancelada').length; // Suponiendo canceladas cuentan para ratio
 
                     // Success Rate: Finalizadas vs Total Finalizadas (o Total Asignadas históricas?)
@@ -131,12 +134,16 @@ export default function ProfessionalProfileScreen({
 
     // Categoría seleccionada actualmente en la vista (objeto completo de categoría)
     // Inicializar con la primera categoría activa si existe, sino la primera de la lista
+    // Seleccionar la primera categoría que tenga un perfil activo, respetando el orden de la lista original
     const [selectedCategory, setSelectedCategory] = useState(() => {
-        const activeCatKey = Object.keys(user?.profiles || {})[0];
-        if (activeCatKey) {
-            const found = categories.find(c => (c.fullName || c.name) === activeCatKey);
-            if (found) return found;
-        }
+        // Buscamos en el orden de 'categories' cuál tiene perfil activo
+        const firstActive = categories.find(c => {
+            const key = c.fullName || c.name;
+            return user?.profiles?.[key] && user.profiles[key].isActive !== false;
+        });
+        if (firstActive) return firstActive;
+
+        // Fallback: Primera de la lista o genérica
         return categories[0] || { name: 'General', fullName: 'General' };
     });
 
@@ -397,29 +404,43 @@ export default function ProfessionalProfileScreen({
         </View>
     );
 
-    // Filtrar reviews por categoría
-    const categoryReviews = reviews.filter(rev => {
-        // En esta etapa mostramos todas las reviews del profesional independientemente de la categoría 
-        // para que no se vea vacío, o si quieres filtrar descomenta:
-        // if (!rev.jobCategory) return true;
-        // const revCat = (typeof rev.jobCategory === 'object') ? rev.jobCategory.name : rev.jobCategory;
-        // return revCat === categoryKey;
-        return true;
+    // --- CÁLCULO DE ESTADÍSTICAS ESPECÍFICAS DE LA CATEGORÍA ---
+    const filteredJobs = jobsList.filter(j => {
+        const jCat = (typeof j.category === 'object') ? j.category.name : j.category;
+        return jCat === categoryKey;
     });
 
-    // Calcular stats reales para la vista
-    // Si queremos filtrar por categoría, podríamos filtrar `allJobs` aquí si lo tuviéramos en estado.
-    // El usuario pidió "estadísticas reales de cuantos trabajos tiene actualmente" (Active) y "cuantos ha realizado exitosamente" (Success)
-    // "valoración general" (Rating).
+    const catActiveCount = filteredJobs.filter(j => ['En Ejecución', 'Asignada', 'Aceptada', 'VALIDANDO', 'in_progress'].includes(j.status)).length;
+    const catCompletedCount = filteredJobs.filter(j => ['Finalizada', 'Cerrado', 'Cerrada', 'TERMINADO', 'completed', 'rated', 'Culminada'].includes(j.status) || j.proFinished).length;
+    const catTotalFinished = catCompletedCount + filteredJobs.filter(j => j.status === 'canceled' || j.status === 'Cancelada').length;
 
-    // Si la categoría seleccionada tiene trabajos específicos, podríamos refinar. 
-    // Por ahora, usamos las globales calculadas o las 'proxies' si estamos en "General".
-    // Pero para cumplir con "estadísticas reales", usaremos el estado `stats`.
+    let catSuccessRate = 0;
+    if (catTotalFinished > 0) {
+        catSuccessRate = Math.round((catCompletedCount / catTotalFinished) * 100);
+    }
+
+    // Rating específico si hay reviews, sino el global
+    const catReviews = reviews.filter(rev => {
+        const revCat = (typeof rev.jobCategory === 'object') ? rev.jobCategory.name : rev.jobCategory;
+        return !revCat || revCat === categoryKey;
+    });
+
+    let catRating = 0;
+    if (catReviews.length > 0) {
+        const sum = catReviews.reduce((acc, r) => acc + (r.rating || 0), 0);
+        catRating = (sum / catReviews.length).toFixed(1);
+    } else if (catCompletedCount > 0) {
+        // Si tiene trabajos completados pero no reviews, usamos la global
+        catRating = (user.rating || 5.0);
+    } else {
+        // 0 trabajos y 0 reviews = 0 valoración en esta categoría
+        catRating = "0.0";
+    }
 
     const categoryStats = {
-        jobs: stats.active,       // "Cuantos trabajos tiene actualmente" -> Active
-        rating: user.rating || '5.0', // Valoración General
-        success: `${stats.successRate}%` // "Cuantos ha realizado exitosamente" (Rate)
+        jobs: catCompletedCount, // "Ganados" suele referirse a terminados exitosamente
+        rating: catRating,
+        success: `${catSuccessRate}%`
     };
 
     const globalRating = user.rating || 5.0; // Global Rating from User Object
@@ -514,92 +535,113 @@ export default function ProfessionalProfileScreen({
                     )}
                 </View>
 
+                {/* Separador */}
+                <View style={{ height: 1, backgroundColor: '#E5E7EB', marginHorizontal: 24, marginVertical: 10 }} />
+
                 {/* SELECTOR DE CATEGORÍAS (VIEW MODE - BUTTONS) */}
-                {!isEditing && (
-                    <View style={styles.categoryBar}>
-                        <Text style={{ marginBottom: 10, fontSize: 13, fontWeight: 'bold', color: '#6B7280', paddingHorizontal: 16 }}>Categoría</Text>
-                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 16, gap: 10 }}>
-                            {sortedCategories
-                                .filter(cat => {
+                {
+                    !isEditing && (
+                        <View style={styles.categoryBar}>
+                            <Text style={{ marginBottom: 10, fontSize: 13, fontWeight: 'bold', color: '#6B7280', paddingHorizontal: 16 }}>Categoría</Text>
+                            <View style={{ flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 16, gap: 10 }}>
+                                {sortedCategories
+                                    .filter(cat => {
+                                        const key = cat.fullName || cat.name;
+                                        return !!profileData.profiles?.[key] && profileData.profiles[key].isActive !== false;
+                                    })
+                                    .map((cat) => {
+                                        const isSelected = selectedCategory.id === cat.id;
+                                        return (
+                                            <TouchableOpacity
+                                                key={cat.id}
+                                                style={[
+                                                    styles.catButton,
+                                                    isSelected && styles.catButtonSelected
+                                                ]}
+                                                onPress={() => setSelectedCategory(cat)}
+                                            >
+                                                {/* Icon Resolver */}
+                                                {typeof cat.icon === 'function' ? (
+                                                    <View style={{ marginRight: 6 }}>
+                                                        <cat.icon size={16} color={isSelected ? 'white' : '#4B5563'} />
+                                                    </View>
+                                                ) : (
+                                                    <Feather
+                                                        name={cat.icon || ICON_MAP[cat.name] || 'grid'}
+                                                        size={16}
+                                                        color={isSelected ? 'white' : '#4B5563'}
+                                                        style={{ marginRight: 6 }}
+                                                    />
+                                                )}
+                                                <Text style={[
+                                                    styles.catButtonText,
+                                                    isSelected && { color: 'white' }
+                                                ]}>
+                                                    {cat.name}
+                                                </Text>
+                                            </TouchableOpacity>
+                                        );
+                                    })}
+                                {/* Fallback if no categories active */}
+                                {sortedCategories.filter(cat => {
                                     const key = cat.fullName || cat.name;
                                     return !!profileData.profiles?.[key] && profileData.profiles[key].isActive !== false;
-                                })
-                                .map((cat) => {
+                                }).length === 0 && (
+                                        <Text style={{ color: '#999', fontStyle: 'italic', paddingLeft: 5 }}>No tienes categorías activas.</Text>
+                                    )}
+                            </View>
+                        </View>
+                    )
+                }
+
+                {/* EDICIÓN TABS (SOLO SI ESTÁ EDITANDO PARA ACTIVAR/DESACTIVAR) */}
+                {
+                    isEditing && (
+                        <View style={styles.categoryBar}>
+                            <Text style={{ marginLeft: 16, marginBottom: 10, fontSize: 12, color: '#666' }}>Gestionar Categorías:</Text>
+                            <View style={{ flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 16, gap: 8 }}>
+                                {sortedCategories.map((cat) => {
+                                    const catKey = cat.fullName || cat.name;
+                                    const isActive = !!profileData.profiles?.[catKey] && profileData.profiles[catKey].isActive !== false;
                                     const isSelected = selectedCategory.id === cat.id;
                                     return (
                                         <TouchableOpacity
                                             key={cat.id}
                                             style={[
-                                                styles.catButton,
-                                                isSelected && styles.catButtonSelected
+                                                styles.catTab,
+                                                isSelected && styles.catTabSelected,
+                                                isActive && !isSelected && styles.catTabActive
                                             ]}
                                             onPress={() => setSelectedCategory(cat)}
                                         >
-                                            {/* Icon Placeholder or Real Icon if available */}
-                                            {cat.icon || ICON_MAP[cat.name] ? (
-                                                <Feather name={cat.icon || ICON_MAP[cat.name]} size={16} color={isSelected ? 'white' : '#4B5563'} style={{ marginRight: 6 }} />
+                                            {/* Icon Resolver */}
+                                            {typeof cat.icon === 'function' ? (
+                                                <View style={{ marginRight: 4 }}>
+                                                    <cat.icon size={14} color={isSelected ? 'white' : (isActive ? '#2563EB' : '#6B7280')} />
+                                                </View>
                                             ) : (
-                                                <Feather name="grid" size={16} color={isSelected ? 'white' : '#4B5563'} style={{ marginRight: 6 }} />
+                                                <Feather
+                                                    name={cat.icon || ICON_MAP[cat.name] || 'grid'}
+                                                    size={14}
+                                                    color={isSelected ? 'white' : (isActive ? '#2563EB' : '#6B7280')}
+                                                    style={{ marginRight: 4 }}
+                                                />
                                             )}
                                             <Text style={[
-                                                styles.catButtonText,
-                                                isSelected && { color: 'white' }
+                                                styles.catTabText,
+                                                isSelected && { color: 'white' },
+                                                isActive && !isSelected && { color: '#2563EB' }
                                             ]}>
                                                 {cat.name}
                                             </Text>
+                                            {isActive && <View style={styles.activeDot} />}
                                         </TouchableOpacity>
                                     );
                                 })}
-                            {/* Fallback if no categories active */}
-                            {sortedCategories.filter(cat => {
-                                const key = cat.fullName || cat.name;
-                                return !!profileData.profiles?.[key] && profileData.profiles[key].isActive !== false;
-                            }).length === 0 && (
-                                    <Text style={{ color: '#999', fontStyle: 'italic', paddingLeft: 5 }}>No tienes categorías activas.</Text>
-                                )}
+                            </View>
                         </View>
-                    </View>
-                )}
-
-                {/* EDICIÓN TABS (SOLO SI ESTÁ EDITANDO PARA ACTIVAR/DESACTIVAR) */}
-                {isEditing && (
-                    <View style={styles.categoryBar}>
-                        <Text style={{ marginLeft: 16, marginBottom: 10, fontSize: 12, color: '#666' }}>Gestionar Categorías:</Text>
-                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 16, gap: 8 }}>
-                            {sortedCategories.map((cat) => {
-                                const catKey = cat.fullName || cat.name;
-                                const isActive = !!profileData.profiles?.[catKey] && profileData.profiles[catKey].isActive !== false;
-                                const isSelected = selectedCategory.id === cat.id;
-                                return (
-                                    <TouchableOpacity
-                                        key={cat.id}
-                                        style={[
-                                            styles.catTab,
-                                            isSelected && styles.catTabSelected,
-                                            isActive && !isSelected && styles.catTabActive
-                                        ]}
-                                        onPress={() => setSelectedCategory(cat)}
-                                    >
-                                        {/* Icon */}
-                                        {cat.icon || ICON_MAP[cat.name] ? (
-                                            <Feather name={cat.icon || ICON_MAP[cat.name]} size={14} color={isSelected ? 'white' : (isActive ? '#2563EB' : '#6B7280')} style={{ marginRight: 4 }} />
-                                        ) : (
-                                            <Feather name="grid" size={14} color={isSelected ? 'white' : (isActive ? '#2563EB' : '#6B7280')} style={{ marginRight: 4 }} />
-                                        )}
-                                        <Text style={[
-                                            styles.catTabText,
-                                            isSelected && { color: 'white' },
-                                            isActive && !isSelected && { color: '#2563EB' }
-                                        ]}>
-                                            {cat.name}
-                                        </Text>
-                                        {isActive && <View style={styles.activeDot} />}
-                                    </TouchableOpacity>
-                                );
-                            })}
-                        </View>
-                    </View>
-                )}
+                    )
+                }
 
                 {/* ESTADO DE LA CATEGORÍA */}
                 <View style={styles.section}>
@@ -653,17 +695,21 @@ export default function ProfessionalProfileScreen({
                             <Text style={styles.label}>Especialidades (Subcategorías)</Text>
                             <View style={styles.tagsContainer}>
                                 {(allSubcategories[categoryKey] || [])
-                                    .filter(sub => isEditing || currentCatProfile.subcategories?.includes(sub))
+                                    .filter(sub => {
+                                        const subName = typeof sub === 'object' ? sub.name : sub;
+                                        return isEditing || currentCatProfile.subcategories?.includes(subName);
+                                    })
                                     .map((sub, index) => {
-                                        const isSelected = currentCatProfile.subcategories?.includes(sub);
+                                        const subName = typeof sub === 'object' ? sub.name : sub;
+                                        const isSelected = currentCatProfile.subcategories?.includes(subName);
                                         return (
                                             <TouchableOpacity
                                                 key={index}
                                                 style={[styles.tag, isSelected && styles.tagSelected]}
-                                                onPress={() => isEditing && toggleSubcategory(sub)}
+                                                onPress={() => isEditing && toggleSubcategory(subName)}
                                                 disabled={!isEditing}
                                             >
-                                                <Text style={[styles.tagText, isSelected && styles.tagTextSelected]}>{sub}</Text>
+                                                <Text style={[styles.tagText, isSelected && styles.tagTextSelected]}>{subName}</Text>
                                             </TouchableOpacity>
                                         );
                                     })}
@@ -741,7 +787,9 @@ export default function ProfessionalProfileScreen({
                             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 20 }}>
                                 {(currentCatProfile.gallery || []).map((img, i) => (
                                     <View key={i} style={{ position: 'relative', marginRight: 10 }}>
-                                        <Image source={{ uri: img }} style={styles.galleryImage} />
+                                        <TouchableOpacity onPress={() => onViewImage && onViewImage(img)}>
+                                            <Image source={{ uri: img }} style={styles.galleryImage} />
+                                        </TouchableOpacity>
                                         {isEditing && (
                                             <TouchableOpacity
                                                 style={styles.deleteImageButton}
@@ -769,7 +817,7 @@ export default function ProfessionalProfileScreen({
                                     )
                                     .flatMap(j => j.workPhotos?.length > 0 ? j.workPhotos : (j.images || [])) // Flatten all images
                                     .map((img, i) => (
-                                        <TouchableOpacity key={i} style={{ marginRight: 10 }} onPress={() => { /* View full screen? */ }}>
+                                        <TouchableOpacity key={i} style={{ marginRight: 10 }} onPress={() => onViewImage && onViewImage(img)}>
                                             <Image source={{ uri: img }} style={styles.galleryImage} />
                                         </TouchableOpacity>
                                     ))}
@@ -783,10 +831,10 @@ export default function ProfessionalProfileScreen({
                             <Text style={styles.label}>Opiniones de Clientes</Text>
                             {isLoadingReviews ? (
                                 <ActivityIndicator size="small" color="#2563EB" style={{ marginVertical: 20 }} />
-                            ) : categoryReviews.length === 0 ? (
+                            ) : catReviews.length === 0 ? (
                                 <Text style={{ color: '#999', marginBottom: 20 }}>Aún no hay opiniones.</Text>
                             ) : (
-                                categoryReviews.map((review, idx) => (
+                                catReviews.map((review, idx) => (
                                     <View key={review._id || idx} style={styles.reviewCard}>
                                         <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                                             <Text style={{ fontWeight: 'bold' }}>{review.reviewer?.name || 'Cliente'}</Text>
@@ -802,42 +850,29 @@ export default function ProfessionalProfileScreen({
                         </>
                     )}
                 </View>
-
-                {isOwner && (
-                    <View style={{ marginBottom: 30 }}>
+                {
+                    isOwner && (
                         <TouchableOpacity
                             style={{ alignSelf: 'center', padding: 15, backgroundColor: '#EF4444', borderRadius: 12, marginTop: 20, width: '80%', alignItems: 'center' }}
                             onPress={onLogout}
                         >
                             <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 14 }}>Cerrar Sesión</Text>
                         </TouchableOpacity>
-                    </View>
-                )}
-                <View style={{ height: 50 }} />
-            </ScrollView>
-        </View>
+                    )
+                }
+            </ScrollView >
+        </View >
     );
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#F3F4F6' },
-    scrollContent: { paddingBottom: 40 },
+    container: { flex: 1, backgroundColor: '#FFFFFF' },
+    scrollContent: { paddingBottom: 20 },
     profileCard: {
         backgroundColor: 'white',
-        margin: 16,
-        borderRadius: 24,
-        padding: 20,
+        paddingHorizontal: 24,
+        paddingVertical: 32,
         alignItems: 'center',
-        ...Platform.select({
-            web: { boxShadow: '0px 2px 8px rgba(0,0,0,0.1)' },
-            default: {
-                shadowColor: '#000',
-                shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: 0.1,
-                shadowRadius: 8,
-            }
-        }),
-        elevation: 4,
     },
     avatarContainer: {
         position: 'relative',
@@ -897,13 +932,15 @@ const styles = StyleSheet.create({
         fontWeight: '600',
     },
     input: {
-        backgroundColor: '#fff',
-        borderWidth: 2,
-        borderColor: '#000',
-        borderRadius: 10,
-        padding: 12,
-        fontSize: 16,
-        color: '#000',
+        backgroundColor: '#F9FAFB',
+        borderWidth: 1,
+        borderColor: '#E5E7EB',
+        borderRadius: 14,
+        padding: 16,
+        fontSize: 17,
+        color: '#111827',
+        minHeight: 56,
+        marginTop: 8
     },
     actionButton: {
         flex: 1,
@@ -977,13 +1014,13 @@ const styles = StyleSheet.create({
     },
 
     content: { flex: 1 },
-    section: { backgroundColor: 'white', marginHorizontal: 20, marginBottom: 20, borderRadius: 16, padding: 20, elevation: 2 },
-    sectionTitle: { fontSize: 18, fontWeight: 'bold', color: '#1F2937' },
+    section: { backgroundColor: 'white', paddingHorizontal: 24, paddingVertical: 20, marginBottom: 20 },
+    sectionTitle: { fontSize: 24, fontWeight: 'bold', color: '#111827' },
 
-    toggleButton: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 15, borderWidth: 1 },
+    toggleButton: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20, borderWidth: 1 },
     btnPrimary: { backgroundColor: '#2563EB', borderColor: '#2563EB' },
     btnDestructive: { backgroundColor: 'white', borderColor: '#EF4444' },
-    toggleButtonText: { fontSize: 12, fontWeight: 'bold' },
+    toggleButtonText: { fontSize: 14, fontWeight: 'bold' },
 
     emptyState: { alignItems: 'center', padding: 30 },
     emptyStateText: { marginTop: 10, fontSize: 16, fontWeight: 'bold', color: '#374151', textAlign: 'center' },
@@ -1009,25 +1046,26 @@ const styles = StyleSheet.create({
     statLabel: { fontSize: 13, color: '#64748B', marginTop: 4 },
     statDivider: { width: 1, backgroundColor: '#E2E8F0', height: '80%' },
 
-    label: { fontSize: 14, fontWeight: 'bold', color: '#374151', marginTop: 15, marginBottom: 10 },
-    tagsContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-    tag: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 15, backgroundColor: '#F3F4F6', borderWidth: 1, borderColor: '#E5E7EB' },
+    label: { fontSize: 18, fontWeight: 'bold', color: '#1F2937', marginTop: 24, marginBottom: 12 },
+    tagsContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+    tag: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 25, backgroundColor: '#F3F4F6', borderWidth: 1, borderColor: '#E5E7EB' },
     tagSelected: { backgroundColor: '#EFF6FF', borderColor: '#2563EB' },
-    tagText: { color: '#6B7280', fontSize: 12 },
+    tagText: { color: '#4B5563', fontSize: 15 },
     tagTextSelected: { color: '#2563EB', fontWeight: 'bold' },
 
     bioInput: {
-        backgroundColor: '#fff',
-        borderWidth: 2,
-        borderColor: '#000',
-        borderRadius: 10,
-        padding: 10,
-        height: 100,
+        backgroundColor: '#F9FAFB',
+        borderWidth: 1,
+        borderColor: '#E5E7EB',
+        borderRadius: 14,
+        padding: 16,
+        height: 120,
         textAlignVertical: 'top',
-        color: '#000',
-        fontSize: 16
+        color: '#111827',
+        fontSize: 17,
+        marginTop: 8
     },
-    bioText: { color: '#4B5563', lineHeight: 20 },
+    bioText: { color: '#4B5563', fontSize: 17, lineHeight: 26 },
 
     galleryImage: { width: 120, height: 90, borderRadius: 8 },
     deleteImageButton: {

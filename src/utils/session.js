@@ -3,7 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 
-const SESSION_KEY = 'profix_user_session_v1';
+const SESSION_KEY = 'profesional_cercano_user_session_v1';
 
 async function saveWithSecureStore(user) {
   await SecureStore.setItemAsync(SESSION_KEY, JSON.stringify(user));

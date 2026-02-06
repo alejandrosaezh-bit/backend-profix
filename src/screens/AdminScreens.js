@@ -1,31 +1,173 @@
-import { Feather, FontAwesome5 } from '@expo/vector-icons';
+import { Feather, FontAwesome5, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Image, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Modal, Platform, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { api } from '../utils/api';
 
-const AVAILABLE_ICONS = [
-    { name: 'home', lib: Feather },
-    { name: 'car', lib: FontAwesome5 },
-    { name: 'heart', lib: Feather },
-    { name: 'monitor', lib: Feather },
-    { name: 'scissors', lib: Feather },
-    { name: 'calendar', lib: Feather },
-    { name: 'cat', lib: FontAwesome5 },
-    { name: 'briefcase', lib: Feather },
-    { name: 'tool', lib: Feather },
-    { name: 'truck', lib: Feather },
-    { name: 'shopping-bag', lib: Feather },
-    { name: 'book', lib: Feather },
-    { name: 'music', lib: Feather },
-    { name: 'camera', lib: Feather },
-    { name: 'smile', lib: Feather },
-    { name: 'map-pin', lib: Feather },
-    { name: 'wifi', lib: Feather },
-    { name: 'gift', lib: Feather }
-];
+// Extensive Icon Library grouped by Category
+const ICON_CATEGORIES = {
+    'Hogar': [
+        { name: 'home', lib: Feather }, { name: 'hammer', lib: MaterialCommunityIcons }, { name: 'wrench', lib: MaterialCommunityIcons },
+        { name: 'format-paint', lib: MaterialCommunityIcons }, { name: 'broom', lib: MaterialCommunityIcons }, { name: 'flower', lib: MaterialCommunityIcons },
+        { name: 'truck-delivery', lib: MaterialCommunityIcons }, { name: 'lightbulb-on', lib: MaterialCommunityIcons }, { name: 'water', lib: MaterialCommunityIcons },
+        { name: 'door', lib: MaterialCommunityIcons }, { name: 'sofa', lib: MaterialCommunityIcons }, { name: 'bed', lib: MaterialCommunityIcons },
+        { name: 'air-conditioner', lib: MaterialCommunityIcons }, { name: 'radiator', lib: MaterialCommunityIcons }, { name: 'fire', lib: MaterialCommunityIcons },
+        { name: 'snowflake', lib: MaterialCommunityIcons }, { name: 'fan', lib: MaterialCommunityIcons }, { name: 'thermometer', lib: MaterialCommunityIcons },
+        { name: 'vacuum', lib: MaterialCommunityIcons }, { name: 'mop', lib: MaterialCommunityIcons }, { name: 'lamp', lib: MaterialCommunityIcons },
+        { name: 'fence', lib: MaterialCommunityIcons }, { name: 'key-variant', lib: MaterialCommunityIcons }, { name: 'microwave', lib: MaterialCommunityIcons },
+        { name: 'fridge', lib: MaterialCommunityIcons }, { name: 'washing-machine', lib: MaterialCommunityIcons }
+    ],
+    'Salud y Bienestar': [
+        { name: 'heart', lib: Feather }, { name: 'doctor', lib: MaterialCommunityIcons }, { name: 'hospital-box', lib: MaterialCommunityIcons },
+        { name: 'yoga', lib: MaterialCommunityIcons }, { name: 'dumbbell', lib: MaterialCommunityIcons }, { name: 'human-handsup', lib: MaterialCommunityIcons },
+        { name: 'tooth', lib: MaterialCommunityIcons }, { name: 'pill', lib: MaterialCommunityIcons }, { name: 'eye', lib: MaterialCommunityIcons },
+        { name: 'spa', lib: MaterialCommunityIcons }, { name: 'meditation', lib: MaterialCommunityIcons }, { name: 'bandage', lib: MaterialCommunityIcons },
+        { name: 'stethoscope', lib: MaterialCommunityIcons }, { name: 'bottle-tonic-plus', lib: MaterialCommunityIcons },
+        { name: 'weight-lifter', lib: MaterialCommunityIcons }, { name: 'emoticon-happy-outline', lib: MaterialCommunityIcons }
+    ],
+    'Profesionales': [
+        { name: 'briefcase', lib: Feather }, { name: 'calculator', lib: MaterialCommunityIcons }, { name: 'laptop', lib: MaterialCommunityIcons },
+        { name: 'palette', lib: MaterialCommunityIcons }, { name: 'code-braces', lib: MaterialCommunityIcons }, { name: 'compass-outline', lib: MaterialCommunityIcons },
+        { name: 'fountain-pen-tip', lib: MaterialCommunityIcons }, { name: 'translate', lib: MaterialCommunityIcons },
+        { name: 'account-check', lib: MaterialCommunityIcons }, { name: 'file-document-edit', lib: MaterialCommunityIcons },
+        { name: 'microphone', lib: MaterialCommunityIcons }, { name: 'headset', lib: MaterialCommunityIcons },
+        { name: 'typewriter', lib: MaterialCommunityIcons }, { name: 'video-account', lib: MaterialCommunityIcons }
+    ],
+    'Mascotas': [
+        { name: 'paw', lib: FontAwesome5 }, { name: 'dog', lib: MaterialCommunityIcons }, { name: 'cat', lib: MaterialCommunityIcons },
+        { name: 'bone', lib: MaterialCommunityIcons }, { name: 'fish', lib: MaterialCommunityIcons }, { name: 'bird', lib: MaterialCommunityIcons },
+        { name: 'rabbit', lib: MaterialCommunityIcons }, { name: 'shredder', lib: MaterialCommunityIcons }, { name: 'scooter', lib: MaterialCommunityIcons }
+    ],
+    'Educación': [
+        { name: 'school', lib: MaterialCommunityIcons }, { name: 'book-open-variant', lib: MaterialCommunityIcons }, { name: 'certificate', lib: MaterialCommunityIcons },
+        { name: 'brain', lib: MaterialCommunityIcons }, { name: 'lightbulb', lib: MaterialCommunityIcons }, { name: 'pencil', lib: MaterialCommunityIcons },
+        { name: 'microscope', lib: MaterialCommunityIcons }, { name: 'earth', lib: MaterialCommunityIcons }, { name: 'flask', lib: MaterialCommunityIcons },
+        { name: 'abacus', lib: MaterialCommunityIcons }, { name: 'atom', lib: MaterialCommunityIcons }
+    ],
+    'Eventos': [
+        { name: 'calendar', lib: Feather }, { name: 'party-popper', lib: MaterialCommunityIcons }, { name: 'music', lib: Feather },
+        { name: 'camera', lib: Feather }, { name: 'silverware-fork-knife', lib: MaterialCommunityIcons }, { name: 'cake-variant', lib: MaterialCommunityIcons },
+        { name: 'glass-wine', lib: MaterialCommunityIcons }, { name: 'theater', lib: MaterialCommunityIcons },
+        { name: 'balloon', lib: MaterialCommunityIcons }, { name: 'fireworks', lib: MaterialCommunityIcons }, { name: 'microphone-variant', lib: MaterialCommunityIcons },
+        { name: 'ticket', lib: MaterialCommunityIcons }, { name: 'map-marker-star', lib: MaterialCommunityIcons }
+    ],
+    'Tecnología': [
+        { name: 'monitor', lib: Feather }, { name: 'cellphone', lib: MaterialCommunityIcons }, { name: 'shield-lock', lib: MaterialCommunityIcons },
+        { name: 'network', lib: MaterialCommunityIcons }, { name: 'router-wireless', lib: MaterialCommunityIcons }, { name: 'database', lib: MaterialCommunityIcons },
+        { name: 'printer', lib: MaterialCommunityIcons }, { name: 'robot', lib: MaterialCommunityIcons },
+        { name: 'chip', lib: MaterialCommunityIcons }, { name: 'keyboard', lib: MaterialCommunityIcons }, { name: 'mouse', lib: MaterialCommunityIcons },
+        { name: 'gamepad-variant', lib: MaterialCommunityIcons }, { name: 'code-tags', lib: MaterialCommunityIcons }
+    ],
+    'Compras': [
+        { name: 'shopping-bag', lib: Feather }, { name: 'tshirt-crew', lib: MaterialCommunityIcons }, { name: 'hanger', lib: MaterialCommunityIcons },
+        { name: 'shoe-heel', lib: MaterialCommunityIcons }, { name: 'tag', lib: Feather }, { name: 'gift', lib: Feather },
+        { name: 'diamond-stone', lib: MaterialCommunityIcons }, { name: 'watch', lib: MaterialCommunityIcons },
+        { name: 'cart', lib: MaterialCommunityIcons }, { name: 'store', lib: MaterialCommunityIcons }, { name: 'credit-card-outline', lib: MaterialCommunityIcons }
+    ],
+    'Inmobiliaria': [
+        { name: 'home-city', lib: MaterialCommunityIcons }, { name: 'key', lib: MaterialCommunityIcons }, { name: 'file-document-outline', lib: MaterialCommunityIcons },
+        { name: 'percent', lib: MaterialCommunityIcons }, { name: 'sign-real-estate', lib: MaterialCommunityIcons }, { name: 'building', lib: FontAwesome5 },
+        { name: 'office-building', lib: MaterialCommunityIcons }, { name: 'warehouse', lib: MaterialCommunityIcons }, { name: 'home-modern', lib: MaterialCommunityIcons }
+    ],
+    'Automoción': [
+        { name: 'car', lib: FontAwesome5 }, { name: 'car-wrench', lib: MaterialCommunityIcons }, { name: 'gas-station', lib: MaterialCommunityIcons },
+        { name: 'shield-car', lib: MaterialCommunityIcons }, { name: 'steering', lib: MaterialCommunityIcons }, { name: 'bike', lib: MaterialCommunityIcons },
+        { name: 'truck', lib: Feather }, { name: 'bus', lib: FontAwesome5 },
+        { name: 'tools', lib: MaterialCommunityIcons }, { name: 'oil', lib: MaterialCommunityIcons }, { name: 'tire', lib: MaterialCommunityIcons }
+    ],
+    'Finanzas': [
+        { name: 'bank', lib: MaterialCommunityIcons }, { name: 'cash', lib: MaterialCommunityIcons }, { name: 'finance', lib: MaterialCommunityIcons },
+        { name: 'chart-line', lib: MaterialCommunityIcons }, { name: 'credit-card', lib: Feather }, { name: 'wallet', lib: MaterialCommunityIcons },
+        { name: 'hand-coin', lib: MaterialCommunityIcons }, { name: 'piggy-bank', lib: MaterialCommunityIcons }, { name: 'safe', lib: MaterialCommunityIcons }
+    ],
+    'Viajes': [
+        { name: 'airplane', lib: MaterialCommunityIcons }, { name: 'map-pin', lib: Feather }, { name: 'beach', lib: MaterialCommunityIcons },
+        { name: 'hotel', lib: MaterialCommunityIcons }, { name: 'compass', lib: Feather }, { name: 'train', lib: MaterialCommunityIcons },
+        { name: 'passport', lib: MaterialCommunityIcons }, { name: 'suitcase', lib: MaterialCommunityIcons }, { name: 'camera-retake', lib: MaterialCommunityIcons }
+    ],
+    'Legal': [
+        { name: 'gavel', lib: MaterialCommunityIcons }, { name: 'scale-balance', lib: MaterialCommunityIcons }, { name: 'file-sign', lib: MaterialCommunityIcons },
+        { name: 'police-badge', lib: MaterialCommunityIcons }, { name: 'copyright', lib: MaterialCommunityIcons },
+        { name: 'book-lock', lib: MaterialCommunityIcons }, { name: 'file-certificate', lib: MaterialCommunityIcons }, { name: 'account-tie', lib: MaterialCommunityIcons }
+    ],
+    'Marketing': [
+        { name: 'bullhorn', lib: MaterialCommunityIcons }, { name: 'facebook', lib: MaterialCommunityIcons }, { name: 'instagram', lib: MaterialCommunityIcons },
+        { name: 'google-ads', lib: MaterialCommunityIcons }, { name: 'target', lib: Feather }, { name: 'rocket', lib: MaterialCommunityIcons },
+        { name: 'chart-bubble', lib: MaterialCommunityIcons }, { name: 'email-newsletter', lib: MaterialCommunityIcons }, { name: 'graph-up', lib: MaterialCommunityIcons }
+    ],
+    'Construcción': [
+        { name: 'hard-hat', lib: MaterialCommunityIcons }, { name: 'excavator', lib: MaterialCommunityIcons }, { name: 'floor-plan', lib: MaterialCommunityIcons },
+        { name: 'wall', lib: MaterialCommunityIcons }, { name: 'tape-measure', lib: MaterialCommunityIcons }, { name: 'ladder', lib: MaterialCommunityIcons },
+        { name: 'blueprint', lib: MaterialCommunityIcons }, { name: 'shovel', lib: MaterialCommunityIcons }, { name: 'crane', lib: MaterialCommunityIcons }
+    ]
+};
 
-export default function AdminScreens({ onBack }) {
+// Flatten for backward compatibility if needed, or helper
+const ALL_ICONS_FLAT = Object.values(ICON_CATEGORIES).flat();
+
+const IconPickerModal = ({ visible, onClose, onSelect }) => {
+    const [searchTerm, setSearchTerm] = useState('');
+
+    return (
+        <Modal visible={visible} transparent={true} animationType="slide" onRequestClose={onClose}>
+            <View style={styles.categoryGridModalOverlay}>
+                <View style={[styles.categoryGridModalContent, { height: '100%', borderTopLeftRadius: 0, borderTopRightRadius: 0 }]}>
+                    <View style={styles.categoryGridHeader}>
+                        <View style={{ flex: 1 }}>
+                            <Text style={styles.categoryGridTitle}>Seleccionar Icono</Text>
+                            <Text style={styles.categoryGridSubtitle}>Personaliza tu categoría o especialidad</Text>
+                        </View>
+                        <TouchableOpacity onPress={onClose} style={styles.categoryGridCloseButton}>
+                            <Feather name="x" size={24} color="#EF4444" />
+                        </TouchableOpacity>
+                    </View>
+
+                    <TextInput
+                        style={{ backgroundColor: '#F3F4F6', padding: 15, borderRadius: 12, marginBottom: 20, fontSize: 16, borderWidth: 1, borderColor: '#E5E7EB' }}
+                        placeholder="Buscar icono por nombre..."
+                        value={searchTerm}
+                        onChangeText={setSearchTerm}
+                    />
+
+                    <ScrollView showsVerticalScrollIndicator={false}>
+                        {Object.entries(ICON_CATEGORIES).map(([category, icons]) => {
+                            const filteredIcons = icons.filter(i => i.name.toLowerCase().includes(searchTerm.toLowerCase()));
+                            if (filteredIcons.length === 0) return null;
+
+                            return (
+                                <View key={category} style={{ marginBottom: 24 }}>
+                                    <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#1F2937', marginBottom: 12, borderLeftWidth: 4, borderLeftColor: '#2563EB', paddingLeft: 10 }}>
+                                        {category}
+                                    </Text>
+                                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
+                                        {filteredIcons.map((icon, idx) => (
+                                            <TouchableOpacity
+                                                key={idx}
+                                                style={{
+                                                    width: 50, height: 50, alignItems: 'center', justifyContent: 'center',
+                                                    backgroundColor: '#F9FAFB', borderRadius: 12, borderWidth: 1.5, borderColor: '#E5E7EB'
+                                                }}
+                                                onPress={() => { onSelect(icon.name, icon.lib); onClose(); }}
+                                            >
+                                                <icon.lib name={icon.name} size={26} color="#4B5563" />
+                                            </TouchableOpacity>
+                                        ))}
+                                    </View>
+                                </View>
+                            );
+                        })}
+                        <View style={{ height: 100 }} />
+                    </ScrollView>
+                </View>
+            </View>
+        </Modal>
+    );
+};
+
+// Legacy support for existing code referencing AVAILABLE_ICONS
+const AVAILABLE_ICONS = ALL_ICONS_FLAT.slice(0, 40);
+
+export default function AdminScreens({ onBack, onLogout }) {
     const [activeTab, setActiveTab] = useState('dashboard'); // dashboard, users, categories, articles, businesses
 
     // Global State for Requests Filter (Lifted State)
@@ -74,7 +216,15 @@ export default function AdminScreens({ onBack }) {
             {/* Custom Header for Requests vs Standard Header */}
             {activeTab === 'requests' ? (
                 <View style={[styles.header, { flexDirection: 'column', alignItems: 'center', paddingTop: 40, paddingBottom: 15, height: 'auto' }]}>
-                    <Text style={[styles.headerTitle, { fontSize: 18, marginBottom: 10 }]}>Solicitudes</Text>
+                    <View style={{ flexDirection: 'row', width: '100%', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 15 }}>
+                        <TouchableOpacity onPress={onBack} style={{ width: 40 }}>
+                            <Feather name="arrow-left" size={20} color="white" />
+                        </TouchableOpacity>
+                        <Text style={[styles.headerTitle, { fontSize: 18 }]}>Solicitudes</Text>
+                        <TouchableOpacity onPress={onLogout} style={{ width: 40, alignItems: 'flex-end' }}>
+                            <Feather name="log-out" size={20} color="#EF4444" />
+                        </TouchableOpacity>
+                    </View>
 
                     {/* Dynamic Filter (Stacked) */}
                     <View style={{ height: 35 }}>
@@ -104,14 +254,14 @@ export default function AdminScreens({ onBack }) {
                     </View>
                 </View>
             ) : (
-                <View style={styles.header}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-                        <TouchableOpacity onPress={onBack} style={{ padding: 5, marginRight: 10 }}>
-                            <Feather name="arrow-left" size={24} color="white" />
-                        </TouchableOpacity>
-                        <Text style={styles.headerTitle}>Panel de Control</Text>
-                    </View>
-                    <View style={{ width: 30 }} />
+                <View style={[styles.header, { justifyContent: 'space-between', paddingHorizontal: 20 }]}>
+                    <TouchableOpacity onPress={onBack} style={{ width: 30 }}>
+                        <Feather name="arrow-left" size={20} color="white" />
+                    </TouchableOpacity>
+                    <Text style={styles.headerTitle}>Panel de Control</Text>
+                    <TouchableOpacity onPress={onLogout}>
+                        <Feather name="log-out" size={20} color="#EF4444" />
+                    </TouchableOpacity>
                 </View>
             )}
             <View style={styles.content}>
@@ -507,9 +657,28 @@ const CategoriesManager = () => {
 
     // Form State
     const [name, setName] = useState('');
-    const [subcats, setSubcats] = useState('');
     const [icon, setIcon] = useState('home');
     const [color, setColor] = useState('#FFF7ED');
+
+    // Subcategories State: Array of objects { name, icon, titlePlaceholder, descriptionPlaceholder }
+    const [subcats, setSubcats] = useState([]);
+
+    // Subcategory Editor State
+    const [showSubModal, setShowSubModal] = useState(false);
+    const [editingSubIndex, setEditingSubIndex] = useState(null);
+    const [subForm, setSubForm] = useState({ name: '', icon: 'circle', titlePlaceholder: '', descriptionPlaceholder: '', isUrgent: false });
+
+    // Icon Picker State
+    const [showIconPicker, setShowIconPicker] = useState(false);
+    const [pickingFor, setPickingFor] = useState('category'); // 'category' or 'subcategory'
+
+    const handleIconPicked = (iconName, lib) => {
+        if (pickingFor === 'category') {
+            setIcon(iconName);
+        } else {
+            setSubForm({ ...subForm, icon: iconName });
+        }
+    };
 
     useEffect(() => {
         loadCategories();
@@ -518,7 +687,12 @@ const CategoriesManager = () => {
     const loadCategories = async () => {
         try {
             const data = await api.getCategories();
-            setCategories(data);
+            // Normalize subcategories if they are strings (legacy)
+            const normalized = data.map(c => ({
+                ...c,
+                subcategories: c.subcategories.map(s => typeof s === 'string' ? { name: s } : s)
+            }));
+            setCategories(normalized);
         } catch (e) {
             console.log("Error loading categories", e);
         }
@@ -527,8 +701,7 @@ const CategoriesManager = () => {
     const handleSave = async () => {
         if (!name) return Alert.alert("Error", "El nombre es requerido");
         try {
-            const subcategoriesArray = subcats.split(',').map(s => s.trim()).filter(s => s);
-            const payload = { name, subcategories: subcategoriesArray, icon, color };
+            const payload = { name, subcategories: subcats, icon, color };
 
             if (editingId) {
                 await api.updateCategory(editingId, payload);
@@ -549,70 +722,134 @@ const CategoriesManager = () => {
     const handleEdit = (cat) => {
         setEditingId(cat._id);
         setName(cat.name);
-        setSubcats(cat.subcategories.join(', '));
+        setSubcats(cat.subcategories); // Array of objects
         setIcon(cat.icon || 'home');
         setColor(cat.color || '#FFF7ED');
     };
 
     const handleDelete = async (id) => {
-        Alert.alert(
-            "Eliminar Categoría",
-            "¿Estás seguro? Esto no se puede deshacer.",
-            [
-                { text: "Cancelar", style: "cancel" },
-                {
-                    text: "Eliminar", style: "destructive", onPress: async () => {
-                        try {
-                            await api.deleteCategory(id);
-                            loadCategories();
-                        } catch (e) {
-                            Alert.alert("Error", "No se pudo eliminar");
-                        }
-                    }
+        Alert.alert("Eliminar Categoría", "¿Estás seguro?", [
+            { text: "Cancelar", style: "cancel" },
+            {
+                text: "Eliminar", style: "destructive", onPress: async () => {
+                    try { await api.deleteCategory(id); loadCategories(); } catch (e) { Alert.alert("Error", "Falló eliminación"); }
                 }
-            ]
-        );
+            }
+        ]);
     };
 
     const resetForm = () => {
         setEditingId(null);
         setName('');
-        setSubcats('');
+        setSubcats([]);
         setIcon('home');
         setColor('#FFF7ED');
+    };
+
+    // --- Subcategory Logic ---
+    const openSubModal = (index = null) => {
+        setEditingSubIndex(index);
+        if (index !== null) {
+            setSubForm({ ...subcats[index], icon: subcats[index].icon || icon, isUrgent: !!subcats[index].isUrgent }); // Inherit parent icon if missing
+        } else {
+            setSubForm({ name: '', icon: icon, titlePlaceholder: '', descriptionPlaceholder: '', isUrgent: false });
+        }
+        setShowSubModal(true);
+    };
+
+    const saveSubcategory = () => {
+        if (!subForm.name) return Alert.alert("Falta Nombre", "La subcategoría debe tener nombre");
+
+        let newSubcats = [...subcats];
+        if (editingSubIndex !== null) {
+            newSubcats[editingSubIndex] = subForm;
+        } else {
+            newSubcats.push(subForm);
+        }
+        setSubcats(newSubcats);
+        setShowSubModal(false);
+    };
+
+    const removeSubcategory = (index) => {
+        const newSubcats = [...subcats];
+        newSubcats.splice(index, 1);
+        setSubcats(newSubcats);
     };
 
     return (
         <ScrollView>
             <Text style={styles.sectionTitle}>{editingId ? 'Editar Categoría' : 'Nueva Categoría'}</Text>
             <View style={{ backgroundColor: 'white', padding: 15, borderRadius: 10, marginBottom: 20 }}>
+                <Text style={styles.label}>Nombre Categoría</Text>
                 <TextInput style={styles.input} placeholder="Nombre (ej. Hogar)" value={name} onChangeText={setName} />
 
-                <Text style={{ fontSize: 12, fontWeight: 'bold', marginBottom: 5, color: '#374151' }}>Selecciona un Icono:</Text>
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 15 }}>
-                    {AVAILABLE_ICONS.map((item) => (
-                        <TouchableOpacity
-                            key={item.name}
-                            onPress={() => setIcon(item.name)}
-                            style={{
-                                padding: 10,
-                                borderRadius: 8,
-                                backgroundColor: icon === item.name ? '#DBEAFE' : '#F3F4F6',
-                                borderWidth: 1,
-                                borderColor: icon === item.name ? '#2563EB' : 'transparent'
-                            }}
-                        >
-                            <item.lib name={item.name} size={24} color={icon === item.name ? '#2563EB' : '#6B7280'} />
-                        </TouchableOpacity>
-                    ))}
+                <Text style={styles.label}>Icono:</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 15 }}>
+                    <View style={{ width: 50, height: 50, borderRadius: 10, backgroundColor: color, alignItems: 'center', justifyContent: 'center', marginRight: 15 }}>
+                        {(() => {
+                            // Find icon lib in huge list or fallback
+                            const found = ALL_ICONS_FLAT.find(i => i.name === icon);
+                            const Lib = found ? found.lib : Feather;
+                            return <Lib name={icon} size={28} color="#374151" />;
+                        })()}
+                    </View>
+                    <TouchableOpacity
+                        style={{ backgroundColor: '#DBEAFE', paddingHorizontal: 15, paddingVertical: 10, borderRadius: 8 }}
+                        onPress={() => { setPickingFor('category'); setShowIconPicker(true); }}
+                    >
+                        <Text style={{ color: '#2563EB', fontWeight: 'bold' }}>Cambiar Icono</Text>
+                    </TouchableOpacity>
                 </View>
 
                 <TextInput style={styles.input} placeholder="Color Hex (ej. #FFF7ED)" value={color} onChangeText={setColor} />
-                <TextInput style={[styles.input, { height: 80 }]} placeholder="Subcategorías (separadas por coma)" multiline value={subcats} onChangeText={setSubcats} />
 
-                <View style={{ flexDirection: 'row', gap: 10 }}>
+                {/* Subcategories Section */}
+                <Text style={[styles.sectionTitle, { fontSize: 16, marginTop: 15 }]}>Subcategorías ({subcats.length})</Text>
+                {subcats.map((sub, idx) => {
+                    const iconInfo = AVAILABLE_ICONS.find(i => i.name === sub.icon);
+                    const SubIcon = iconInfo ? iconInfo.lib : Feather;
+                    return (
+                        <View key={idx} style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#F8FAFC', padding: 10, borderRadius: 8, marginBottom: 5 }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', marginRight: 10 }}>
+                                <Feather name="corner-down-right" size={16} color="#CBD5E1" style={{ marginRight: 5 }} />
+                                {sub.icon && <SubIcon name={sub.icon} size={20} color="#3B82F6" />}
+                            </View>
+                            <View style={{ flex: 1 }}>
+                                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                    <Text style={{ fontWeight: 'bold', color: '#334155' }}>{sub.name}</Text>
+                                    {sub.isUrgent && (
+                                        <View style={{ backgroundColor: '#FEE2E2', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, marginLeft: 8 }}>
+                                            <Text style={{ color: '#EF4444', fontSize: 8, fontWeight: 'bold' }}>URGENTE</Text>
+                                        </View>
+                                    )}
+                                </View>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
+                                    <Text style={{ fontSize: 10, color: '#64748B', marginRight: 8 }}>
+                                        <Feather name="image" size={10} /> {sub.icon || 'None'}
+                                    </Text>
+                                    <Text style={{ fontSize: 10, color: '#64748B' }}>
+                                        <Feather name="type" size={10} /> {sub.titlePlaceholder || 'Default Title'}
+                                    </Text>
+                                </View>
+                            </View>
+                            <TouchableOpacity onPress={() => openSubModal(idx)} style={{ marginRight: 10 }}>
+                                <Feather name="edit-2" size={16} color="#2563EB" />
+                            </TouchableOpacity>
+                            <TouchableOpacity onPress={() => removeSubcategory(idx)}>
+                                <Feather name="trash-2" size={16} color="#EF4444" />
+                            </TouchableOpacity>
+                        </View>
+                    );
+                })}
+
+                <TouchableOpacity style={[styles.actionButton, { backgroundColor: '#F1F5F9', marginTop: 10 }]} onPress={() => openSubModal(null)}>
+                    <Feather name="plus" size={16} color="#334155" />
+                    <Text style={{ color: '#334155', marginLeft: 5, fontWeight: 'bold' }}>Agregar Subcategoría</Text>
+                </TouchableOpacity>
+
+                <View style={{ flexDirection: 'row', gap: 10, marginTop: 20 }}>
                     <TouchableOpacity style={[styles.saveButton, { flex: 1 }]} onPress={handleSave}>
-                        <Text style={styles.saveButtonText}>{editingId ? 'Actualizar' : 'Crear'}</Text>
+                        <Text style={styles.saveButtonText}>{editingId ? 'Actualizar Categoría' : 'Crear Categoría'}</Text>
                     </TouchableOpacity>
                     {editingId && (
                         <TouchableOpacity style={[styles.saveButton, { backgroundColor: '#6B7280', flex: 1 }]} onPress={resetForm}>
@@ -622,19 +859,76 @@ const CategoriesManager = () => {
                 </View>
             </View>
 
-            <Text style={styles.sectionTitle}>Categorías Existentes</Text>
-            {categories.length === 0 && (
-                <View style={{ padding: 20, alignItems: 'center' }}>
-                    <Text style={{ color: '#666' }}>No se encontraron categorías.</Text>
-                    <Text style={{ color: '#999', fontSize: 12, marginTop: 5 }}>Verifica que el backend esté corriendo y conectado.</Text>
+            {/* Subcategory Modal (Inline simplified) */}
+            <Modal visible={showSubModal} transparent={true} animationType="slide">
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContent}>
+                        <Text style={styles.modalTitle}>{editingSubIndex !== null ? 'Editar Subcategoría' : 'Nueva Subcategoría'}</Text>
+                        <ScrollView style={{ maxHeight: 400 }}>
+                            <Text style={styles.label}>Nombre</Text>
+                            <TextInput style={styles.input} placeholder="Ej. Plomería" value={subForm.name} onChangeText={t => setSubForm({ ...subForm, name: t })} />
+
+                            <Text style={styles.label}>Icono</Text>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 15 }}>
+                                <View style={{ width: 40, height: 40, borderRadius: 8, backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center', marginRight: 10 }}>
+                                    {(() => {
+                                        const found = ALL_ICONS_FLAT.find(i => i.name === subForm.icon);
+                                        const Lib = found ? found.lib : Feather;
+                                        return <Lib name={subForm.icon} size={24} color="#374151" />;
+                                    })()}
+                                </View>
+                                <TouchableOpacity
+                                    style={{ backgroundColor: '#DBEAFE', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8 }}
+                                    onPress={() => { setPickingFor('subcategory'); setShowIconPicker(true); }}
+                                >
+                                    <Text style={{ color: '#2563EB', fontWeight: 'bold', fontSize: 12 }}>Seleccionar Icono</Text>
+                                </TouchableOpacity>
+                            </View>
+
+                            <Text style={styles.label}>Ejemplo para Título (Placeholder)</Text>
+                            <TextInput style={styles.input} placeholder="Ej. Fuga en el lavamanos..." value={subForm.titlePlaceholder} onChangeText={t => setSubForm({ ...subForm, titlePlaceholder: t })} />
+
+                            <Text style={styles.label}>Ejemplo para Descripción (Placeholder)</Text>
+                            <TextInput style={styles.input} placeholder="Ej. Necesito un plomero urgente para..." value={subForm.descriptionPlaceholder} onChangeText={t => setSubForm({ ...subForm, descriptionPlaceholder: t })} />
+
+                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#F8FAFC', padding: 12, borderRadius: 12, marginTop: 10 }}>
+                                <View>
+                                    <Text style={{ fontWeight: 'bold', color: '#1E293B' }}>Acceso Directo Urgente</Text>
+                                    <Text style={{ fontSize: 11, color: '#64748B' }}>Mostrar en botones rápidos de la Home</Text>
+                                </View>
+                                <Switch
+                                    value={subForm.isUrgent}
+                                    onValueChange={(val) => setSubForm({ ...subForm, isUrgent: val })}
+                                    trackColor={{ false: '#CBD5E1', true: '#FED7D7' }}
+                                    thumbColor={subForm.isUrgent ? '#EF4444' : '#94A3B8'}
+                                />
+                            </View>
+                        </ScrollView>
+
+                        <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
+                            <TouchableOpacity style={[styles.saveButton, { flex: 1 }]} onPress={saveSubcategory}>
+                                <Text style={styles.saveButtonText}>Guardar Subcategoría</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={[styles.saveButton, { flex: 1, backgroundColor: '#94A3B8' }]} onPress={() => setShowSubModal(false)}>
+                                <Text style={styles.saveButtonText}>Cerrar</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
                 </View>
-            )}
+            </Modal>
+
+            <IconPickerModal
+                visible={showIconPicker}
+                onClose={() => setShowIconPicker(false)}
+                onSelect={handleIconPicked}
+            />
+
+            <Text style={styles.sectionTitle}>Categorías Existentes</Text>
             {categories.map(cat => (
                 <View key={cat._id} style={styles.card}>
                     <View style={{ flex: 1 }}>
                         <Text style={styles.cardTitle}>{cat.name}</Text>
                         <Text style={{ fontSize: 12, color: '#666' }}>{cat.subcategories.length} subcategorías</Text>
-                        <Text style={{ fontSize: 10, color: '#999' }}>{cat.subcategories.join(', ')}</Text>
                     </View>
                     <View style={{ flexDirection: 'row', gap: 10 }}>
                         <TouchableOpacity onPress={() => handleEdit(cat)} style={{ padding: 5 }}>
@@ -1379,7 +1673,16 @@ const styles = StyleSheet.create({
     header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#1E293B', padding: 15, paddingTop: 40 },
     headerTitle: { color: 'white', fontSize: 18, fontWeight: 'bold' },
     content: { flex: 1, padding: 20 },
-    bottomNav: { flexDirection: 'row', justifyContent: 'space-around', padding: 10, backgroundColor: 'white', borderTopWidth: 1, borderColor: '#E5E7EB' },
+    bottomNav: {
+        flexDirection: 'row',
+        justifyContent: 'space-around',
+        paddingTop: 10,
+        paddingBottom: Platform.OS === 'android' ? 35 : 25,
+        backgroundColor: 'white',
+        borderTopWidth: 1,
+        borderColor: '#E5E7EB',
+        minHeight: Platform.OS === 'android' ? 80 : 70
+    },
 
     sectionTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 15, color: '#1F2937' },
     statsRow: { flexDirection: 'row', gap: 15, marginBottom: 25 },
@@ -1399,5 +1702,24 @@ const styles = StyleSheet.create({
 
     input: { backgroundColor: 'white', padding: 12, borderRadius: 8, marginBottom: 15, borderWidth: 1, borderColor: '#E5E7EB' },
     saveButton: { backgroundColor: '#2563EB', padding: 15, borderRadius: 10, alignItems: 'center' },
-    saveButtonText: { color: 'white', fontWeight: 'bold' }
+    saveButtonText: { color: 'white', fontWeight: 'bold' },
+
+    // Modal Styles
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 20
+    },
+    modalContent: {
+        backgroundColor: 'white',
+        borderRadius: 16,
+        width: '100%',
+        maxWidth: 500,
+        padding: 20,
+        elevation: 10,
+        maxHeight: '90%'
+    },
+    modalTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 20, color: '#1E293B', textAlign: 'center' }
 });

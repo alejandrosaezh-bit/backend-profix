@@ -8,9 +8,9 @@ const PROD_URL = 'https://profix-backend-h56b.onrender.com/api';
 // Configuración de IP dinámica (Desarrollo Local)
 // Si necesitas trabajar con el backend localmente, cambia USE_LOCAL a true
 const LOCAL_IP = '192.168.1.172'; // IMPORTANTE: Verifica tu IP con `ipconfig` en Windows
-const USE_LOCAL = true; // __DEV__; // FORZADO A TRUE PARA LOCALHOST
+const USE_LOCAL = false; // Cambiado a false para usar el backend de Render (producción)
 
-const API_URL = !USE_LOCAL
+export const API_URL = !USE_LOCAL
     ? PROD_URL
     : Platform.select({
         android: `http://${LOCAL_IP}:5000/api`,
@@ -97,6 +97,7 @@ export const api = {
                 }
             } catch (e) {
                 log("Backend:Err(" + e.message + ")");
+                log("URL:" + rootUrl); // Mostrar la URL que falló
                 return { ok: false, error: e.message, url: rootUrl, logs: logs.join(' | ') };
             }
 
@@ -312,6 +313,19 @@ export const api = {
             headers
         });
         if (!res.ok) throw new Error('Error finishing job');
+        return res.json();
+    },
+    rateMutual: async (jobId, reviewData) => {
+        const headers = await getHeaders();
+        const res = await fetchWithTimeout(`${API_URL}/jobs/${jobId}/rate-mutual`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify(reviewData)
+        });
+        if (!res.ok) {
+            const errorText = await res.text();
+            throw new Error(errorText || 'Error al enviar la valoración');
+        }
         return res.json();
     },
 

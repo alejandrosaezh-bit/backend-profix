@@ -17,6 +17,18 @@ import { api } from '../utils/api';
 import { clearRequests } from '../utils/requests';
 
 
+
+
+// Helper para comparar IDs de forma segura
+const areIdsEqual = (id1, id2) => {
+  if (!id1 || !id2) return false;
+  const s1 = (typeof id1 === 'object' && id1 !== null) ? (id1._id || id1.id || id1.toString()) : String(id1);
+  const s2 = (typeof id2 === 'object' && id2 !== null) ? (id2._id || id2.id || id2.toString()) : String(id2);
+  const str1 = String(s1).replace(/["']/g, "").trim();
+  const str2 = String(s2).replace(/["']/g, "").trim();
+  return str1 === str2;
+};
+
 export default function ClientProfileScreen({ user, isOwner, onBack, onLogout, onUpdate, requests = [], onSwitchMode }) {
   const [isEditing, setIsEditing] = useState(false);
   const [editedUser, setEditedUser] = useState({ ...user });
@@ -64,13 +76,31 @@ export default function ClientProfileScreen({ user, isOwner, onBack, onLogout, o
   // Filtrar solicitudes del usuario (Prefer local fetch, fallback to props)
   const sourceRequests = localRequests.length > 0 ? localRequests : requests;
 
-  const allMyRequests = sourceRequests.filter(r => r.clientEmail === user.email || r.clientId === user._id || (r.client && r.client._id === user._id));
+  const allMyRequests = sourceRequests.filter(r => {
+    const rClientId = r.clientId || r.client?._id || r.client;
+    const rClientEmail = r.clientEmail || r.client?.email;
+    return areIdsEqual(rClientId, user._id) || (user.email && rClientEmail === user.email);
+  });
+
+  // Helper para determinar si una solicitud está completa/contratada
+  const isJobHired = (r) => {
+    const hiredStatuses = ['Asignada', 'En Ejecución', 'Finalizada', 'Cerrado', 'Cerrada', 'VALORACIÓN', 'TERMINADO', 'rated', 'completed', 'Culminada'];
+    return hiredStatuses.includes(r.status) || r.proId || r.professionalId || r.assignedTo;
+  };
+
+  const isJobCompleted = (r) => {
+    const completedStatuses = ['Finalizada', 'Cerrado', 'Cerrada', 'TERMINADO', 'rated', 'completed', 'Culminada'];
+    return completedStatuses.includes(r.status) || (r.proFinished && r.clientFinished) || r.rating > 0 || r.clientRated;
+  };
 
   // Solicitudes Activas (Pendientes de contratación)
-  const activeRequests = allMyRequests.filter(r => r.status === 'Abierto');
+  const activeRequests = allMyRequests.filter(r => (r.status === 'Abierto' || r.status === 'VALIDANDO') && !isJobCompleted(r));
 
   // Trabajos Contratados (En proceso o finalizados)
-  const hiredRequests = allMyRequests.filter(r => ['Asignada', 'En Ejecución', 'Finalizada', 'Cerrado'].includes(r.status));
+  const hiredRequests = allMyRequests.filter(isJobHired);
+
+  // Trabajos Completados
+  const completedRequests = allMyRequests.filter(isJobCompleted);
 
   const handleSave = () => {
     onUpdate(editedUser);
@@ -191,6 +221,37 @@ export default function ClientProfileScreen({ user, isOwner, onBack, onLogout, o
               </View>
             </View>
           )}
+        </View>
+
+        {/* ESTADÍSTICAS CLIENTE */}
+        <View style={{
+          flexDirection: 'row',
+          backgroundColor: '#F9FAFB',
+          borderRadius: 16,
+          padding: 20,
+          marginVertical: 10,
+          justifyContent: 'space-between',
+          borderWidth: 1.5,
+          borderColor: '#9CA3AF'
+        }}>
+          <View style={{ flex: 1, alignItems: 'center' }}>
+            <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#111827' }}>{allMyRequests.length}</Text>
+            <Text style={{ fontSize: 11, color: '#6B7280', textAlign: 'center', marginTop: 4 }}>Trabajos{'\n'}Solicitados</Text>
+          </View>
+          <View style={{ width: 1, height: '80%', backgroundColor: '#D1D5DB', alignSelf: 'center' }} />
+          <View style={{ flex: 1, alignItems: 'center' }}>
+            <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#111827' }}>
+              {completedRequests.length}
+            </Text>
+            <Text style={{ fontSize: 11, color: '#6B7280', textAlign: 'center', marginTop: 4 }}>Trabajos{'\n'}Completados</Text>
+          </View>
+          <View style={{ width: 1, height: '80%', backgroundColor: '#D1D5DB', alignSelf: 'center' }} />
+          <View style={{ flex: 1, alignItems: 'center' }}>
+            <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#111827' }}>
+              {allMyRequests.length > 0 ? Math.round((hiredRequests.length / allMyRequests.length) * 100) : 0}%
+            </Text>
+            <Text style={{ fontSize: 11, color: '#6B7280', textAlign: 'center', marginTop: 4 }}>Porcentaje{'\n'}Contratación</Text>
+          </View>
         </View>
 
         {/* SOLICITUDES ACTIVAS */}
@@ -319,10 +380,10 @@ export default function ClientProfileScreen({ user, isOwner, onBack, onLogout, o
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#FFFFFF',
   },
   scrollContent: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 24,
     paddingTop: 20,
     paddingBottom: 20,
   },
@@ -347,19 +408,8 @@ const styles = StyleSheet.create({
   },
   profileCard: {
     backgroundColor: 'white',
-    borderRadius: 20,
-    padding: 20,
+    paddingVertical: 32,
     alignItems: 'center',
-    ...Platform.select({
-      web: { boxShadow: '0px 2px 8px rgba(0,0,0,0.1)' },
-      default: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
-      }
-    }),
-    elevation: 5,
     marginBottom: 20,
   },
   avatarContainer: {
@@ -420,40 +470,42 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 6,
-    marginTop: 10,
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#1F2937',
+    marginBottom: 10,
+    marginTop: 20,
   },
   input: {
     backgroundColor: '#F9FAFB',
     borderWidth: 1,
     borderColor: '#E5E7EB',
-    borderRadius: 10,
-    padding: 12,
-    fontSize: 16,
+    borderRadius: 14,
+    padding: 18,
+    fontSize: 17,
     color: '#1F2937',
+    minHeight: 64,
   },
   actionButton: {
     flex: 1,
-    padding: 12,
-    borderRadius: 10,
+    padding: 16,
+    borderRadius: 14,
     alignItems: 'center',
     marginHorizontal: 5,
   },
   actionButtonText: {
     color: 'white',
     fontWeight: 'bold',
+    fontSize: 17,
   },
   section: {
-    marginBottom: 24,
+    marginBottom: 32,
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 24,
     fontWeight: 'bold',
-    color: '#1F2937',
-    marginBottom: 12,
+    color: '#111827',
+    marginBottom: 16,
   },
   activityCard: {
     backgroundColor: 'white',

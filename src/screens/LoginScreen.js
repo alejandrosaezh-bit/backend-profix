@@ -1,4 +1,5 @@
 import { Feather } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useContext, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Keyboard, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
 import { AuthContext } from '../context/AuthContext';
@@ -89,7 +90,14 @@ export default function LoginScreen({ navigation }) {
           <View style={[styles.logoContainer, keyboardVisible && { padding: 8, marginBottom: 4 }]}>
             <Feather name="tool" size={keyboardVisible ? 24 : 40} color="white" />
           </View>
-          {!keyboardVisible && <Text style={styles.title}>ProFix</Text>}
+          {!keyboardVisible && (
+            <View style={{ backgroundColor: 'white', paddingHorizontal: 15, paddingVertical: 5, borderRadius: 10, marginTop: 10 }}>
+              <Text style={styles.title}>
+                <Text style={{ color: '#2563EB' }}>Profesional</Text>{' '}
+                <Text style={{ color: '#EA580C' }}>Cercano</Text>
+              </Text>
+            </View>
+          )}
           {!keyboardVisible && <Text style={styles.subtitle}>Soluciones rápidas y seguras</Text>}
         </View>
       )}
@@ -103,7 +111,7 @@ export default function LoginScreen({ navigation }) {
               <Feather name="user" size={20} color="#000000" style={styles.inputIcon} />
               <TextInput
                 placeholder="Nombre completo"
-                placeholderTextColor="#374151"
+                placeholderTextColor="#4B5563"
                 style={styles.input}
                 value={name}
                 onChangeText={setName}
@@ -113,7 +121,7 @@ export default function LoginScreen({ navigation }) {
               <Feather name="credit-card" size={20} color="#000000" style={styles.inputIcon} />
               <TextInput
                 placeholder="Cédula de Identidad"
-                placeholderTextColor="#374151"
+                placeholderTextColor="#4B5563"
                 style={styles.input}
                 value={cedula}
                 onChangeText={setCedula}
@@ -124,7 +132,7 @@ export default function LoginScreen({ navigation }) {
               <Feather name="phone" size={20} color="#000000" style={styles.inputIcon} />
               <TextInput
                 placeholder="Teléfono (Opcional)"
-                placeholderTextColor="#374151"
+                placeholderTextColor="#4B5563"
                 style={styles.input}
                 value={phone}
                 onChangeText={setPhone}
@@ -138,7 +146,7 @@ export default function LoginScreen({ navigation }) {
           <Feather name="mail" size={20} color="#000000" style={styles.inputIcon} />
           <TextInput
             placeholder="Correo electrónico"
-            placeholderTextColor="#374151"
+            placeholderTextColor="#4B5563"
             style={styles.input}
             value={email}
             onChangeText={setEmail}
@@ -152,7 +160,7 @@ export default function LoginScreen({ navigation }) {
           <Feather name="lock" size={20} color="#000000" style={styles.inputIcon} />
           <TextInput
             placeholder="Contraseña"
-            placeholderTextColor="#374151"
+            placeholderTextColor="#4B5563"
             style={styles.input}
             value={password}
             onChangeText={setPassword}
@@ -193,12 +201,41 @@ export default function LoginScreen({ navigation }) {
       <View style={{ marginTop: 30, alignItems: 'center', opacity: 0.8 }}>
         <Text style={{ color: 'white', fontWeight: 'bold' }}>Versión: {OTA_VERSION}</Text>
 
-        <TouchableOpacity
-          onPress={runDiagnostics}
-          style={{ marginTop: 10, backgroundColor: 'rgba(0,0,0,0.2)', padding: 8, borderRadius: 8 }}
-        >
-          <Text style={{ color: 'white', fontSize: 12 }}>Diagnosticar Conexión</Text>
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
+          <TouchableOpacity
+            onPress={runDiagnostics}
+            style={{ backgroundColor: 'rgba(0,0,0,0.2)', padding: 10, borderRadius: 8 }}
+          >
+            <Text style={{ color: 'white', fontSize: 12 }}>Diagnosticar Conexión</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={async () => {
+              Alert.alert(
+                "Reiniciar Aplicación",
+                "Esto borrará la sesión actual y el historial local. Úsalo si ves errores de 'base de datos llena'.",
+                [
+                  { text: "Cancelar", style: "cancel" },
+                  {
+                    text: "Limpiar y Reiniciar",
+                    style: "destructive",
+                    onPress: async () => {
+                      try {
+                        await AsyncStorage.clear();
+                        Alert.alert("Éxito", "Datos borrados. Reinicia la app manualmente.");
+                      } catch (e) {
+                        Alert.alert("Error", "No se pudieron borrar los datos.");
+                      }
+                    }
+                  }
+                ]
+              );
+            }}
+            style={{ backgroundColor: 'rgba(255,0,0,0.2)', padding: 10, borderRadius: 8 }}
+          >
+            <Text style={{ color: 'white', fontSize: 12 }}>Limpiar Datos (Reset)</Text>
+          </TouchableOpacity>
+        </View>
 
         {diagStatus ? (
           <View style={{ marginTop: 10, backgroundColor: '#333', padding: 10, borderRadius: 5, width: '100%' }}>
@@ -231,55 +268,52 @@ export default function LoginScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#EA580C' },
-  scrollContainer: { flexGrow: 1, justifyContent: 'flex-start', padding: 20, paddingBottom: 100, paddingTop: 20 },
-  header: { alignItems: 'center', marginBottom: 20, marginTop: 10 },
-  logoContainer: { backgroundColor: 'rgba(255,255,255,0.2)', padding: 12, borderRadius: 20, marginBottom: 8 },
-  title: { fontSize: 28, fontWeight: 'bold', color: 'white' },
-  subtitle: { fontSize: 14, color: 'rgba(255,255,255,0.9)' },
+  container: { flex: 1, backgroundColor: '#F8F9FA' }, // Surface instead of Orange
+  scrollContainer: { flexGrow: 1, justifyContent: 'flex-start', padding: 24, paddingBottom: 100, paddingTop: 40 },
+  header: { alignItems: 'center', marginBottom: 32, marginTop: 20 },
+  logoContainer: { backgroundColor: '#EA580C', padding: 16, borderRadius: 24, marginBottom: 12 },
+  title: { fontSize: 32, fontWeight: 'bold', color: '#111827' }, // Grey-900
+  subtitle: { fontSize: 16, color: '#4B5563', marginTop: 8 }, // Grey-600
 
   formCard: {
     backgroundColor: 'white',
-    borderRadius: 20,
-    padding: 20,
-    ...Platform.select({
-      web: { boxShadow: '0px 4px 5px rgba(0,0,0,0.3)' },
-      default: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 5,
-      }
-    }),
-    elevation: 10,
+    borderRadius: 24,
+    padding: 24,
     borderWidth: 1,
     borderColor: '#E5E7EB'
   },
-  formTitle: { fontSize: 24, fontWeight: 'bold', color: '#000000', marginBottom: 20, textAlign: 'center' },
+  formTitle: { fontSize: 24, fontWeight: 'bold', color: '#111827', marginBottom: 24, textAlign: 'center' },
 
   inputGroup: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: 'white',
     borderRadius: 12,
     marginBottom: 16,
-    paddingHorizontal: 15,
-    borderWidth: 2,
-    borderColor: '#000000' // Borde negro sólido para máximo contraste
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB', // Subtler border
+    minHeight: 56
   },
-  inputIcon: { marginRight: 10 },
+  inputIcon: { marginRight: 12 },
   input: {
     flex: 1,
     paddingVertical: 14,
-    fontSize: 18, // Texto más grande para mejor lectura
-    color: '#000000', // Negro puro
+    fontSize: 16, // Body 16px
+    color: '#111827', // Grey-900
     fontWeight: '500'
   },
 
-  authButton: { backgroundColor: '#EA580C', padding: 15, borderRadius: 12, alignItems: 'center', marginTop: 10 },
-  authButtonText: { color: 'white', fontWeight: 'bold', fontSize: 16 },
+  authButton: {
+    backgroundColor: '#EA580C',
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 12,
+    minHeight: 56,
+    justifyContent: 'center'
+  },
+  authButtonText: { color: 'white', fontWeight: 'bold', fontSize: 18 },
 
-
-
-  switchText: { textAlign: 'center', color: '#EA580C', fontWeight: '600' }
+  switchText: { textAlign: 'center', color: '#EA580C', fontWeight: '600', fontSize: 14, marginTop: 16 }
 });

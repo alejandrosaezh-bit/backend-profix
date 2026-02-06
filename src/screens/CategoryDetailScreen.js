@@ -97,14 +97,17 @@ export default function CategoryDetailScreen({ category, subcategories, onBack, 
                 {/* SUBCATEGORÍAS */}
                 <Text style={styles.sectionTitle}>¿Qué necesitas?</Text>
                 <View style={styles.subcatGrid}>
-                    {subcategories.map((sub, index) => (
-                        <TouchableOpacity key={index} style={styles.subcatCard} onPress={() => onSelectSubcategory(sub)}>
-                            <View style={[styles.iconCircle, { backgroundColor: category.color || '#FFF7ED' }]}>
-                                <Feather name="chevron-right" size={20} color={category.iconColor || '#EA580C'} />
-                            </View>
-                            <Text style={styles.subcatText}>{sub}</Text>
-                        </TouchableOpacity>
-                    ))}
+                    {subcategories.map((sub, index) => {
+                        const subName = typeof sub === 'object' ? sub.name : sub;
+                        return (
+                            <TouchableOpacity key={index} style={styles.subcatCard} onPress={() => onSelectSubcategory(subName)}>
+                                <View style={[styles.iconCircle, { backgroundColor: category.color || '#FFF7ED', marginBottom: 6 }]}>
+                                    <Feather name="layers" size={24} color={category.iconColor || '#EA580C'} />
+                                </View>
+                                <Text style={[styles.subcatText, { textAlign: 'center' }]} numberOfLines={2}>{subName}</Text>
+                            </TouchableOpacity>
+                        );
+                    })}
                 </View>
 
                 <View style={{ height: 50 }} />
@@ -126,16 +129,42 @@ const styles = StyleSheet.create({
     content: { padding: 16 },
     sectionTitle: { fontSize: 18, fontWeight: 'bold', color: '#1F2937', marginBottom: 12, marginTop: 8 },
 
-    subcatGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginBottom: 20 },
+    subcatGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        justifyContent: 'space-between',
+        marginBottom: 20,
+        marginTop: 8
+    },
     subcatCard: {
-        width: '48%', backgroundColor: 'white', padding: 12, borderRadius: 12, marginBottom: 12, flexDirection: 'row', alignItems: 'center',
+        width: '31%',
+        backgroundColor: 'white',
+        padding: 12,
+        borderRadius: 20,
+        marginBottom: 12,
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 1.5,
+        borderColor: '#E5E7EB',
+        aspectRatio: 0.95,
         ...Platform.select({
-            web: { boxShadow: '0px 1px 3px rgba(0,0,0,0.1)' },
+            web: { boxShadow: '0px 1px 3px rgba(0,0,0,0.05)' },
             default: { elevation: 1 }
         })
     },
-    iconCircle: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginRight: 8 },
-    subcatText: { fontSize: 13, fontWeight: '600', color: '#374151', flex: 1 },
+    iconCircle: {
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    subcatText: {
+        fontSize: 12,
+        fontWeight: 'bold',
+        color: '#374151',
+    },
 
     proCard: {
         backgroundColor: 'white', padding: 12, borderRadius: 16, marginRight: 12, width: 140, alignItems: 'center',

@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "ProFix",
+    "name": "Profesional Cercano",
     "slug": "profix",
-    "version": "1.0.13",
+    "version": "1.0.31",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "userInterfaceStyle": "light",
@@ -16,7 +16,7 @@
     },
     "android": {
       "package": "com.conexta.profix",
-      "versionCode": 3,
+      "versionCode": 41,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundColor": "#ffffff"
@@ -30,7 +30,7 @@
       "bundler": "metro",
       "display": "standalone",
       "backgroundColor": "#ffffff",
-      "description": "ProFix - Servicios Profesionales",
+      "description": "Profesional Cercano - Servicios Profesionales",
       "themeColor": "#EA580C",
       "startUrl": "/"
     },

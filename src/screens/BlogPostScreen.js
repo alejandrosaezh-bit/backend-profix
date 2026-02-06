@@ -6,22 +6,22 @@ export default function BlogPostScreen({ post, onBack }) {
   const [comment, setComment] = useState('');
   const [rating, setRating] = useState(0);
   const [comments, setComments] = useState([
-      { id: 1, user: 'Ana García', text: '¡Excelente consejo! Me sirvió mucho.', rating: 5 },
-      { id: 2, user: 'Carlos Pérez', text: 'Muy útil, gracias por compartir.', rating: 4 }
+    { id: 1, user: 'Ana García', text: '¡Excelente consejo! Me sirvió mucho.', rating: 5 },
+    { id: 2, user: 'Carlos Pérez', text: 'Muy útil, gracias por compartir.', rating: 4 }
   ]);
 
   const handleSendComment = () => {
-      if (comment.trim()) {
-          const newComment = {
-              id: comments.length + 1,
-              user: 'Usuario', // En una app real, usar el usuario logueado
-              text: comment,
-              rating: rating
-          };
-          setComments([newComment, ...comments]);
-          setComment('');
-          setRating(0);
-      }
+    if (comment.trim()) {
+      const newComment = {
+        id: comments.length + 1,
+        user: 'Usuario', // En una app real, usar el usuario logueado
+        text: comment,
+        rating: rating
+      };
+      setComments([newComment, ...comments]);
+      setComment('');
+      setRating(0);
+    }
   };
 
   // Mock content generator based on title if no content provided
@@ -42,71 +42,76 @@ export default function BlogPostScreen({ post, onBack }) {
       {/* HEADER */}
       <View style={styles.header}>
         <TouchableOpacity onPress={onBack} style={styles.backButton}>
-            <Feather name="arrow-left" size={24} color="white" />
+          <Feather name="arrow-left" size={24} color="white" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Consejos ProFix</Text>
-        <View style={{width:24}} />
+        <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'white', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 }}>
+          <Text style={{ fontSize: 16, fontWeight: 'bold' }}>
+            <Text style={{ color: '#2563EB' }}>Profesional</Text>{' '}
+            <Text style={{ color: '#EA580C' }}>Cercano</Text>
+          </Text>
+        </View>
+        <View style={{ width: 24 }} />
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
         <Image source={{ uri: post.image }} style={styles.heroImage} />
-        
+
         <View style={styles.articleContainer}>
-            <View style={styles.categoryBadge}>
-                <Text style={styles.categoryText}>{post.category}</Text>
-            </View>
-            <Text style={styles.title}>{post.title}</Text>
-            <Text style={styles.date}>Publicado el 14 de Diciembre, 2025</Text>
-            
-            <Text style={styles.bodyText}>{content}</Text>
+          <View style={styles.categoryBadge}>
+            <Text style={styles.categoryText}>{post.category}</Text>
+          </View>
+          <Text style={styles.title}>{post.title}</Text>
+          <Text style={styles.date}>Publicado el 14 de Diciembre, 2025</Text>
+
+          <Text style={styles.bodyText}>{content}</Text>
         </View>
 
         {/* SECCIÓN DE VALORACIÓN Y COMENTARIOS */}
         <View style={styles.commentsSection}>
-            <Text style={styles.sectionTitle}>¿Te sirvió este artículo?</Text>
-            
-            {/* Rating Input */}
-            <View style={styles.ratingInput}>
-                {[1, 2, 3, 4, 5].map((star) => (
-                    <TouchableOpacity key={star} onPress={() => setRating(star)}>
-                        <FontAwesome5 
-                            name="star" 
-                            solid={star <= rating} 
-                            size={32} 
-                            color={star <= rating ? "#FBBF24" : "#E5E7EB"} 
-                            style={{marginHorizontal: 4}}
-                        />
-                    </TouchableOpacity>
-                ))}
-            </View>
+          <Text style={styles.sectionTitle}>¿Te sirvió este artículo?</Text>
 
-            {/* Comment Input */}
-            <View style={styles.commentInputContainer}>
-                <TextInput 
-                    style={styles.input}
-                    placeholder="Escribe tu opinión..."
-                    multiline
-                    value={comment}
-                    onChangeText={setComment}
+          {/* Rating Input */}
+          <View style={styles.ratingInput}>
+            {[1, 2, 3, 4, 5].map((star) => (
+              <TouchableOpacity key={star} onPress={() => setRating(star)}>
+                <FontAwesome5
+                  name="star"
+                  solid={star <= rating}
+                  size={32}
+                  color={star <= rating ? "#FBBF24" : "#E5E7EB"}
+                  style={{ marginHorizontal: 4 }}
                 />
-                <TouchableOpacity style={styles.sendButton} onPress={handleSendComment}>
-                    <Feather name="send" size={20} color="white" />
-                </TouchableOpacity>
-            </View>
-
-            {/* Comments List */}
-            <Text style={styles.commentsHeader}>Comentarios ({comments.length})</Text>
-            {comments.map((c) => (
-                <View key={c.id} style={styles.commentCard}>
-                    <View style={styles.commentHeader}>
-                        <Text style={styles.commentUser}>{c.user}</Text>
-                        <View style={{flexDirection:'row'}}>
-                            {[...Array(c.rating)].map((_,i) => <FontAwesome5 key={i} name="star" solid size={10} color="#FBBF24" />)}
-                        </View>
-                    </View>
-                    <Text style={styles.commentText}>{c.text}</Text>
-                </View>
+              </TouchableOpacity>
             ))}
+          </View>
+
+          {/* Comment Input */}
+          <View style={styles.commentInputContainer}>
+            <TextInput
+              style={styles.input}
+              placeholder="Escribe tu opinión..."
+              multiline
+              value={comment}
+              onChangeText={setComment}
+            />
+            <TouchableOpacity style={styles.sendButton} onPress={handleSendComment}>
+              <Feather name="send" size={20} color="white" />
+            </TouchableOpacity>
+          </View>
+
+          {/* Comments List */}
+          <Text style={styles.commentsHeader}>Comentarios ({comments.length})</Text>
+          {comments.map((c) => (
+            <View key={c.id} style={styles.commentCard}>
+              <View style={styles.commentHeader}>
+                <Text style={styles.commentUser}>{c.user}</Text>
+                <View style={{ flexDirection: 'row' }}>
+                  {[...Array(c.rating)].map((_, i) => <FontAwesome5 key={i} name="star" solid size={10} color="#FBBF24" />)}
+                </View>
+              </View>
+              <Text style={styles.commentText}>{c.text}</Text>
+            </View>
+          ))}
         </View>
       </ScrollView>
     </View>

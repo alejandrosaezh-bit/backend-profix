@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 console.log('[auth_local] archivo cargado');
 
-const USERS_KEY = 'profix_users_v1';
+const USERS_KEY = 'profesional_cercano_users_v1';
 
 async function getAllUsers() {
   try {

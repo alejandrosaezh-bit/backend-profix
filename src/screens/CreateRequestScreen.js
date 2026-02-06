@@ -2,18 +2,18 @@ import { Feather } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    Image,
-    KeyboardAvoidingView,
-    Modal,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  Alert,
+  Image,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { api } from '../utils/api';
 
@@ -114,12 +114,12 @@ export default function CreateRequestScreen({ navigation }) {
       // EXTRA DEBUG
       console.log('Error creando solicitud:', JSON.stringify(err, null, 2));
       const errorMsg = err.message || JSON.stringify(err) || 'Error desconocido';
-      
+
       let friendlyError = errorMsg;
       if (errorMsg.includes('Network request failed')) {
-          friendlyError = 'Error de conexión: El servidor tardó en responder. Es posible que la imagen sea muy pesada o el internet lento. Intente de nuevo sin imágenes o con la conexión WiFi.';
+        friendlyError = 'Error de conexión: El servidor tardó en responder. Es posible que la imagen sea muy pesada o el internet lento. Intente de nuevo sin imágenes o con la conexión WiFi.';
       }
-      
+
       Alert.alert('Error', friendlyError);
     } finally {
       setLoading(false);
@@ -127,46 +127,46 @@ export default function CreateRequestScreen({ navigation }) {
   };
 
   return (
-    <KeyboardAvoidingView 
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={{ flex: 1 }}
     >
       <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }}>
 
-      {/* 1. HEADER SUPERIOR */}
-      <View style={styles.topBar}>
-        <TouchableOpacity style={styles.roleButton} onPress={() => navigation.navigate('ProfessionalJob')}>
-          <Text style={styles.roleButtonText}>Cambiar a Profesional</Text>
-        </TouchableOpacity>
+        {/* 1. HEADER SUPERIOR */}
+        <View style={styles.topBar}>
+          <TouchableOpacity style={styles.roleButton} onPress={() => navigation.navigate('ProfessionalJob')}>
+            <Text style={styles.roleButtonText}>Cambiar a Profesional</Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity style={styles.loginButton} onPress={() => navigation.navigate('Login')}>
-          <Text style={styles.loginText}>Ingresar 👤</Text>
-        </TouchableOpacity>
-      </View>
+          <TouchableOpacity style={styles.loginButton} onPress={() => navigation.navigate('Login')}>
+            <Text style={styles.loginText}>Ingresar 👤</Text>
+          </TouchableOpacity>
+        </View>
 
-      {/* 2. HERO SECTION */}
-      <View style={styles.heroSection}>
-        <Text style={styles.heroTitle}>¿Qué necesitas reparar hoy?</Text>
-        <Text style={styles.heroSubtitle}>Encuentra profesionales de confianza en minutos</Text>
+        {/* 2. HERO SECTION */}
+        <View style={styles.heroSection}>
+          <Text style={styles.heroTitle}>¿Qué necesitas resolver hoy?</Text>
+          <Text style={styles.heroSubtitle}>Cuéntanos tu caso, recibe ofertas de expertos en tu zona y elige al mejor.</Text>
 
-          <Text style={styles.label}>Título Breve:</Text>
+          <Text style={styles.label}>Resumen breve</Text>
           <TextInput
             style={styles.textInputSimple}
-            placeholder="Ej: Reparar fuga en cocina"
+            placeholder="Ej: Fisioterapia a domicilio para dolor lumbar"
             value={title}
             onChangeText={setTitle}
             maxLength={60}
           />
 
-          <Text style={styles.label}>Ubicación:</Text>
+          <Text style={styles.label}>¿Dónde necesitas el servicio?</Text>
           <TextInput
             style={styles.textInputSimple}
-            placeholder="Dirección o punto de referencia"
+            placeholder="Ej. Tu urbanización, barrio o punto de referencia"
             value={location}
             onChangeText={setLocation}
           />
 
-           <Text style={styles.label}>Presupuesto (Opcional):</Text>
+          <Text style={styles.label}>Presupuesto (Opcional):</Text>
           <TextInput
             style={styles.textInputSimple}
             placeholder="Ej: 50000"
@@ -175,183 +175,183 @@ export default function CreateRequestScreen({ navigation }) {
             keyboardType="numeric"
           />
 
-          
-        <View style={styles.cardForm}>
-          {/* Selector de Categoría */}
-          <View style={styles.pickerContainer}>
-            <Text style={styles.label}>Categoría:</Text>
-            <TouchableOpacity
-              style={styles.fakeDropdown}
-              onPress={() => setShowCategoryModal(true)}
-            >
-              <Text style={{ color: category ? '#000' : '#555' }}>
-                {category ? category.name : 'Seleccionar servicio... ▼'}
-              </Text>
-            </TouchableOpacity>
-          </View>
 
-          {/* Selector de Subcategoría (Solo si hay categoría y tiene subcategorías) */}
-          {category && category.subcategories && category.subcategories.length > 0 && (
+          <View style={styles.cardForm}>
+            {/* Selector de Categoría */}
             <View style={styles.pickerContainer}>
-              <Text style={styles.label}>Especialidad:</Text>
+              <Text style={styles.label}>Categoría:</Text>
               <TouchableOpacity
                 style={styles.fakeDropdown}
-                onPress={() => setShowSubcategoryModal(true)}
+                onPress={() => setShowCategoryModal(true)}
               >
-                <Text style={{ color: subcategory ? '#000' : '#555' }}>
-                  {subcategory ? subcategory : 'Seleccionar especialidad... ▼'}
+                <Text style={{ color: category ? '#000' : '#555' }}>
+                  {category ? category.name : 'Seleccionar servicio... ▼'}
                 </Text>
               </TouchableOpacity>
             </View>
-          )}
 
-          {/* Modal de Categorías */}
-          <Modal visible={showCategoryModal} animationType="slide" transparent={true}>
-            <View style={styles.modalOverlay}>
-              <View style={styles.modalContent}>
-                <View style={styles.modalHeader}>
-                  <Text style={styles.modalTitle}>Selecciona una categoría</Text>
-                  <TouchableOpacity onPress={() => setShowCategoryModal(false)}>
-                    <Feather name="x" size={24} color="#333" />
-                  </TouchableOpacity>
-                </View>
-                <ScrollView>
-                  {categories.map(cat => (
-                    <TouchableOpacity
-                      key={cat._id}
-                      style={styles.modalItem}
-                      onPress={() => {
-                        setCategory(cat);
-                        setSubcategory(null); // Reset subcategory
-                        setShowCategoryModal(false);
-                      }}
-                    >
-                      <Text style={styles.modalItemText}>{cat.name}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
+            {/* Selector de Subcategoría (Solo si hay categoría y tiene subcategorías) */}
+            {category && category.subcategories && category.subcategories.length > 0 && (
+              <View style={styles.pickerContainer}>
+                <Text style={styles.label}>Especialidad:</Text>
+                <TouchableOpacity
+                  style={styles.fakeDropdown}
+                  onPress={() => setShowSubcategoryModal(true)}
+                >
+                  <Text style={{ color: subcategory ? '#000' : '#555' }}>
+                    {subcategory ? subcategory : 'Seleccionar especialidad... ▼'}
+                  </Text>
+                </TouchableOpacity>
               </View>
-            </View>
-          </Modal>
-
-          {/* Modal de Subcategorías */}
-          <Modal visible={showSubcategoryModal} animationType="slide" transparent={true}>
-            <View style={styles.modalOverlay}>
-              <View style={styles.modalContent}>
-                <View style={styles.modalHeader}>
-                  <Text style={styles.modalTitle}>Selecciona una especialidad</Text>
-                  <TouchableOpacity onPress={() => setShowSubcategoryModal(false)}>
-                    <Feather name="x" size={24} color="#333" />
-                  </TouchableOpacity>
-                </View>
-                <ScrollView>
-                  {category?.subcategories?.map((sub, index) => (
-                    <TouchableOpacity
-                      key={index}
-                      style={styles.modalItem}
-                      onPress={() => {
-                        setSubcategory(sub);
-                        setShowSubcategoryModal(false);
-                      }}
-                    >
-                      <Text style={styles.modalItemText}>{sub}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              </View>
-            </View>
-          </Modal>
-
-          <Text style={styles.label}>Detalles del problema:</Text>
-          <TextInput
-            style={styles.textArea}
-            placeholder="Describe aquí lo que sucede..."
-            multiline
-            value={description}
-            onChangeText={setDescription}
-          />
-
-          <Text style={styles.label}>Agrega fotos y videos:</Text>
-          <View style={styles.mediaRow}>
-            <TouchableOpacity style={styles.mediaBtn} onPress={pickImage}><Text>🖼️ Galería</Text></TouchableOpacity>
-            <TouchableOpacity style={styles.mediaBtn} onPress={takePhoto}><Text>📷 Cámara</Text></TouchableOpacity>
-          </View>
-
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-            {images.map((img, i) => <Image key={i} source={{ uri: img }} style={styles.thumb} />)}
-          </View>
-
-          <TouchableOpacity
-            style={[styles.submitBtn, loading && { backgroundColor: '#ccc' }]}
-            onPress={handleRequest}
-            disabled={loading}
-          >
-            {loading ? (
-              <ActivityIndicator color="white" />
-            ) : (
-              <Text style={styles.submitBtnText}>SOLICITAR PRESUPUESTO</Text>
             )}
-          </TouchableOpacity>
-        </View>
-      </View>
 
-      {/* 3. CATEGORÍAS POPULARES */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Lo más buscado</Text>
-        <View style={styles.tagsContainer}>
-          {POPULAR_CATEGORIES.map((cat) => (
-            <TouchableOpacity key={cat.id} style={styles.tagBadge}>
-              <Text style={styles.tagText}>{cat.title}</Text>
+            {/* Modal de Categorías */}
+            <Modal visible={showCategoryModal} animationType="slide" transparent={true}>
+              <View style={styles.modalOverlay}>
+                <View style={styles.modalContent}>
+                  <View style={styles.modalHeader}>
+                    <Text style={styles.modalTitle}>Selecciona una categoría</Text>
+                    <TouchableOpacity onPress={() => setShowCategoryModal(false)}>
+                      <Feather name="x" size={24} color="#333" />
+                    </TouchableOpacity>
+                  </View>
+                  <ScrollView>
+                    {categories.map(cat => (
+                      <TouchableOpacity
+                        key={cat._id}
+                        style={styles.modalItem}
+                        onPress={() => {
+                          setCategory(cat);
+                          setSubcategory(null); // Reset subcategory
+                          setShowCategoryModal(false);
+                        }}
+                      >
+                        <Text style={styles.modalItemText}>{cat.name}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
+              </View>
+            </Modal>
+
+            {/* Modal de Subcategorías */}
+            <Modal visible={showSubcategoryModal} animationType="slide" transparent={true}>
+              <View style={styles.modalOverlay}>
+                <View style={styles.modalContent}>
+                  <View style={styles.modalHeader}>
+                    <Text style={styles.modalTitle}>Selecciona una especialidad</Text>
+                    <TouchableOpacity onPress={() => setShowSubcategoryModal(false)}>
+                      <Feather name="x" size={24} color="#333" />
+                    </TouchableOpacity>
+                  </View>
+                  <ScrollView>
+                    {category?.subcategories?.map((sub, index) => (
+                      <TouchableOpacity
+                        key={index}
+                        style={styles.modalItem}
+                        onPress={() => {
+                          setSubcategory(sub);
+                          setShowSubcategoryModal(false);
+                        }}
+                      >
+                        <Text style={styles.modalItemText}>{sub}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
+              </View>
+            </Modal>
+
+            <Text style={styles.label}>Detalles del servicio</Text>
+            <TextInput
+              style={styles.textArea}
+              placeholder="Danos más contexto para una mejor cotización: ¿Horarios preferidos? ¿Síntomas? ¿Marca del equipo?"
+              multiline
+              value={description}
+              onChangeText={setDescription}
+            />
+
+            <Text style={styles.label}>Agrega fotos y videos:</Text>
+            <View style={styles.mediaRow}>
+              <TouchableOpacity style={styles.mediaBtn} onPress={pickImage}><Text>🖼️ Galería</Text></TouchableOpacity>
+              <TouchableOpacity style={styles.mediaBtn} onPress={takePhoto}><Text>📷 Cámara</Text></TouchableOpacity>
+            </View>
+
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+              {images.map((img, i) => <Image key={i} source={{ uri: img }} style={styles.thumb} />)}
+            </View>
+
+            <TouchableOpacity
+              style={[styles.submitBtn, loading && { backgroundColor: '#ccc' }]}
+              onPress={handleRequest}
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator color="white" />
+              ) : (
+                <Text style={styles.submitBtnText}>SOLICITAR PRESUPUESTO</Text>
+              )}
             </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* 3. CATEGORÍAS POPULARES */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Lo más buscado</Text>
+          <View style={styles.tagsContainer}>
+            {POPULAR_CATEGORIES.map((cat) => (
+              <TouchableOpacity key={cat.id} style={styles.tagBadge}>
+                <Text style={styles.tagText}>{cat.title}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
+        {/* 4. CÓMO FUNCIONA */}
+        <View style={[styles.section, styles.howItWorksBg]}>
+          <Text style={styles.sectionTitle}>¿Cómo funciona?</Text>
+          <View style={styles.stepsContainer}>
+            <View style={styles.step}>
+              <Text style={styles.stepIcon}>📝</Text>
+              <Text style={styles.stepTitle}>1. Solicitas</Text>
+              <Text style={styles.stepDesc}>Describe tu problema</Text>
+            </View>
+            <View style={styles.step}>
+              <Text style={styles.stepIcon}>💬</Text>
+              <Text style={styles.stepTitle}>2. Recibes</Text>
+              <Text style={styles.stepDesc}>Ofertas rápidas</Text>
+            </View>
+            <View style={styles.step}>
+              <Text style={styles.stepIcon}>🤝</Text>
+              <Text style={styles.stepTitle}>3. Contratas</Text>
+              <Text style={styles.stepDesc}>Eliges al mejor</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* 5. BLOG / NOTICIAS */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Consejos para el hogar</Text>
+          {BLOG_POSTS.map((post) => (
+            <View key={post.id} style={styles.blogCard}>
+              <View style={styles.blogImagePlaceholder} />
+              <View style={styles.blogContent}>
+                <Text style={styles.blogTitle}>{post.title}</Text>
+                <Text style={styles.readMore}>Leer más...</Text>
+              </View>
+            </View>
           ))}
         </View>
-      </View>
 
-      {/* 4. CÓMO FUNCIONA */}
-      <View style={[styles.section, styles.howItWorksBg]}>
-        <Text style={styles.sectionTitle}>¿Cómo funciona?</Text>
-        <View style={styles.stepsContainer}>
-          <View style={styles.step}>
-            <Text style={styles.stepIcon}>📝</Text>
-            <Text style={styles.stepTitle}>1. Solicitas</Text>
-            <Text style={styles.stepDesc}>Describe tu problema</Text>
-          </View>
-          <View style={styles.step}>
-            <Text style={styles.stepIcon}>💬</Text>
-            <Text style={styles.stepTitle}>2. Recibes</Text>
-            <Text style={styles.stepDesc}>Ofertas rápidas</Text>
-          </View>
-          <View style={styles.step}>
-            <Text style={styles.stepIcon}>🤝</Text>
-            <Text style={styles.stepTitle}>3. Contratas</Text>
-            <Text style={styles.stepDesc}>Eliges al mejor</Text>
-          </View>
-        </View>
-      </View>
-
-      {/* 5. BLOG / NOTICIAS */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Consejos para el hogar</Text>
-        {BLOG_POSTS.map((post) => (
-          <View key={post.id} style={styles.blogCard}>
-            <View style={styles.blogImagePlaceholder} />
-            <View style={styles.blogContent}>
-              <Text style={styles.blogTitle}>{post.title}</Text>
-              <Text style={styles.readMore}>Leer más...</Text>
-            </View>
-          </View>
-        ))}
-      </View>
-
-    </InputSimple: {
-    borderWidth: 2,
-    borderColor: '#000',
-    borderRadius: 8,
-    padding: 10,
-    marginBottom: 15,
-    backgroundColor: '#fff',
-    color: '#000',
-    fontSize: 16
+      </InputSimple: {
+        borderWidth: 2,
+      borderColor: '#000',
+      borderRadius: 8,
+      padding: 10,
+      marginBottom: 15,
+      backgroundColor: '#fff',
+      color: '#000',
+      fontSize: 16
   },
   textScrollView>
     </KeyboardAvoidingView>
@@ -371,23 +371,23 @@ const styles = StyleSheet.create({
   cardForm: { backgroundColor: '#fff', borderRadius: 15, padding: 20, elevation: 5 },
   label: { fontWeight: 'bold', marginBottom: 5, color: '#444' },
   pickerContainer: { marginBottom: 15 },
-  fakeDropdown: { 
-    borderWidth: 2, 
-    borderColor: '#000', 
-    padding: 12, 
-    borderRadius: 8, 
-    backgroundColor: '#fff', 
-    flexDirection: 'row', 
-    justifyContent: 'space-between' 
+  fakeDropdown: {
+    borderWidth: 2,
+    borderColor: '#000',
+    padding: 12,
+    borderRadius: 8,
+    backgroundColor: '#fff',
+    flexDirection: 'row',
+    justifyContent: 'space-between'
   },
-  textArea: { 
-    borderWidth: 2, 
-    borderColor: '#000', 
-    borderRadius: 8, 
-    padding: 10, 
-    height: 100, 
-    textAlignVertical: 'top', 
-    marginBottom: 15, 
+  textArea: {
+    borderWidth: 2,
+    borderColor: '#000',
+    borderRadius: 8,
+    padding: 10,
+    height: 100,
+    textAlignVertical: 'top',
+    marginBottom: 15,
     backgroundColor: '#fff',
     color: '#000',
     fontSize: 16

@@ -1,7 +1,7 @@
 {
-  "name": "profix-backend",
+  "name": "profesional-cercano-backend",
   "version": "1.0.0",
-  "description": "Backend API for ProFix Application",
+  "description": "Backend API for Profesional Cercano Application",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
