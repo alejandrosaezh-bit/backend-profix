@@ -2,17 +2,18 @@ import { Feather, Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useEffect, useRef, useState } from 'react';
 import {
-    Alert,
-    FlatList,
-    Image,
-    KeyboardAvoidingView,
-    Platform,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  Alert,
+  FlatList,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
+import { useSocket } from '../context/SocketContext';
 import { api } from '../utils/api';
 
 export default function ChatScreen({ request, currentUser, userMode, onBack, onSend, onViewJob }) {
@@ -49,6 +50,68 @@ export default function ChatScreen({ request, currentUser, userMode, onBack, onS
 
   const messages = (currentConversation && Array.isArray(currentConversation.messages)) ? currentConversation.messages : [];
 
+  // Optimistic UI State
+  const [localMessages, setLocalMessages] = useState([]);
+
+  // Socket Integration
+  const { socket } = useSocket();
+
+  useEffect(() => {
+    setLocalMessages(messages);
+  }, [messages]);
+
+  // Real-time listener
+  useEffect(() => {
+    if (!socket || !currentConversation?.id) return;
+
+    console.log("Joining chat room:", currentConversation.id);
+    socket.emit('join_chat', currentConversation.id);
+
+    const handleReceiveMessage = (data) => {
+      console.log("Received socket message:", data);
+      if (data.chatId === currentConversation.id) {
+        setLocalMessages(prev => {
+          // Avoid duplicates using ID
+          const exists = prev.some(m => m.id === data.message.id || m.id === data.message._id);
+          if (exists) return prev;
+
+          // Transform to UI format if needed
+          const incomingMsg = {
+            id: data.message.id || data.message._id,
+            text: data.message.text || data.message.content,
+            sender: data.message.sender === 'client' ? 'client' : 'pro', // Ensure correct mapping
+            timestamp: data.message.createdAt || new Date().toISOString(),
+            media: data.message.media,
+            mediaType: data.message.mediaType
+          };
+
+          // If I am the sender, I might already have a temp message. 
+          // In a robust app, we replace the temp message. 
+          // For now, we'll just ignore if we find a temp message with potentially same content?
+          // Actually, onSend (optimistic) adds it. The socket might send it back.
+          // We should filter if the sender explains it's me.
+
+          // FIX: If sender is ME, chances are I already added it optimistically.
+          const isMe = (isActingAsPro && data.message.sender === 'pro') || (!isActingAsPro && data.message.sender === 'client');
+          if (isMe) {
+            // Start removing temps? Or just ignore?
+            // Let's rely on the fact that if it has a real ID, it replaces the temp if we implement that logic.
+            // For now, let's just Append if it's NOT me.
+            return prev;
+          }
+
+          return [...prev, incomingMsg];
+        });
+      }
+    };
+
+    socket.on('receive_message', handleReceiveMessage);
+
+    return () => {
+      socket.off('receive_message', handleReceiveMessage);
+    };
+  }, [socket, currentConversation?.id, isActingAsPro]);
+
   useEffect(() => {
     if (currentConversation && currentConversation.id) {
       api.markChatAsRead(currentConversation.id).catch(() => { });
@@ -56,10 +119,10 @@ export default function ChatScreen({ request, currentUser, userMode, onBack, onS
   }, [currentConversation?.id]);
 
   useEffect(() => {
-    if (messages.length > 0 && flatListRef.current) {
+    if (localMessages.length > 0 && flatListRef.current) {
       setTimeout(() => flatListRef.current.scrollToEnd({ animated: true }), 100);
     }
-  }, [messages]);
+  }, [localMessages]);
 
   const [inputText, setInputText] = useState(() => {
     if (Array.isArray(messages) && messages.length === 0 && request.initialMessage) {
@@ -70,8 +133,24 @@ export default function ChatScreen({ request, currentUser, userMode, onBack, onS
 
   const sendMessage = () => {
     if (inputText.trim().length === 0) return;
-    onSend(request, inputText, 'text');
+
+    // 1. Optimistic Update
+    const tempMessage = {
+      id: 'temp-' + Date.now(),
+      text: inputText,
+      sender: isActingAsPro ? 'pro' : 'client',
+      timestamp: new Date().toISOString(),
+      type: 'text',
+      isTemp: true
+    };
+    setLocalMessages(prev => [...prev, tempMessage]);
+
+    // 2. Clear Input
+    const textToSend = inputText;
     setInputText('');
+
+    // 3. Send to Server
+    onSend(request, textToSend, 'text');
   };
 
   const handleAttachment = () => {
@@ -128,6 +207,18 @@ export default function ChatScreen({ request, currentUser, userMode, onBack, onS
   };
 
   const processSelectedMedia = (uri, type) => {
+    // Optimistic Media
+    const tempMessage = {
+      id: 'temp-' + Date.now(),
+      media: uri,
+      sender: isActingAsPro ? 'pro' : 'client',
+      timestamp: new Date().toISOString(),
+      type: 'media',
+      mediaType: type === 'video' ? 'video' : 'image',
+      isTemp: true
+    };
+    setLocalMessages(prev => [...prev, tempMessage]);
+
     if (!isActingAsPro && userMode === 'client') {
       Alert.alert(
         "Agregar a la Solicitud",
@@ -154,7 +245,7 @@ export default function ChatScreen({ request, currentUser, userMode, onBack, onS
 
     return (
       <View style={{ alignSelf: isMyMessage ? 'flex-end' : 'flex-start', maxWidth: '85%', marginBottom: 8, paddingHorizontal: 4 }}>
-        <View style={[styles.messageBubble, isMyMessage ? styles.myMessage : styles.theirMessage]}>
+        <View style={[styles.messageBubble, isMyMessage ? styles.myMessage : styles.theirMessage, item.isTemp && styles.tempMessage]}>
           {(item.type === 'text' || (!item.type && item.text)) && (
             <Text style={[styles.messageText, isMyMessage ? styles.myMessageText : styles.theirMessageText]}>
               {item.text || item.content}
@@ -214,21 +305,21 @@ export default function ChatScreen({ request, currentUser, userMode, onBack, onS
 
         <Image
           source={{
-            uri: (request.targetUser?.avatar || request.targetUser?.image || request.targetUser?.profileImage) 
-                 ? (request.targetUser?.avatar || request.targetUser?.image || request.targetUser?.profileImage)
-                 : (isActingAsPro
-                    ? (request.clientAvatar || request.client?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(request.clientName || request.client?.name || 'C')}&background=random`)
-                    : (request.proImage || request.professional?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(request.proName || request.professional?.name || 'P')}&background=random`))
+            uri: (request.targetUser?.avatar || request.targetUser?.image || request.targetUser?.profileImage)
+              ? (request.targetUser?.avatar || request.targetUser?.image || request.targetUser?.profileImage)
+              : (isActingAsPro
+                ? (request.clientAvatar || request.client?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(request.clientName || request.client?.name || 'C')}&background=random`)
+                : (request.proImage || request.professional?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(request.proName || request.professional?.name || 'P')}&background=random`))
           }}
           style={{ width: 40, height: 40, borderRadius: 20, marginRight: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.5)', backgroundColor: '#fff' }}
         />
 
         <View style={{ flex: 1 }}>
           <Text style={{ fontSize: 18, fontWeight: 'bold', color: 'white' }} numberOfLines={1}>
-            {request.targetUser?.name 
-             ? request.targetUser.name 
-             : (isActingAsPro 
-                ? (request.clientName || request.client?.name || 'Cliente') 
+            {request.targetUser?.name
+              ? request.targetUser.name
+              : (isActingAsPro
+                ? (request.clientName || request.client?.name || 'Cliente')
                 : (request.proName || request.professional?.name || request.targetUser?.name || 'Profesional'))}
           </Text>
 
@@ -254,7 +345,7 @@ export default function ChatScreen({ request, currentUser, userMode, onBack, onS
 
       <FlatList
         ref={flatListRef}
-        data={messages}
+        data={localMessages}
         renderItem={renderMessage}
         keyExtractor={(item, index) => item.id || (item.timestamp ? item.timestamp.toString() : index.toString())}
         contentContainerStyle={styles.messagesList}
@@ -290,18 +381,21 @@ const styles = StyleSheet.create({
   messagesList: { padding: 16, paddingBottom: 20 },
   inputContainer: { flexDirection: 'row', alignItems: 'center', padding: 10, backgroundColor: '#F0F2F5', borderTopWidth: 1, borderTopColor: '#E5E7EB' },
   attachButton: { padding: 10 },
-  input: { 
-    flex: 1, 
-    backgroundColor: 'white', 
-    borderRadius: 24, 
-    paddingHorizontal: 16, 
-    paddingVertical: 10, 
-    marginHorizontal: 10, 
-    maxHeight: 100, 
+  input: {
+    flex: 1,
+    backgroundColor: 'white',
+    borderRadius: 24,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    marginHorizontal: 10,
+    maxHeight: 100,
     fontSize: 16,
     borderWidth: 1,
     borderColor: '#000',
     color: '#000'
+  },
+  tempMessage: {
+    opacity: 0.7
   },
   sendButton: { padding: 10, borderRadius: 25, justifyContent: 'center', alignItems: 'center', width: 45, height: 45 },
   messageBubble: {

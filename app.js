@@ -50,7 +50,6 @@ import { api } from './src/utils/api';
 import * as AuthLocal from './src/utils/auth_local';
 import { setRequests } from './src/utils/requests';
 import { saveSession } from './src/utils/session';
-import { OTA_VERSION } from './src/utils/version';
 
 const { checkCredentials, getUser, registerUser } = AuthLocal;
 
@@ -516,15 +515,15 @@ const Header = ({ userMode, toggleMode, isLoggedIn, onLoginPress, currentUser, o
     return (
         <View style={styles.header}>
             <View style={styles.headerLeft}>
-                <View style={[styles.logoIcon, { backgroundColor: userMode === 'client' ? '#F97316' : '#2563EB' }]}>
-                    {userMode === 'client' ? <Hammer color="white" size={16} /> : <Briefcase name="briefcase" color="white" size={16} />}
+                <View style={{ width: 40, height: 40, backgroundColor: '#EA580C', borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginRight: 10 }}>
+                    <MaterialCommunityIcons name="hammer" size={24} color="white" />
                 </View>
-                <Text style={styles.logoText}>
-                    <Text style={{ color: '#2563EB' }}>Profesional</Text>{' '}
-                    <Text style={{ color: '#EA580C' }}>Cercano</Text>
-                </Text>
-                <View style={{ backgroundColor: '#F3F4F6', paddingHorizontal: 4, paddingVertical: 1, borderRadius: 3, marginLeft: 6 }}>
-                    <Text style={{ fontSize: 9, fontWeight: 'bold', color: '#9CA3AF' }}>{OTA_VERSION}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Text style={{ fontSize: 22, fontWeight: '800', color: '#2563EB' }}>Profesional</Text>
+                    <Text style={{ fontSize: 22, fontWeight: '800', color: '#EA580C', marginLeft: 6 }}>Cercano</Text>
+                    <View style={{ backgroundColor: '#F3F4F6', paddingHorizontal: 4, paddingVertical: 1, borderRadius: 4, marginLeft: 8 }}>
+                        <Text style={{ fontSize: 10, color: '#94A3B8', fontWeight: 'bold' }}>V29.</Text>
+                    </View>
                 </View>
             </View>
 
@@ -967,6 +966,108 @@ const HomeSections = ({ onSelectCategory, onSelectPost, categories, articles }) 
     );
 };
 
+// --- COMPONENT: URGENCY BANNER ---
+// --- COMPONENT: URGENCY BANNER ---
+const UrgencyBanner = ({ onPress, onActionPress, categories }) => {
+    // Logic from QuickActionsRow to get urgent subcategories
+    const urgentSubs = [];
+    (categories || []).forEach(cat => {
+        (cat.subcategories || []).forEach(sub => {
+            if (typeof sub === 'object' && sub.isUrgent) {
+                urgentSubs.push({
+                    name: sub.name,
+                    icon: sub.icon,
+                    category: cat.name,
+                    color: cat.color || '#F3F4F6',
+                    emergencyIcon: sub.emergencyIcon // Added support for custom emergency icon
+                });
+            }
+        });
+    });
+
+    const actions = urgentSubs.slice(0, 5); // Limit to 5 for better layout in banner
+
+    return (
+        <View style={{ marginHorizontal: 0, marginTop: 0, marginBottom: 0 }}>
+            <View
+                style={{
+                    backgroundColor: 'white', // Pure white background as requested
+                    borderRadius: 0, // Edge connection
+                    borderTopLeftRadius: 32,
+                    borderTopRightRadius: 32,
+                    borderBottomLeftRadius: 32,
+                    borderBottomRightRadius: 32,
+                    padding: 24,
+                    borderWidth: 0,
+                    shadowColor: '#EA580C',
+                    shadowOffset: { width: 0, height: 4 },
+                    shadowOpacity: 0.1,
+                    shadowRadius: 12,
+                    elevation: 4
+                }}
+            >
+                {/* Icons inside the banner (moved to top) */}
+                <View style={{ flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center', marginBottom: 25, backgroundColor: 'rgba(249,250,251,0.5)', borderRadius: 24, paddingVertical: 15 }}>
+                    {actions.map((action, index) => {
+                        const IconComponent = ICON_MAP[action.icon] || ICON_MAP['default'];
+                        return (
+                            <TouchableOpacity
+                                key={index}
+                                onPress={() => onActionPress(action.category, action.name)}
+                                style={{ alignItems: 'center', flex: 1 }}
+                                activeOpacity={0.7}
+                            >
+                                <View style={{
+                                    width: 56,
+                                    height: 56,
+                                    borderRadius: 28,
+                                    backgroundColor: 'white',
+                                    justifyContent: 'center',
+                                    alignItems: 'center',
+                                    borderWidth: 1.5,
+                                    borderColor: '#FED7AA',
+                                    elevation: 2,
+                                    overflow: 'hidden'
+                                }}>
+                                    {action.emergencyIcon ? (
+                                        <Image source={{ uri: action.emergencyIcon }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                                    ) : (
+                                        <IconComponent size={26} color="#EA580C" />
+                                    )}
+                                </View>
+                                <Text style={{ fontSize: 9, color: '#4B5563', fontWeight: 'bold', marginTop: 8, textAlign: 'center' }} numberOfLines={1}>{action.name}</Text>
+                            </TouchableOpacity>
+                        );
+                    })}
+                </View>
+
+                {/* Title and Subtitle centered (moved to bottom) */}
+                <TouchableOpacity
+                    activeOpacity={0.9}
+                    onPress={onPress}
+                    style={{ alignItems: 'center', justifyContent: 'center' }}
+                >
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+                        <View style={{
+                            width: 32, height: 32,
+                            borderRadius: 16,
+                            backgroundColor: '#FFEDD5',
+                            justifyContent: 'center', alignItems: 'center',
+                            marginRight: 10,
+                            borderWidth: 1,
+                            borderColor: '#FED7AA'
+                        }}>
+                            <Feather name="zap" size={18} color="#EA580C" />
+                        </View>
+                        <Text style={{ fontSize: 20, fontWeight: '800', color: '#111811' }}>Urgencias 24/7</Text>
+                    </View>
+                    <Text style={{ fontSize: 14, color: '#6B7280', textAlign: 'center' }}>Expertos listos para salir ahora mismo.</Text>
+                </TouchableOpacity>
+            </View>
+        </View>
+    );
+};
+
 // --- 4. FORMULARIO PRINCIPAL (CON LOGICA DE GPS Y CAMARA) ---
 const ServiceForm = ({ onSubmit, isLoggedIn, onTriggerLogin, initialCategory, initialSubcategory, categories = [], allSubcategories = {}, currentUser, dynamicCopy }) => {
     const copy = dynamicCopy || HOME_COPY_OPTIONS[0];
@@ -1191,7 +1292,7 @@ const ServiceForm = ({ onSubmit, isLoggedIn, onTriggerLogin, initialCategory, in
                 </View>
             </View>
             <View style={styles.serviceFormContent}>
-                <QuickActionsRow onActionPress={handleQuickAction} categories={categories} />
+                {/* QuickActionsRow removed from here - moved below to UrgencyBanner */}
                 <View style={{ marginBottom: 16 }}>
                     <Text style={styles.label}>Tipo de servicio</Text>
                     <TouchableOpacity
@@ -1325,59 +1426,101 @@ const ServiceForm = ({ onSubmit, isLoggedIn, onTriggerLogin, initialCategory, in
                         </View>
                     )}
                 </View>
-                {formData.location ? (
-                    <View style={[styles.inputGroup, { alignItems: 'center', marginTop: 10 }]}>
+                <View style={[styles.inputGroup, { marginTop: 15 }]}>
+                    <Text style={styles.label}>Complementa con una imagen o Vídeo</Text>
+                    <Text style={{ fontSize: 12, color: '#6B7280', marginTop: -2, marginBottom: 5, fontStyle: 'italic' }}>*Añadir multimedia ayuda a recibir mejores presupuestos.</Text>
+
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 }}>
+                        {/* Botón: Subir Archivo */}
                         <TouchableOpacity
                             style={{
-                                width: 80,
-                                height: 80,
-                                borderRadius: 40,
+                                flex: 1,
+                                height: 50,
                                 backgroundColor: '#F3F4F6',
+                                borderRadius: 12,
                                 justifyContent: 'center',
                                 alignItems: 'center',
-                                marginBottom: 15, // Changed from marginTop to marginBottom
-                                borderWidth: 2,
-                                borderColor: '#EA580C',
-                                borderStyle: 'dashed'
+                                marginRight: 8,
+                                flexDirection: 'row',
+                                borderWidth: 1,
+                                borderColor: '#E5E7EB'
+                            }}
+                            onPress={pickImage}
+                        >
+                            <Feather name="file-plus" size={20} color="#4B5563" style={{ marginRight: 8 }} />
+                            <Text style={{ color: '#4B5563', fontWeight: 'bold', fontSize: 13 }}>Archivo</Text>
+                        </TouchableOpacity>
+
+                        {/* Botón: Foto */}
+                        <TouchableOpacity
+                            style={{
+                                flex: 1,
+                                height: 50,
+                                backgroundColor: '#EFF6FF',
+                                borderRadius: 12,
+                                justifyContent: 'center',
+                                alignItems: 'center',
+                                marginRight: 8,
+                                flexDirection: 'row',
+                                borderWidth: 1,
+                                borderColor: '#BFDBFE'
+                            }}
+                            onPress={takePhoto}
+                        >
+                            <Feather name="camera" size={20} color="#2563EB" style={{ marginRight: 8 }} />
+                            <Text style={{ color: '#2563EB', fontWeight: 'bold', fontSize: 13 }}>Foto</Text>
+                        </TouchableOpacity>
+
+                        {/* Botón: Vídeo */}
+                        <TouchableOpacity
+                            style={{
+                                flex: 1,
+                                height: 50,
+                                backgroundColor: '#FEF2F2',
+                                borderRadius: 12,
+                                justifyContent: 'center',
+                                alignItems: 'center',
+                                flexDirection: 'row',
+                                borderWidth: 1,
+                                borderColor: '#FECACA'
                             }}
                             onPress={() => {
-                                if (Platform.OS === 'web') {
-                                    pickImage();
-                                    return;
-                                }
                                 Alert.alert(
-                                    "Añadir Multimedia",
-                                    "¿Qué deseas añadir?",
+                                    "Añadir Video",
+                                    "¿Grabar o Galería?",
                                     [
-                                        { text: "Sube una foto", onPress: pickImage },
-                                        { text: "Tomar una foto", onPress: takePhoto },
-                                        { text: "Grabar un vídeo", onPress: recordVideo },
-                                        { text: "Galería de videos", onPress: pickVideo },
+                                        { text: "Grabar", onPress: recordVideo },
+                                        { text: "Galería", onPress: pickVideo },
                                         { text: "Cancelar", style: "cancel" }
                                     ]
                                 );
                             }}
                         >
-                            <Camera name="camera" size={32} color="#EA580C" />
+                            <Feather name="play-circle" size={20} color="#DC2626" style={{ marginRight: 8 }} />
+                            <Text style={{ color: '#DC2626', fontWeight: 'bold', fontSize: 13 }}>Vídeo</Text>
                         </TouchableOpacity>
-
-                        <Text style={[styles.label, { textAlign: 'center' }]}>
-                            Añadir fotos y Vídeos <Text style={{ fontSize: 13, fontWeight: 'normal', color: '#6B7280' }}>(opcional)</Text>
-                        </Text>
-                        <Text style={[styles.helperText, { textAlign: 'center' }]}>Las fotos y vídeos ayudan a recibir presupuestos exactos.</Text>
-
-                        {(images.length > 0 || videos.length > 0) && (
-                            <ScrollView horizontal style={{ marginTop: 20 }}>
-                                {images.map((img, i) => <Image key={`img-${i}`} source={{ uri: img }} style={{ width: 80, height: 80, borderRadius: 12, marginRight: 10 }} />)}
-                                {videos.map((vid, i) => (
-                                    <View key={`vid-${i}`} style={{ width: 80, height: 80, borderRadius: 12, backgroundColor: '#000', justifyContent: 'center', alignItems: 'center', marginRight: 10 }}>
-                                        <PlayCircle color="white" size={32} />
-                                    </View>
-                                ))}
-                            </ScrollView>
-                        )}
                     </View>
-                ) : null}
+
+                    {(images.length > 0 || videos.length > 0) && (
+                        <ScrollView horizontal style={{ marginTop: 12 }} showsHorizontalScrollIndicator={false}>
+                            {images.map((img, i) => (
+                                <View key={`img-${i}`} style={{ marginRight: 10, position: 'relative' }}>
+                                    <Image source={{ uri: img }} style={{ width: 70, height: 70, borderRadius: 10, borderWidth: 1, borderColor: '#E5E7EB' }} />
+                                    <View style={{ position: 'absolute', top: 4, right: 4, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 10, padding: 2 }}>
+                                        <Feather name="check" size={10} color="white" />
+                                    </View>
+                                </View>
+                            ))}
+                            {videos.map((vid, i) => (
+                                <View key={`vid-${i}`} style={{ width: 70, height: 70, borderRadius: 10, backgroundColor: '#000', justifyContent: 'center', alignItems: 'center', marginRight: 10, borderWidth: 1, borderColor: '#E5E7EB' }}>
+                                    <Feather name="play-circle" color="white" size={24} />
+                                </View>
+                            ))}
+                        </ScrollView>
+                    )}
+
+
+                </View>
 
                 <TouchableOpacity style={styles.searchButton} onPress={handlePreSubmit}>
                     <Text style={styles.searchButtonText}>{copy.buttonText}</Text>
@@ -1387,6 +1530,7 @@ const ServiceForm = ({ onSubmit, isLoggedIn, onTriggerLogin, initialCategory, in
         </View>
     );
 }
+
 
 // --- 5. PANTALLAS DE DETALLE ---
 
@@ -4936,6 +5080,17 @@ function MainApp() {
                             dynamicCopy={dynamicCopy}
                         />
                         <SectionDivider />
+                        <UrgencyBanner
+                            categories={categories}
+                            onActionPress={(cat, sub) => {
+                                setSelectedCategory(categories.find(c => c.name === cat));
+                                setSelectedSubcategory(sub);
+                            }}
+                            onPress={() => {
+                                showAlert("Urgencia", "Selecciona una categoría para respuesta inmediata.");
+                            }}
+                        />
+                        <SectionDivider />
                         <HomeSections
                             onSelectCategory={(cat) => { setSelectedCategory(cat); setView('category-detail'); }}
                             onSelectPost={(post) => { setSelectedBlogPost(post); setView('blog-post'); }}
@@ -5486,11 +5641,15 @@ function MainApp() {
     );
 }
 
+import { SocketProvider } from './src/context/SocketContext';
+
 export default function App() {
     return (
         <AuthProvider>
             <ErrorBoundary>
-                <MainApp />
+                <SocketProvider>
+                    <MainApp />
+                </SocketProvider>
             </ErrorBoundary>
         </AuthProvider>
     );
@@ -5729,8 +5888,8 @@ const styles = StyleSheet.create({
         backgroundColor: 'white',
         borderTopWidth: 1,
         borderColor: '#E5E7EB',
-        paddingBottom: Platform.OS === 'android' ? 32 : 24,
-        minHeight: 80
+        paddingBottom: Platform.OS === 'android' ? 55 : 30, // Aumentado para evitar solapamiento
+        minHeight: 90 // Aumentado mínimamente
     },
     navItem: { alignItems: 'center', padding: 8, flex: 1, minHeight: 48 },
 

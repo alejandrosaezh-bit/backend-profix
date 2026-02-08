@@ -8,7 +8,7 @@ const PROD_URL = 'https://profix-backend-h56b.onrender.com/api';
 // Configuración de IP dinámica (Desarrollo Local)
 // Si necesitas trabajar con el backend localmente, cambia USE_LOCAL a true
 const LOCAL_IP = '192.168.1.172'; // IMPORTANTE: Verifica tu IP con `ipconfig` en Windows
-const USE_LOCAL = true; // Cambiamos a true para desarrollo local
+const USE_LOCAL = false; // Cambiamos a false para producción
 
 export const API_URL = !USE_LOCAL
     ? PROD_URL

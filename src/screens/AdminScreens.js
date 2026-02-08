@@ -666,7 +666,7 @@ const CategoriesManager = () => {
     // Subcategory Editor State
     const [showSubModal, setShowSubModal] = useState(false);
     const [editingSubIndex, setEditingSubIndex] = useState(null);
-    const [subForm, setSubForm] = useState({ name: '', icon: 'circle', titlePlaceholder: '', descriptionPlaceholder: '', isUrgent: false });
+    const [subForm, setSubForm] = useState({ name: '', icon: 'circle', titlePlaceholder: '', descriptionPlaceholder: '', isUrgent: false, emergencyIcon: '' });
 
     // Icon Picker State
     const [showIconPicker, setShowIconPicker] = useState(false);
@@ -750,11 +750,30 @@ const CategoriesManager = () => {
     const openSubModal = (index = null) => {
         setEditingSubIndex(index);
         if (index !== null) {
-            setSubForm({ ...subcats[index], icon: subcats[index].icon || icon, isUrgent: !!subcats[index].isUrgent }); // Inherit parent icon if missing
+            setSubForm({
+                ...subcats[index],
+                icon: subcats[index].icon || icon,
+                isUrgent: !!subcats[index].isUrgent,
+                emergencyIcon: subcats[index].emergencyIcon || ''
+            }); // Inherit parent icon if missing
         } else {
-            setSubForm({ name: '', icon: icon, titlePlaceholder: '', descriptionPlaceholder: '', isUrgent: false });
+            setSubForm({ name: '', icon: icon, titlePlaceholder: '', descriptionPlaceholder: '', isUrgent: false, emergencyIcon: '' });
         }
         setShowSubModal(true);
+    };
+
+    const pickEmergencyIcon = async () => {
+        const result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            allowsEditing: true,
+            aspect: [1, 1],
+            quality: 0.5,
+            base64: true
+        });
+
+        if (!result.canceled) {
+            setSubForm(prev => ({ ...prev, emergencyIcon: `data:image/jpeg;base64,${result.assets[0].base64}` }));
+        }
     };
 
     const saveSubcategory = () => {
@@ -903,6 +922,33 @@ const CategoriesManager = () => {
                                     thumbColor={subForm.isUrgent ? '#EF4444' : '#94A3B8'}
                                 />
                             </View>
+
+                            {subForm.isUrgent && (
+                                <View style={{ marginTop: 15, padding: 12, backgroundColor: '#FFF5F5', borderRadius: 12, borderWeight: 1, borderColor: '#FED7D7' }}>
+                                    <Text style={[styles.label, { marginBottom: 10 }]}>Icono de Emergencia Personalizado</Text>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                        {subForm.emergencyIcon ? (
+                                            <Image source={{ uri: subForm.emergencyIcon }} style={{ width: 60, height: 60, borderRadius: 30, marginRight: 15, backgroundColor: 'white' }} />
+                                        ) : (
+                                            <View style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: '#FEE2E2', alignItems: 'center', justifyContent: 'center', marginRight: 15 }}>
+                                                <Feather name="image" size={24} color="#EF4444" />
+                                            </View>
+                                        )}
+                                        <TouchableOpacity
+                                            style={{ backgroundColor: '#EF4444', paddingHorizontal: 15, paddingVertical: 10, borderRadius: 8 }}
+                                            onPress={pickEmergencyIcon}
+                                        >
+                                            <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 13 }}>Subir Logotipo</Text>
+                                        </TouchableOpacity>
+                                        {subForm.emergencyIcon ? (
+                                            <TouchableOpacity onPress={() => setSubForm({ ...subForm, emergencyIcon: '' })} style={{ marginLeft: 15 }}>
+                                                <Feather name="trash-2" size={20} color="#666" />
+                                            </TouchableOpacity>
+                                        ) : null}
+                                    </View>
+                                    <Text style={{ fontSize: 10, color: '#666', marginTop: 8 }}>Este logo se mostrará en el banner de Urgencias 24/7 en la Home.</Text>
+                                </View>
+                            )}
                         </ScrollView>
 
                         <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>

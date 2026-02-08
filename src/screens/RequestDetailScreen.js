@@ -307,6 +307,9 @@ export default function RequestDetailScreen({ route, navigation }) {
         ) : (
           <View>
             <View style={styles.headerTopRow}>
+              <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+                <Feather name="arrow-left" size={26} color="white" />
+              </TouchableOpacity>
               <View style={{ flex: 1, marginRight: 10 }}>
                 <Text style={styles.headerCategory}>
                   {(typeof data.category === 'object' ? data.category.name : data.category)} • {(typeof data.subcategory === 'object' ? data.subcategory.name : (data.subcategory || 'General'))}
@@ -483,7 +486,8 @@ const styles = StyleSheet.create({
     elevation: 0,
     marginBottom: 20
   },
-  headerTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 },
+  headerTopRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
+  backButton: { marginRight: 12, padding: 4 },
   headerLabel: { fontSize: 11, color: 'rgba(255,255,255,0.8)', fontWeight: 'bold', letterSpacing: 1 },
   headerCategory: { fontSize: 12, color: 'rgba(255,255,255,0.9)', fontWeight: 'bold', textTransform: 'uppercase', marginBottom: 4 },
   headerTitle: { fontSize: 24, fontWeight: 'bold', color: 'white', lineHeight: 28 },
