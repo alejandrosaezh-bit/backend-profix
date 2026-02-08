@@ -72,7 +72,7 @@ export default function LoginScreen({ navigation }) {
       // Mostrar error en la UI en lugar de usar Alert que puede cerrarse
       setErrorMessage(error.message || 'Error de autenticación');
       // Doble confirmación visual
-      Alert.alert("Error de Registro", error.message || 'Error desconocido');
+      // Alert.alert("Error de Registro", error.message || 'Error desconocido');
     }
   };
 

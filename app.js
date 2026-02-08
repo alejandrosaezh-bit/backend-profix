@@ -522,7 +522,7 @@ const Header = ({ userMode, toggleMode, isLoggedIn, onLoginPress, currentUser, o
                     <Text style={{ fontSize: 22, fontWeight: '800', color: '#2563EB' }}>Profesional</Text>
                     <Text style={{ fontSize: 22, fontWeight: '800', color: '#EA580C', marginLeft: 6 }}>Cercano</Text>
                     <View style={{ backgroundColor: '#F3F4F6', paddingHorizontal: 4, paddingVertical: 1, borderRadius: 4, marginLeft: 8 }}>
-                        <Text style={{ fontSize: 10, color: '#94A3B8', fontWeight: 'bold' }}>V29.</Text>
+                        <Text style={{ fontSize: 10, color: '#94A3B8', fontWeight: 'bold' }}>V30.0</Text>
                     </View>
                 </View>
             </View>
@@ -3778,6 +3778,13 @@ function MainApp() {
     const [fullscreenImage, setFullscreenImage] = useState(null);
 
     // --- EFECTOS INICIALES ---
+    // FIX: Auto-close auth modal when logged in
+    useEffect(() => {
+        if (isLoggedIn) {
+            setShowAuth(false);
+        }
+    }, [isLoggedIn]);
+
     useEffect(() => {
         const loadData = async () => {
             try {
