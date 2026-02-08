@@ -782,8 +782,11 @@ router.get('/', async (req, res) => {
                     };
                 });
 
-                // --- NEW: Populate chats for this user ---
-                const chats = await Chat.find({ participants: userId }).populate('participants', 'name email avatar role').lean();
+                // --- NEW: Populate chats for this user (Optimized) ---
+                const chats = await Chat.find({ participants: userId })
+                    .select('_id job participants lastMessage lastMessageDate messages.read messages.sender messages.content') // Optimized fields
+                    .populate('participants', 'name email avatar role')
+                    .lean();
 
                 // Group chats by job
                 const chatsByJob = {};
@@ -812,6 +815,12 @@ router.get('/', async (req, res) => {
                         const finalProId = proParticipant ? (proParticipant._id || proParticipant) : ((userId.toString() !== jobClientIdStr) ? userId : null);
                         const finalProName = proParticipant ? proParticipant.name : ((userId.toString() !== jobClientIdStr) ? (currentUser ? currentUser.name : 'Profesional') : 'Usuario');
 
+                        // OPTIMIZATION: Calc unread count using lightweight messages
+                        // or trust pre-calculated values if we switch to aggregation later.
+                        const unreadCount = (chat.messages || []).filter(m =>
+                            m.sender && m.sender.toString() !== userId.toString() && !m.read
+                        ).length;
+
                         return {
                             id: chat._id,
                             proId: finalProId,
@@ -819,15 +828,9 @@ router.get('/', async (req, res) => {
                             proEmail: proParticipant ? proParticipant.email : null,
                             proAvatar: proParticipant ? proParticipant.avatar : null,
                             clientName: j.client ? j.client.name : 'Cliente',
-                            messages: chat.messages.map(m => ({
-                                id: m._id ? m._id.toString() : null,
-                                text: m.content,
-                                sender: m.sender.toString() === jobClientIdStr ? 'client' : 'pro',
-                                timestamp: m.createdAt,
-                                media: m.media,
-                                mediaType: m.mediaType
-                            })),
-                            unreadCount: chat.messages.filter(m => m.sender.toString() !== userId.toString() && !m.read).length
+                            // OPTIMIZATION: Do NOT send full messages array.
+                            lastMessage: chat.lastMessage || (chat.messages && chat.messages.length > 0 ? chat.messages[chat.messages.length - 1].content : ''),
+                            unreadCount: unreadCount
                         };
                     });
 
@@ -891,10 +894,11 @@ router.get('/me', protect, async (req, res) => {
 
         // Find all chats where this user is a participant
         // Find all chats where this user is a participant
+        // Find all chats where this user is a participant
         const allUserChats = await Chat.find({ participants: req.user._id })
-            .select('_id job participants') // OPTIMIZATION: Only need these to discover jobs
+            .select('_id job participants lastMessage lastMessageDate messages.read messages.sender messages.content') // OPTIMIZATION: Lightweight fields
             .populate('participants', 'name email avatar role')
-            .populate('job', '_id client') // Optimization: only need references
+            .populate('job', '_id client')
             .sort({ lastMessageDate: -1 })
             .lean();
 
@@ -1037,14 +1041,19 @@ router.get('/me', protect, async (req, res) => {
                 console.log("Error processing interactions for job:", job._id, e);
             }
 
-            // Format conversations
+            // Format conversations (Lightweight)
             const conversations = jobChats.map(chat => {
-                // FIXED LOGIC: El "Pro" es el participante que NO es el cliente del trabajo.
                 const jobClientIdStr = (job.client._id || job.client).toString();
                 const proParticipant = chat.participants.find(p => (p._id || p).toString() !== jobClientIdStr);
 
                 const finalProId = proParticipant ? (proParticipant._id || proParticipant) : ((req.user._id.toString() !== jobClientIdStr) ? req.user._id : null);
                 const finalProName = proParticipant ? proParticipant.name : ((req.user._id.toString() !== jobClientIdStr) ? req.user.name : 'Usuario');
+
+                // OPTIMIZATION: Calc unread count without loading full messages if possible,
+                // or use the lightweight messages array we fetched.
+                const unreadCount = (chat.messages || []).filter(m =>
+                    m.sender && m.sender.toString() !== req.user._id.toString() && !m.read
+                ).length;
 
                 return {
                     id: chat._id,
@@ -1054,15 +1063,10 @@ router.get('/me', protect, async (req, res) => {
                     proAvatar: proParticipant ? proParticipant.avatar : 'https://placehold.co/100',
                     proRating: proParticipant?.rating,
                     proReviewsCount: proParticipant?.reviewsCount,
-                    messages: chat.messages.map(m => ({
-                        id: m._id.toString(), // Added ID for FlatList key
-                        text: m.content,
-                        sender: m.sender.toString() === jobClientIdStr ? 'client' : 'pro',
-                        timestamp: m.createdAt,
-                        media: m.media,
-                        mediaType: m.mediaType
-                    })),
-                    unreadCount: chat.messages.filter(m => m.sender.toString() !== req.user._id.toString() && !m.read).length,
+                    // OPTIMIZATION: Do NOT send full messages array to dashboard.
+                    // Only send preview info.
+                    lastMessage: chat.lastMessage || (chat.messages && chat.messages.length > 0 ? chat.messages[chat.messages.length - 1].content : ''),
+                    unreadCount: unreadCount,
                     rawTimestamp: new Date(chat.lastMessageDate || chat.updatedAt).getTime()
                 };
             });
@@ -1162,6 +1166,7 @@ router.get('/:id', async (req, res) => {
                 }
 
                 const chats = await Chat.find(chatQuery)
+                    .select({ messages: { $slice: -50 } }) // OPTIMIZATION: Only last 50 messages
                     .populate('participants', 'name email avatar role rating reviewsCount')
                     .lean();
 
