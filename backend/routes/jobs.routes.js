@@ -1136,7 +1136,7 @@ router.get('/me', protect, async (req, res) => {
 router.get('/:id', async (req, res) => {
     try {
         const job = await Job.findById(req.params.id)
-            .select('-workPhotos -clientManagement') // Exclude heavy/private fields
+            .select('-workPhotos -clientManagement -projectHistory') // Exclude heavy/private fields
             .populate('client', 'name phone avatar email')
             .populate('category', 'name')
             .populate('offers.proId', 'name avatar rating reviewsCount')

@@ -233,6 +233,28 @@ router.post('/:id/messages', protect, async (req, res) => {
             .populate('participants', 'name avatar')
             .populate('messages.sender', 'name avatar');
 
+        // SOCKET.IO REAL-TIME UPDATE
+        const io = req.app.get('socketio');
+        if (io) {
+            io.to(req.params.id).emit('receive_message', {
+                chatId: req.params.id,
+                message: {
+                    id: newMessage._id ? newMessage._id.toString() : 'temp-' + Date.now(),
+                    text: content,
+                    sender: isActingAsPro ? 'pro' : 'client', // Map correctly based on role logic if needed, or send raw ID
+                    // Better: send the raw message object so frontend can map it
+                    _id: newMessage._id || Date.now(),
+                    content: content,
+                    senderId: req.user._id,
+                    createdAt: new Date(),
+                    media: media
+                }
+            });
+            console.log(`[Socket] Emitted receive_message to room ${req.params.id}`);
+        } else {
+            console.error('[Socket] IO instance not found in request');
+        }
+
         res.json(updatedChat);
     } catch (error) {
         res.status(500).json({ message: error.message });

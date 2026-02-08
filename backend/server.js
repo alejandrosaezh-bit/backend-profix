@@ -52,7 +52,31 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/chats', chatRoutes);
 
 const PORT = process.env.PORT || 5000;
+const server = require('http').createServer(app);
+const io = require('socket.io')(server, {
+    cors: {
+        origin: "*",
+        methods: ["GET", "POST"]
+    }
+});
 
-app.listen(PORT, () => {
+// Socket.io Logic
+io.on('connection', (socket) => {
+    console.log('New client connected:', socket.id);
+
+    socket.on('join_chat', (chatId) => {
+        socket.join(chatId);
+        console.log(`Socket ${socket.id} joined chat: ${chatId}`);
+    });
+
+    socket.on('disconnect', () => {
+        console.log('Client disconnected:', socket.id);
+    });
+});
+
+// Make io accessible to routes
+app.set('socketio', io);
+
+server.listen(PORT, () => {
     console.log(`Servidor corriendo en puerto ${PORT}`);
 });
