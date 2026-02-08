@@ -16,4 +16,8 @@ const chatSchema = mongoose.Schema({
     lastMessageDate: { type: Date, default: Date.now }
 }, { timestamps: true });
 
+chatSchema.index({ participants: 1 });
+chatSchema.index({ job: 1 });
+chatSchema.index({ lastMessageDate: -1 });
+
 module.exports = mongoose.model('Chat', chatSchema);

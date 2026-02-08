@@ -128,4 +128,11 @@ const jobSchema = mongoose.Schema({
     }
 });
 
+// Índices para optimización de consultas
+jobSchema.index({ client: 1 });
+jobSchema.index({ professional: 1 });
+jobSchema.index({ category: 1 });
+jobSchema.index({ status: 1 });
+jobSchema.index({ createdAt: -1 }); // Vital para ordenamiento
+
 module.exports = mongoose.model('Job', jobSchema);

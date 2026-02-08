@@ -12,10 +12,11 @@ const https = require('https'); // For Expo Push
 router.get('/', protect, async (req, res) => {
     try {
         let chats = await Chat.find({ participants: req.user._id })
-            .select('-messages.media')
+            .select('-messages') // OPTIMIZATION: Don't fetch full history for list view
             .populate('participants', 'name avatar email role')
             .populate('job', 'title client')
-            .sort({ lastMessageDate: -1 });
+            .sort({ lastMessageDate: -1 })
+            .lean(); // OPTIMIZATION: Plain JS objects
 
         // Regla: todo chat debe estar vinculado a una Solicitud
         chats = chats.filter(c => !!c.job);

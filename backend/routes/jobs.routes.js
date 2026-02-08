@@ -890,10 +890,11 @@ router.get('/me', protect, async (req, res) => {
         // 2. The user is a PROFESSIONAL interacting via Chat (even if not officially assigned yet)
 
         // Find all chats where this user is a participant
+        // Find all chats where this user is a participant
         const allUserChats = await Chat.find({ participants: req.user._id })
-            .select('-messages.media')
-            .populate('participants', 'name email avatar role cedula rating reviewsCount')
-            .populate('job') // Populate job to check ownership
+            .select('_id job participants') // OPTIMIZATION: Only need these to discover jobs
+            .populate('participants', 'name email avatar role')
+            .populate('job', '_id client') // Optimization: only need references
             .sort({ lastMessageDate: -1 })
             .lean();
 
