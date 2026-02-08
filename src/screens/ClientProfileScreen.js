@@ -160,7 +160,7 @@ export default function ClientProfileScreen({ user, isOwner, onBack, onLogout, o
         <Text style={{ fontSize: 20, fontWeight: 'bold', color: 'white' }}>Mi Perfil</Text>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView contentContainerStyle={[styles.scrollContent, isEditing && { paddingBottom: 100 }]}>
 
         {/* PROFILE CARD */}
         <View style={styles.profileCard}>
@@ -211,14 +211,6 @@ export default function ClientProfileScreen({ user, isOwner, onBack, onLogout, o
                 placeholder="+56 9 1234 5678"
               />
 
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 20 }}>
-                <TouchableOpacity style={[styles.actionButton, { backgroundColor: '#EF4444' }]} onPress={() => setIsEditing(false)}>
-                  <Text style={styles.actionButtonText}>Cancelar</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={[styles.actionButton, { backgroundColor: '#10B981' }]} onPress={handleSave}>
-                  <Text style={styles.actionButtonText}>Guardar</Text>
-                </TouchableOpacity>
-              </View>
             </View>
           )}
         </View>
@@ -373,7 +365,44 @@ export default function ClientProfileScreen({ user, isOwner, onBack, onLogout, o
         </TouchableOpacity>
 
       </ScrollView>
-    </View>
+
+      {/* FIXED FOOTER BUTTONS */}
+      {
+        isEditing && (
+          <View style={{
+            position: 'absolute',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            backgroundColor: 'white',
+            borderTopWidth: 1,
+            borderTopColor: '#E5E7EB',
+            paddingHorizontal: 20,
+            paddingVertical: 16,
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            elevation: 10,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: -2 },
+            shadowOpacity: 0.1,
+            shadowRadius: 4,
+          }}>
+            <TouchableOpacity
+              style={[styles.actionButton, { backgroundColor: '#EF4444', marginRight: 10 }]}
+              onPress={() => setIsEditing(false)}
+            >
+              <Text style={styles.actionButtonText}>Cancelar</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.actionButton, { backgroundColor: '#10B981', marginLeft: 10 }]}
+              onPress={handleSave}
+            >
+              <Text style={styles.actionButtonText}>Guardar</Text>
+            </TouchableOpacity>
+          </View>
+        )
+      }
+    </View >
   );
 }
 

@@ -522,7 +522,7 @@ const Header = ({ userMode, toggleMode, isLoggedIn, onLoginPress, currentUser, o
                     <Text style={{ fontSize: 22, fontWeight: '800', color: '#2563EB' }}>Profesional</Text>
                     <Text style={{ fontSize: 22, fontWeight: '800', color: '#EA580C', marginLeft: 6 }}>Cercano</Text>
                     <View style={{ backgroundColor: '#F3F4F6', paddingHorizontal: 4, paddingVertical: 1, borderRadius: 4, marginLeft: 8 }}>
-                        <Text style={{ fontSize: 10, color: '#94A3B8', fontWeight: 'bold' }}>V30.0</Text>
+                        <Text style={{ fontSize: 10, color: '#94A3B8', fontWeight: 'bold' }}>V31.0</Text>
                     </View>
                 </View>
             </View>
@@ -1257,7 +1257,18 @@ const ServiceForm = ({ onSubmit, isLoggedIn, onTriggerLogin, initialCategory, in
     // Lógica para placeholders dinámicos
     const getPlaceholders = () => {
         if (formData.category && formData.subcategory) {
-            const key = `${formData.category}:${formData.subcategory} `;
+            const catObj = allSubcategories[formData.category];
+            if (catObj) {
+                const subObj = catObj.find(s => s.name === formData.subcategory);
+                if (subObj) {
+                    return {
+                        title: subObj.titlePlaceholder || CATEGORY_EXAMPLES['default'].title,
+                        description: subObj.descriptionPlaceholder || CATEGORY_EXAMPLES['default'].description
+                    };
+                }
+            }
+            // Fallback to locally hardcoded if backend missing
+            const key = `${formData.category}:${formData.subcategory}`;
             if (CATEGORY_EXAMPLES[key]) return CATEGORY_EXAMPLES[key];
         }
         if (formData.category && CATEGORY_EXAMPLES[formData.category]) {
@@ -1345,8 +1356,9 @@ const ServiceForm = ({ onSubmit, isLoggedIn, onTriggerLogin, initialCategory, in
                         setTimeout(() => {
                             if (titleInputRef.current) {
                                 titleInputRef.current.focus();
+                                // Optional: Scroll is handled by View layout usually, but we can rely on focus bringing it into view
                             }
-                        }, 400);
+                        }, 500);
                     }}
                 />
                 {formData.category && formData.subcategory ? (
@@ -1356,7 +1368,7 @@ const ServiceForm = ({ onSubmit, isLoggedIn, onTriggerLogin, initialCategory, in
                             <TextInput
                                 ref={titleInputRef}
                                 style={styles.inputBox}
-                                placeholder="Ej: El aire acondicionado hace un ruido extraño"
+                                placeholder={placeholders.title}
                                 placeholderTextColor="#9CA3AF"
                                 value={formData.title}
                                 onChangeText={t => setFormData({ ...formData, title: t })}
@@ -1367,7 +1379,7 @@ const ServiceForm = ({ onSubmit, isLoggedIn, onTriggerLogin, initialCategory, in
                             <TextInput
                                 style={[styles.inputBox, { height: 120, textAlignVertical: 'top' }]}
                                 multiline
-                                placeholder="Cuanto más detalles nos des, mejor será el presupuesto. Ej: ¿Desde cuándo pasa? ¿Marca del aparato? ¿Hay escaleras? ¿Necesitas repuestos?"
+                                placeholder={placeholders.description}
                                 placeholderTextColor="#9CA3AF"
                                 value={formData.description}
                                 onChangeText={t => setFormData({ ...formData, description: t })}
@@ -5294,9 +5306,25 @@ function MainApp() {
                             }
                         >
                             {availableJobsForPro.length === 0 ? (
-                                <View style={{ alignItems: 'center', marginTop: 40 }}>
-                                    <Text style={{ color: '#9CA3AF', fontSize: 16 }}>No hay trabajos con estos filtros.</Text>
-                                </View>
+                                activeCategories.length === 0 ? (
+                                    <View style={{ alignItems: 'center', marginTop: 40, padding: 20, backgroundColor: '#EFF6FF', borderRadius: 16, borderWidth: 1, borderColor: '#BFDBFE' }}>
+                                        <Feather name="briefcase" size={48} color="#2563EB" style={{ marginBottom: 16 }} />
+                                        <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#1E3A8A', textAlign: 'center', marginBottom: 8 }}>¡Empieza a Ganar Dinero!</Text>
+                                        <Text style={{ fontSize: 14, color: '#3B82F6', textAlign: 'center', marginBottom: 20 }}>
+                                            No tienes categorías activas en tu perfil. Activa las categorías en las que eres experto para empezar a recibir ofertas de trabajo.
+                                        </Text>
+                                        <TouchableOpacity
+                                            style={{ backgroundColor: '#2563EB', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 24 }}
+                                            onPress={() => setView('profile')}
+                                        >
+                                            <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 15 }}>Activar Mi Perfil</Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                ) : (
+                                    <View style={{ alignItems: 'center', marginTop: 40 }}>
+                                        <Text style={{ color: '#9CA3AF', fontSize: 16 }}>No hay trabajos disponibles en tus categorías.</Text>
+                                    </View>
+                                )
                             ) : null}
 
                             {/* Helper to get colors for Pro Statuses moved to top level as getProStatusColor */}
