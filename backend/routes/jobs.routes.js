@@ -751,11 +751,19 @@ router.get('/', async (req, res) => {
         }
         */
 
-        let jobs = await Job.find(query).select('-images -workPhotos -clientManagement')
+        // IMPLEMENT PAGINATION & OPTIMIZATION
+        const limit = parseInt(req.query.limit) || 50; // Default to 50 jobs
+        const page = parseInt(req.query.page) || 1;
+        const skip = (page - 1) * limit;
+
+        let jobs = await Job.find(query)
+            .select('-images -workPhotos -clientManagement -projectHistory') // Exclude heavy history
             .populate('client', 'name avatar')
             .populate('category', 'name color icon')
-            .populate('projectHistory.actor', 'name avatar email role')
+            //.populate('projectHistory.actor', 'name avatar email role') // Removed for list view
             .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(limit)
             .lean();
 
         // ADJUNTAR ESTADOS DE INTERACCIÓN SI HAY USUARIO
@@ -1123,6 +1131,7 @@ router.get('/me', protect, async (req, res) => {
 router.get('/:id', async (req, res) => {
     try {
         const job = await Job.findById(req.params.id)
+            .select('-workPhotos -clientManagement') // Exclude heavy/private fields
             .populate('client', 'name phone avatar email')
             .populate('category', 'name')
             .populate('offers.proId', 'name avatar rating reviewsCount')
