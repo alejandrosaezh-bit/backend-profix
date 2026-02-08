@@ -522,7 +522,7 @@ const Header = ({ userMode, toggleMode, isLoggedIn, onLoginPress, currentUser, o
                     <Text style={{ fontSize: 22, fontWeight: '800', color: '#2563EB' }}>Profesional</Text>
                     <Text style={{ fontSize: 22, fontWeight: '800', color: '#EA580C', marginLeft: 6 }}>Cercano</Text>
                     <View style={{ backgroundColor: '#F3F4F6', paddingHorizontal: 4, paddingVertical: 1, borderRadius: 4, marginLeft: 8 }}>
-                        <Text style={{ fontSize: 10, color: '#94A3B8', fontWeight: 'bold' }}>V31.0</Text>
+                        <Text style={{ fontSize: 10, color: '#94A3B8', fontWeight: 'bold' }}>V32.0</Text>
                     </View>
                 </View>
             </View>
@@ -4527,7 +4527,15 @@ function MainApp() {
 
             // Buscar conversación por participantes (Job + Pro específico)
             // Si soy pro, busco donde proId sea YO. Si soy cliente, busco donde proId sea el TARGET.
-            const existingConv = conversations.find(c => areIdsEqual(c.proId?._id || c.proId, proId));
+            let existingConv = conversations.find(c => areIdsEqual(c.proId?._id || c.proId, proId));
+
+            // FALLBACK FOR PRO MODE: If not found by ID (because backend might return weird proId),
+            // but we have conversations and we are the Pro, assume the first one is ours.
+            // This matches the logic in ChatScreen.js
+            if (!existingConv && isActingAsPro && conversations.length > 0) {
+                console.log("[handleSendMessage] Pro Mode fallback: Using first conversation found.");
+                existingConv = conversations[0];
+            }
 
             let realChatId = existingConv ? (existingConv.id || existingConv._id) : null;
 

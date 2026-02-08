@@ -236,13 +236,25 @@ router.post('/:id/messages', protect, async (req, res) => {
         // SOCKET.IO REAL-TIME UPDATE
         const io = req.app.get('socketio');
         if (io) {
+            // Determine sender role safely
+            let senderRole = 'pro';
+            try {
+                // Fetch job to know who is the client
+                // We already have chat.job which is an ObjectId
+                const jobForRole = await Job.findById(chat.job).select('client');
+                if (jobForRole && jobForRole.client.toString() === req.user._id.toString()) {
+                    senderRole = 'client';
+                }
+            } catch (err) {
+                console.error("[Socket] Error determining role:", err);
+            }
+
             io.to(req.params.id).emit('receive_message', {
                 chatId: req.params.id,
                 message: {
                     id: newMessage._id ? newMessage._id.toString() : 'temp-' + Date.now(),
                     text: content,
-                    sender: isActingAsPro ? 'pro' : 'client', // Map correctly based on role logic if needed, or send raw ID
-                    // Better: send the raw message object so frontend can map it
+                    sender: senderRole,
                     _id: newMessage._id || Date.now(),
                     content: content,
                     senderId: req.user._id,
@@ -250,7 +262,7 @@ router.post('/:id/messages', protect, async (req, res) => {
                     media: media
                 }
             });
-            console.log(`[Socket] Emitted receive_message to room ${req.params.id}`);
+            console.log(`[Socket] Emitted receive_message to room ${req.params.id} as ${senderRole}`);
         } else {
             console.error('[Socket] IO instance not found in request');
         }
