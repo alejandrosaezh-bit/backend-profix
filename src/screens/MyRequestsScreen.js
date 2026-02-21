@@ -1,6 +1,6 @@
 import { Feather, FontAwesome5, MaterialCommunityIcons } from '@expo/vector-icons';
-import { useCallback, useEffect, useState } from 'react';
-import { FlatList, Modal, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import BriefcaseLoader from '../components/BriefcaseLoader';
 import { api } from '../utils/api';
 
@@ -68,6 +68,31 @@ export default function MyRequestsScreen({ navigation, allRequests: propsAllRequ
       setLoading(false);
     }
   }, [propsAllRequests]);
+
+  // --- MEMOIZATION: Category Map for O(1) Access ---
+  const categoryMap = useMemo(() => {
+    const map = {};
+    if (Array.isArray(globalCategories)) {
+      globalCategories.forEach(cat => {
+        if (cat.name) map[cat.name] = cat;
+        // Map Subcategories too for direct access
+        if (cat.subcategories && Array.isArray(cat.subcategories)) {
+          cat.subcategories.forEach(sub => {
+            const subName = typeof sub === 'string' ? sub : sub.name;
+            if (subName) {
+              // Store tuple: { ...sub, parentIcon: cat.icon, parentColor: cat.color }
+              map[`SUB_${subName}`] = {
+                ...((typeof sub === 'object') ? sub : { name: sub }),
+                parentIcon: cat.icon,
+                parentColor: cat.color
+              };
+            }
+          });
+        }
+      });
+    }
+    return map;
+  }, [globalCategories]);
 
   const loadRequests = async (isRefreshing = false) => {
     if (propsAllRequests) {
@@ -194,95 +219,85 @@ export default function MyRequestsScreen({ navigation, allRequests: propsAllRequ
 
   const renderItem = ({ item }) => {
     const offerCount = item.offers ? item.offers.length : 0;
-    const chatCount = item.conversations ? item.conversations.length : 0;
+    const totalUnread = (item.conversations || []).reduce((acc, c) => acc + (c.unreadCount || 0), 0);
+    const hasPendingOffers = item.offers?.some(o => o.status === 'pending');
     const statusLabel = getClientStatus(item);
     const colors = getStatusColors(statusLabel);
 
     return (
       <TouchableOpacity
-        style={styles.card}
+        style={[styles.card, { position: 'relative' }]}
         onPress={() => navigation.navigate('RequestDetail', { item })}
       >
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-            <View style={[styles.avatarContainer, {
-              backgroundColor: (item.category?.color || (typeof item.category === 'string' && globalCategories.find(c => c.name === item.category)?.color)) || '#FFF7ED',
-              borderColor: '#E2E8F0' // Simplified border
-            }]}>
-              {(() => {
-                // Determine Category name and full Category object
-                const catName = typeof item.category === 'object' ? item.category.name : item.category;
-                const fullCat = (typeof item.category === 'object' && item.category.subcategories)
-                  ? item.category
-                  : globalCategories.find(c => c.name === catName);
+        {/* BADGE: NEW OFFER INDICATOR */}
+        {hasPendingOffers && (
+          <View style={{
+            position: 'absolute', top: -6, right: 20,
+            backgroundColor: '#EA580C', paddingHorizontal: 10, paddingVertical: 4,
+            borderRadius: 10, zIndex: 10, elevation: 5,
+            shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 3
+          }}>
+            <Text style={{ color: 'white', fontSize: 10, fontWeight: 'bold' }}>NVA. OFERTA</Text>
+          </View>
+        )}
 
-                const subName = typeof item.subcategory === 'object' ? item.subcategory.name : item.subcategory;
+        {/* MAIN TITLE */}
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 15 }}>
+          <Text style={{ fontSize: 18, fontWeight: '800', color: '#111827', flex: 1, marginRight: 10 }} numberOfLines={1}>
+            {item.title}
+          </Text>
+        </View>
 
-                // Priority 1: Subcategory specific icon
-                const subObj = fullCat?.subcategories?.find(s => (s.name || s) === subName);
-                let iconKey = (typeof subObj === 'object' && subObj.icon) ? subObj.icon : null;
+        {/* CONTENT ROW: ICON & METADATA */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 15 }}>
+          <View style={[styles.avatarContainer, { width: 54, height: 54, borderRadius: 27, marginRight: 15 }]}>
+            {(() => {
+              const catName = typeof item.category === 'object' ? item.category.name : item.category;
+              const subName = typeof item.subcategory === 'object' ? item.subcategory.name : item.subcategory;
+              const fullCat = categoryMap[catName] || (typeof item.category === 'object' ? item.category : null);
 
-                // Priority 2: Fallback to Category Icon if no subcategory icon
-                if (!iconKey) iconKey = fullCat?.icon || item.category?.icon;
+              let iconKey = null;
+              if (fullCat && subName && fullCat.subcategories) {
+                const subObj = fullCat.subcategories.find(s => (s.name || s) === subName);
+                if (subObj && subObj.icon) iconKey = subObj.icon;
+              }
+              if (!iconKey && fullCat?.icon) iconKey = fullCat.icon;
+              if (!iconKey && item.category?.icon) iconKey = item.category.icon;
 
-                const IconData = CAT_ICONS[iconKey];
+              const IconData = CAT_ICONS[iconKey];
+              if (IconData) {
+                const IconLib = IconData.lib;
+                return <IconLib name={IconData.name} size={28} color="#EA580C" />;
+              }
+              return <MaterialCommunityIcons name="clipboard-text-outline" size={28} color="#EA580C" />;
+            })()}
+          </View>
 
-                if (IconData) {
-                  const IconLib = IconData.lib;
-                  return <IconLib name={IconData.name} size={30} color="#EA580C" />;
-                }
-                return <MaterialCommunityIcons name="clipboard-text-outline" size={30} color="#EA580C" />;
-              })()}
+          <View style={{ flex: 1 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 3 }}>
+              <Feather name="map-pin" size={12} color="#6B7280" />
+              <Text style={{ fontSize: 13, color: '#6B7280', marginLeft: 8 }}>{item.location || 'Sin ubicación'}</Text>
             </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.userName} numberOfLines={1}>{item.title}</Text>
-              <View style={styles.cardMetaRow}>
-                <Feather name="map-pin" size={12} color="#94A3B8" />
-                <Text style={styles.cardMetaText}>{item.location || 'Sin ubicación'}</Text>
-              </View>
-              <View style={[styles.cardMetaRow, { marginTop: 2 }]}>
-                <Feather name="tag" size={12} color="#94A3B8" />
-                <Text style={styles.cardMetaText}>
-                  {item.category && item.category.name ? item.category.name : 'Sin Categoría'}
-                  {item.subcategory && (item.subcategory !== 'General') ? ' • ' + (typeof item.subcategory === 'object' ? item.subcategory.name : item.subcategory) : ''}
-                </Text>
-              </View>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Feather name="tag" size={12} color="#94A3B8" />
+              <Text style={{ fontSize: 12, color: '#94A3B8', marginLeft: 8 }} numberOfLines={1}>
+                {item.category?.name || 'General'} {item.subcategory ? `• ${item.subcategory}` : ''}
+              </Text>
             </View>
           </View>
+        </View>
+
+        {/* FOOTER: DATE & STATUS BADGE */}
+        <View style={styles.cardFooter}>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Feather name="calendar" size={12} color="#94A3B8" style={{ marginRight: 6 }} />
+            <Text style={{ fontSize: 12, color: '#94A3B8' }}>{new Date(item.createdAt).toLocaleDateString()}</Text>
+          </View>
+
           <View style={[styles.statusBadge, { backgroundColor: colors.bg }]}>
             <Text style={[styles.statusText, { color: colors.text }]}>
               {statusLabel.toUpperCase()}
             </Text>
-          </View>
-        </View>
-
-        <View style={styles.cardFooter}>
-          <Text style={{ fontSize: 13, fontWeight: '600', color: '#64748B', flex: 1, marginRight: 10 }}>
-            Publicado el {new Date(item.createdAt).toLocaleDateString()}
-          </Text>
-
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            {/* PRESUPUESTOS (Offers) */}
-            <View style={[styles.countBadge, item.offers?.some(o => o.status === 'pending') && { borderColor: '#FECACA', backgroundColor: '#FEF2F2' }]}>
-              {item.offers?.some(o => o.status === 'pending') && (
-                <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#EF4444', position: 'absolute', top: -2, right: -2, borderWidth: 1.5, borderColor: 'white' }} />
-              )}
-              <Feather name="file-text" size={14} color={item.offers?.some(o => o.status === 'pending') ? '#EF4444' : '#64748B'} />
-              <Text style={[styles.countText, item.offers?.some(o => o.status === 'pending') && { color: '#EF4444' }]}>
-                {offerCount}
-              </Text>
-            </View>
-
-            {/* CHATS */}
-            <View style={[styles.countBadge, item.conversations?.some(c => c.unreadCount > 0) && { borderColor: '#FECACA', backgroundColor: '#FEF2F2' }]}>
-              {item.conversations?.some(c => c.unreadCount > 0) && (
-                <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#EF4444', position: 'absolute', top: -2, right: -2, borderWidth: 1.5, borderColor: 'white' }} />
-              )}
-              <Feather name="message-square" size={14} color={item.conversations?.some(c => c.unreadCount > 0) ? '#EF4444' : '#64748B'} />
-              <Text style={[styles.countText, item.conversations?.some(c => c.unreadCount > 0) && { color: '#EF4444' }]}>
-                {chatCount}
-              </Text>
-            </View>
           </View>
         </View>
       </TouchableOpacity>
@@ -298,7 +313,7 @@ export default function MyRequestsScreen({ navigation, allRequests: propsAllRequ
           <TouchableOpacity
             onPress={() => setShowArchived(!showArchived)}
             style={{
-              width: 40, height: 40, borderRadius: 20,
+              width: 48, height: 48, borderRadius: 24,
               backgroundColor: showArchived ? 'white' : 'rgba(255,255,255,0.2)',
               justifyContent: 'center', alignItems: 'center'
             }}
@@ -307,49 +322,6 @@ export default function MyRequestsScreen({ navigation, allRequests: propsAllRequ
           </TouchableOpacity>
         </View>
 
-        {/* FILTERS - CATEGORY ONLY */}
-        <View style={{ flexDirection: 'row', paddingHorizontal: 20, gap: 10 }}>
-          {/* Category Dropdown */}
-          <View style={{ flex: 1 }}>
-            <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12, marginBottom: 4, fontWeight: 'bold' }}>Categoría</Text>
-            <TouchableOpacity
-              onPress={() => setCategoryModalVisible(true)}
-              style={styles.dropdownButton}
-            >
-              <Text style={styles.dropdownButtonText} numberOfLines={1}>{filterCategory}</Text>
-              <Feather name="chevron-down" size={16} color="white" />
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* MODALS */}
-        <Modal
-          visible={categoryModalVisible}
-          transparent={true}
-          animationType="fade"
-          onRequestClose={() => setCategoryModalVisible(false)}
-        >
-          <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setCategoryModalVisible(false)}>
-            <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>Filtrar por Categoría</Text>
-              <ScrollView style={{ maxHeight: 300 }}>
-                {categories.map((cat, index) => (
-                  <TouchableOpacity
-                    key={index}
-                    style={[styles.modalOption, filterCategory === cat && styles.modalOptionSelected]}
-                    onPress={() => {
-                      setFilterCategory(cat);
-                      setCategoryModalVisible(false);
-                    }}
-                  >
-                    <Text style={[styles.modalOptionText, filterCategory === cat && styles.modalOptionTextSelected]}>{cat}</Text>
-                    {filterCategory === cat && <Feather name="check" size={16} color="#EA580C" />}
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
-          </TouchableOpacity>
-        </Modal>
       </View>
 
       {loading && !refreshing ? (
@@ -382,24 +354,21 @@ export default function MyRequestsScreen({ navigation, allRequests: propsAllRequ
                 </>
               ) : (
                 <>
-                  <Text style={styles.emptyTitle}>¡Comienza con tu primera solicitud!</Text>
+                  <Text style={styles.emptyTitle}>¿Qué necesitas resolver hoy?</Text>
                   <Text style={styles.emptyDescription}>
-                    Profesional Cercano te conecta con los mejores profesionales. Describe lo que necesitas (ej. "Reparar fuga de agua") y recibe presupuestos al instante.
+                    No importa el tamaño del proyecto: desde electricidad y plomería hasta mudanzas o reformas. Describe tu necesidad y recibe presupuestos de los mejores expertos de tu zona al instante.
                   </Text>
 
                   <TouchableOpacity
                     style={styles.createButton}
                     onPress={() => navigation.navigate('Home')}
                   >
-                    <Text style={styles.createButtonText}>Crear Solicitud Ahora</Text>
+                    <Text style={styles.createButtonText}>Encontrar un Profesional</Text>
                   </TouchableOpacity>
 
                   <View style={styles.noteContainer}>
                     <Text style={styles.noteText}>
-                      💡 Nota: Una vez que un trabajo finaliza, se moverá automáticamente a tu{' '}
-                      <Text style={styles.linkText} onPress={() => setShowArchived(true)}>
-                        Historial (Archivados)
-                      </Text>.
+                      💡 Tip: Al detallar bien tu solicitud, recibes presupuestos más precisos y ahorras tiempo.
                     </Text>
                   </View>
                 </>
@@ -419,8 +388,7 @@ const styles = StyleSheet.create({
   // Header
   headerContainer: {
     backgroundColor: '#EA580C',
-    paddingTop: 12,
-    paddingBottom: 24,
+    paddingVertical: 18,
     borderBottomLeftRadius: 32,
     borderBottomRightRadius: 32,
     borderWidth: 0,
@@ -430,8 +398,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 24,
-    marginBottom: 20
+    paddingHorizontal: 4,
+    marginBottom: 0
   },
   headerTitle: {
     fontSize: 24,
@@ -448,16 +416,21 @@ const styles = StyleSheet.create({
   },
 
   // List
-  listContent: { padding: 20, paddingBottom: 100 },
+  listContent: { paddingTop: 8, paddingHorizontal: 4, paddingBottom: 120 },
 
   // Card
   card: {
     backgroundColor: 'white',
     borderRadius: 24,
     padding: 20,
-    marginBottom: 16,
+    marginBottom: 8,
     borderWidth: 1,
-    borderColor: '#E5E7EB'
+    borderColor: '#FFF7ED',
+    elevation: 5,
+    shadowColor: '#EA580C',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
   },
   avatarContainer: {
     width: 56,
@@ -467,8 +440,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 16,
-    borderWidth: 1,
-    borderColor: '#E2E8F0'
+    // borderWidth: 1, // Optional: Removing border for cleaner look
+    // borderColor: '#E2E8F0' 
   },
   userName: { fontSize: 18, fontWeight: 'bold', color: '#111827' },
   cardMetaRow: { flexDirection: 'row', alignItems: 'center', marginTop: 6 },
@@ -552,28 +525,45 @@ const styles = StyleSheet.create({
   modalOptionTextSelected: { color: '#EA580C', fontWeight: 'bold' },
 
   // New Empty State Styles
-  emptyContainer: { alignItems: 'center', marginTop: 40, paddingHorizontal: 30 },
-  emptyTitle: { fontSize: 22, fontWeight: 'bold', color: '#111827', textAlign: 'center', marginBottom: 12 },
-  emptyDescription: { fontSize: 16, color: '#4B5563', textAlign: 'center', marginBottom: 32, lineHeight: 24 },
+  emptyContainer: {
+    alignItems: 'center',
+    marginTop: 0,
+    paddingHorizontal: 20,
+    paddingVertical: 25,
+    backgroundColor: 'white',
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: '#FFF7ED',
+    elevation: 5,
+    shadowColor: '#EA580C',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+  },
+  emptyTitle: { fontSize: 20, fontWeight: 'bold', color: '#111827', textAlign: 'center', marginBottom: 8 },
+  emptyDescription: { fontSize: 14, color: '#4B5563', textAlign: 'center', marginBottom: 24, lineHeight: 22 },
   createButton: {
     backgroundColor: '#EA580C',
-    paddingHorizontal: 28,
-    paddingVertical: 16,
+    paddingHorizontal: 24,
+    paddingVertical: 14,
     borderRadius: 16,
     elevation: 0,
-    marginBottom: 40,
-    minHeight: 56,
-    justifyContent: 'center'
+    marginBottom: 24,
+    minHeight: 52,
+    justifyContent: 'center',
+    width: '100%',
+    alignItems: 'center'
   },
-  createButtonText: { color: 'white', fontWeight: 'bold', fontSize: 18 },
+  createButtonText: { color: 'white', fontWeight: 'bold', fontSize: 16 },
   noteContainer: {
-    backgroundColor: 'white',
+    backgroundColor: '#FFF7ED',
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    padding: 20,
+    borderColor: '#FED7AA',
+    padding: 16,
     width: '100%',
+    marginBottom: 10
   },
-  noteText: { fontSize: 14, color: '#4B5563', lineHeight: 22, textAlign: 'center' },
+  noteText: { fontSize: 13, color: '#9A3412', lineHeight: 20, textAlign: 'center' },
   linkText: { color: '#EA580C', fontWeight: 'bold', textDecorationLine: 'underline' }
 });

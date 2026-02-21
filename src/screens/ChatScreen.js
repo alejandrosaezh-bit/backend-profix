@@ -27,6 +27,16 @@ export default function ChatScreen({ request, currentUser, userMode, onBack, onS
     return String(s1) === String(s2);
   };
 
+  // Helper para resolver URL de imagen
+  const getFullImageUrl = (img) => {
+    if (!img) return null;
+    if (img.startsWith('http') || img.startsWith('file://') || img.startsWith('data:')) return img;
+    // Remove '/api' from API_URL to get root, then append image path
+    const baseUrl = API_URL.replace('/api', '');
+    const cleanPath = img.startsWith('/') ? img.substring(1) : img;
+    return `${baseUrl}/${cleanPath}`;
+  };
+
   // Usar estrictamente userMode para determinar el contexto visual
   const isActingAsPro = userMode === 'pro' || userMode === 'professional';
 
@@ -253,7 +263,7 @@ export default function ChatScreen({ request, currentUser, userMode, onBack, onS
           )}
           {(item.type === 'media' || (!item.type && item.media)) && (
             <View style={{ borderRadius: 12, overflow: 'hidden', marginBottom: 4 }}>
-              <Image source={{ uri: item.media }} style={{ width: 220, height: 160 }} />
+              <Image source={{ uri: getFullImageUrl(item.media) }} style={{ width: 220, height: 160 }} />
               {item.mediaType === 'video' && (
                 <View style={styles.videoBadge}>
                   <Feather name="play-circle" size={32} color="white" />
@@ -295,8 +305,8 @@ export default function ChatScreen({ request, currentUser, userMode, onBack, onS
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === "ios" ? "padding" : (Platform.Version >= 30 ? "padding" : "height")}
-      keyboardVerticalOffset={Platform.OS === "ios" ? 90 : (Platform.OS === 'android' ? 80 : 0)}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 100 : 120}
     >
       <View style={{ backgroundColor: isActingAsPro ? '#2563EB' : '#EA580C', paddingHorizontal: 16, paddingTop: 10, paddingBottom: 10, borderBottomLeftRadius: 24, borderBottomRightRadius: 24, elevation: 4, flexDirection: 'row', alignItems: 'center' }}>
         <TouchableOpacity onPress={onBack} style={{ marginRight: 12 }}>
@@ -305,11 +315,15 @@ export default function ChatScreen({ request, currentUser, userMode, onBack, onS
 
         <Image
           source={{
-            uri: (request.targetUser?.avatar || request.targetUser?.image || request.targetUser?.profileImage)
-              ? (request.targetUser?.avatar || request.targetUser?.image || request.targetUser?.profileImage)
-              : (isActingAsPro
-                ? (request.clientAvatar || request.client?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(request.clientName || request.client?.name || 'C')}&background=random`)
-                : (request.proImage || request.professional?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(request.proName || request.professional?.name || 'P')}&background=random`))
+            uri: getFullImageUrl(
+              (request.targetUser?.avatar || request.targetUser?.image || request.targetUser?.profileImage)
+                ? (request.targetUser?.avatar || request.targetUser?.image || request.targetUser?.profileImage)
+                : (isActingAsPro
+                  ? (request.clientAvatar || request.client?.avatar)
+                  : (request.proImage || request.professional?.avatar))
+            ) || `https://ui-avatars.com/api/?name=${encodeURIComponent(
+              request.targetUser?.name || (isActingAsPro ? (request.clientName || request.client?.name || 'C') : (request.proName || request.professional?.name || 'P'))
+            )}&background=random`
           }}
           style={{ width: 40, height: 40, borderRadius: 20, marginRight: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.5)', backgroundColor: '#fff' }}
         />

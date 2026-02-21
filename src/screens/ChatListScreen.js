@@ -1,6 +1,7 @@
 import { Feather } from '@expo/vector-icons';
-import { useState } from 'react';
-import { FlatList, Image, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useMemo, useState } from 'react';
+import { FlatList, Image, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { API_URL } from '../utils/api'; // NEW: Import API_URL
 
 export default function ChatListScreen({ currentUser, requests, chats = [], onSelectChat, onBack, userMode, onRefresh, refreshing }) {
     if (!currentUser) return <View style={{ flex: 1, backgroundColor: 'white' }} />;
@@ -12,11 +13,9 @@ export default function ChatListScreen({ currentUser, requests, chats = [], onSe
     const themeColor = isPro ? '#2563EB' : '#EA580C';
     const [showArchived, setShowArchived] = useState(false);
 
-    const activeChats = [];
-    const visitedIds = new Set();
-    const myId = currentUser._id || currentUser.id;
+    // --- MEMOIZED HELPERS & DATA PROCESSING ---
 
-    // Helper para comparar IDs de forma segura
+    // Helper para comparar IDs de forma segura (Memoized to avoid recreation, though generic)
     const areIdsEqual = (id1, id2) => {
         if (!id1 || !id2) return false;
         const s1 = (typeof id1 === 'object' && id1 !== null) ? (id1._id || id1.id || id1.toString()) : String(id1);
@@ -26,216 +25,207 @@ export default function ChatListScreen({ currentUser, requests, chats = [], onSe
         return str1 === str2;
     };
 
-    // --- 1. PROCESAR CHATS DEL BACKEND (Fuente de Verdad Limpia) ---
-    // El backend ya filtra por rol:
-    // - Pro: Chats donde participo postulado (excluye mis propios trabajos)
-    // - Client: Chats de trabajos que yo creé
-    if (chats && chats.length > 0) {
-        chats.forEach(chat => {
-            // Validar integridad mínima
-            if (!chat.job) return;
-            if (!chat.messages || chat.messages.length === 0) return; // Regla: chats vacíos no se muestran
+    // 1. PROCESAMIENTO DE CHATS (Heavy Logic Memoized)
+    const activeChats = useMemo(() => {
+        const processedChats = [];
+        const visitedIds = new Set();
+        const myId = currentUser?._id || currentUser?.id;
 
-            const relatedRequest = requests ? requests.find(r => areIdsEqual(r._id, chat.job._id || chat.job)) : null;
+        if (!myId) return [];
 
-            // Determinar Participante (El "Otro")
-            const partner = (chat.participants || []).find(p => !areIdsEqual(p._id || p, myId));
-            if (!partner) return; // Chat huérfano o solo yo
+        // --- A. DATA DEL BACKEND (/api/chats) ---
+        if (chats && chats.length > 0) {
+            console.log(`[ChatList] Received ${chats.length} chats from backend.`);
+            chats.forEach(chat => {
+                // console.log(`[ChatList] Inspecting chat ${chat._id}`);
 
-
-            // Dedup
-            if (visitedIds.has(chat._id)) return;
-
-            // --- FILTER STRICT: CLIENT-SIDE DOUBLE CHECK ---
-            // Ensure we don't show "My Own Jobs" chats when in Pro mode, and vice versa.
-            // Primero intentamos determinar el cliente desde chat.job
-            const jobClientObj = chat.job.clientId || chat.job.client;
-            let jobClientId = null;
-            if (jobClientObj) {
-                if (typeof jobClientObj === 'string') jobClientId = jobClientObj;
-                else if (typeof jobClientObj === 'object') jobClientId = jobClientObj._id || jobClientObj.id;
-            }
-
-            // Si falló, intentamos buscar en relatedRequest (puede tener info más completa)
-            if (!jobClientId && relatedRequest) {
-                const reqClient = relatedRequest.client || relatedRequest.clientId;
-                if (typeof reqClient === 'string') jobClientId = reqClient;
-                else if (typeof reqClient === 'object') jobClientId = reqClient._id || reqClient.id;
-            }
-
-            // LOGIC FINAL & SAFETY:
-            // Si tenemos jobClientId, aplicamos filtro estricto para evitar ver mis propios trabajos en modo Pro.
-            // Si NO tenemos jobClientId (data incompleta), CONFIAMOS EN EL BACKEND que ya filtró por rol.
-            // No ocultamos silenciosamente por falta de datos.
-
-            // NEW REQUIREMENT: Filter out chats with self
-            // "Crea un filtro que evite que pueda hablar el usuario consigo mismo"
-
-            // Check Partner ID vs My ID
-            if (partner && areIdsEqual(partner._id || partner.id || partner, myId)) {
-                return;
-            }
-
-            // LOGICA DE VISUALIZACIÓN POR CREADOR (REQUISITO STRICT DE USUARIO)
-            // 1. Pro: Solo ve chats que ÉL creó (inició).
-            // 2. Cliente: Solo ve chats que ÉL NO creó (iniciados por el Pro).
-            const firstMsg = chat.messages[0];
-            if (firstMsg) {
-                const isCreator = areIdsEqual(firstMsg.sender?._id || firstMsg.sender, myId);
-
-                if (userMode === 'pro') {
-                    // Si soy Pro, debo ser el Creador
-                    if (!isCreator) return;
+                if (!chat.job) {
+                    console.log(`[ChatList] SKIP ${chat._id}: No Job linked`);
+                    // return; // Allow even if no job just to see
+                }
+                if (!chat.messages || chat.messages.length === 0) {
+                    // Allow empty messages (e.g. just an Offer started)
+                    // console.log(`[ChatList] Chat ${chat._id} has no messages but allowing it.`);
                 }
 
-                if (userMode === 'client') {
-                    // Si soy Cliente, NO debo ser el Creador (deben ser iniciados por ofertas de Pros)
-                    if (isCreator) return;
+                const relatedRequest = requests ? requests.find(r => areIdsEqual(r._id, chat.job._id || chat.job)) : null;
+
+                // Partner check
+                const partner = (chat.participants || []).find(p => !areIdsEqual(p._id || p, myId));
+                if (!partner) {
+                    console.log(`[ChatList] SKIP ${chat._id}: No partner found (MyId: ${myId})`);
+                    return;
                 }
-            }
 
-            visitedIds.add(chat._id);
+                if (visitedIds.has(chat._id)) return;
 
-            // Estado de Archivo (Basado en el Job)
-            let isArchived = false;
-            // Usar status del job embebido o del request asociado si está cargado
-            const status = relatedRequest?.status || chat.job?.status;
-            if (status === 'canceled' || status === 'closed' || status === 'ELIMINADA' || status === 'Cerrada' || status === 'TERMINADO' || status === 'FINALIZADA' || status === 'rejected' || status === 'lost') {
-                isArchived = true;
-            }
+                // Self-chat prevention
+                if (partner && areIdsEqual(partner._id || partner.id || partner, myId)) return;
 
-            // Ultimo mensaje
-            const lastMsg = chat.messages[chat.messages.length - 1];
+                const jobClient = chat.job?.client;
 
-            // Construir Objeto Visual
-            activeChats.push({
-                id: chat._id,
-                title: partner.name || 'Usuario',
-                subtitle: lastMsg.content || (lastMsg.media ? '📷 Foto/Video' : ''),
-                time: new Date(lastMsg.createdAt || lastMsg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                rating: '5.0', // Placeholder o calcular
-                image: partner.avatar, // Si es undefined, el render maneja fallback
-                unreadCount: chat.messages.filter(m => !areIdsEqual(m.sender?._id || m.sender, myId) && !m.read).length,
-                requestData: {
-                    ...(relatedRequest || { _id: chat.job._id || chat.job, title: chat.job.title || 'Trabajo' }),
-                    // Inyectar datos mínimos para navegación si no hay request completo
-                    conversations: [{
-                        id: chat._id,
-                        proId: partner._id,
-                        // FIX: Pasar los mensajes reales del chat, no un array vacío.
-                        // ChatScreen espera: { id, text, sender, timestamp, media }
-                        messages: (chat.messages || []).map(m => ({
-                            id: m._id,
-                            text: m.content,
-                            sender: areIdsEqual(m.sender?._id || m.sender, myId) ? (isPro ? 'pro' : 'client') : (isPro ? 'client' : 'pro'),
-                            timestamp: m.createdAt || m.timestamp,
-                            media: m.media,
-                            mediaType: m.mediaType
-                        }))
-                    }]
-                },
-                targetUser: {
-                    name: partner.name,
-                    role: isPro ? 'client' : 'pro',
-                    email: partner.email,
-                    id: partner._id,
-                    avatar: partner.avatar
-                },
-                lastSender: areIdsEqual(lastMsg.sender?._id || lastMsg.sender, myId) ? 'me' : 'other',
-                hasMessages: true,
-                rawTimestamp: new Date(lastMsg.createdAt || lastMsg.timestamp).getTime(),
-                category: relatedRequest?.category || 'General',
-                isArchived: isArchived,
-                isFileChat: true // Marcador de origen
-            });
-        });
-    }
+                // DEBUG LOGS
+                // console.log(`[ChatList] Processing ${chat._id} for ${myId}. Mode: ${userMode}`);
+                // console.log(`[ChatList] JobClient:`, jobClient);
 
-    // --- 2. FALLBACK LEGACY (SOLO CLIENTE) ---
-    // Si hay conversaciones embebidas en 'requests' que no llegaron por /api/chats (raro pero posible en migración)
-    if (!isPro && requests) {
-        requests.forEach(req => {
-            // Seguridad: Solo mis trabajos
-            const rClient = req.client?._id || req.client;
-            if (rClient && !areIdsEqual(rClient, myId)) return;
+                if (jobClient) {
+                    const amIClient = areIdsEqual(jobClient._id || jobClient, myId);
 
-            if (req.conversations && req.conversations.length > 0) {
-                req.conversations.forEach(conv => {
-                    // Si es un ID string, ya debería estar en 'chats'. Si es objeto, es legacy embedded.
-                    if (typeof conv === 'string') return;
+                    if (userMode === 'pro' && amIClient) {
+                        // console.log("Skipping: I am Pro but I am the Client of this job.");
+                        return;
+                    }
+                    if (userMode === 'client' && !amIClient) {
+                        // console.log("Skipping: I am Client but I am NOT the Client of this job (so I am Pro).");
+                        return;
+                    }
+                } else {
+                    // console.log("[ChatList] WARNING: Chat has no job client info.");
+                }
 
-                    const targetProId = conv.proId?._id || conv.proId;
+                visitedIds.add(chat._id);
 
-                    // Filter out self-chats in legacy too
-                    if (areIdsEqual(targetProId, myId)) return;
+                // Archived Status
+                let isArchived = false;
+                const status = relatedRequest?.status || chat.job?.status;
+                const archivedStatuses = ['canceled', 'closed', 'ELIMINADA', 'Cerrada', 'TERMINADO', 'FINALIZADA', 'rejected', 'lost'];
+                if (archivedStatuses.includes(status)) isArchived = true;
 
-                    const convId = conv.id || `${req._id}_${targetProId}`;
+                let lastMsg = (chat.messages && chat.messages.length > 0)
+                    ? chat.messages[chat.messages.length - 1]
+                    : {
+                        content: 'Conversación iniciada',
+                        createdAt: chat.updatedAt || chat.createdAt || new Date().toISOString(),
+                        sender: myId, // Assume self-initiated if empty (e.g. sending offer)
+                        read: true
+                    };
 
-                    if (visitedIds.has(convId)) return;
-                    if (visitedIds.has(conv._id)) return; // Check object id too
-
-                    // Validar mensajes
-                    // En estructura legacy, a veces 'messages' no viene, solo contadores.
-                    // Si el usuario exige "chat no vacio", asumimos que legacy con unreadCount > 0 tiene algo?
-
-                    let isArchived = (req.status === 'canceled' || req.status === 'closed' || req.status === 'Cerrada' || req.status === 'TERMINADO' || req.status === 'FINALIZADA' || req.status === 'ELIMINADA' || req.status === 'rejected' || req.status === 'lost');
-
-                    activeChats.push({
-                        id: convId,
-                        title: conv.proName || 'Profesional',
-                        subtitle: `Chat sobre ${req.title}`,
-                        time: '',
-                        rating: '5.0',
-                        image: conv.proImage,
-                        unreadCount: conv.unreadCount || 0,
-                        requestData: req,
-                        targetUser: { name: conv.proName, role: 'pro', id: targetProId, avatar: conv.proImage },
-                        hasMessages: true,
-                        rawTimestamp: 0, // Al fondo
-                        isArchived: isArchived,
-                        category: req.category || 'General',
-                        isLegacy: true
-                    });
+                processedChats.push({
+                    id: chat._id,
+                    title: partner.name || 'Usuario',
+                    subtitle: lastMsg.content || (lastMsg.media ? '📷 Foto/Video' : ''),
+                    time: new Date(lastMsg.createdAt || lastMsg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                    rating: '5.0',
+                    image: partner.avatar,
+                    unreadCount: (chat.messages || []).filter(m => !areIdsEqual(m.sender?._id || m.sender, myId) && !m.read).length,
+                    requestData: {
+                        ...(relatedRequest || { _id: chat.job._id || chat.job, title: chat.job.title || 'Trabajo' }),
+                        conversations: [{
+                            id: chat._id,
+                            proId: partner._id,
+                            messages: (chat.messages || []).map(m => ({
+                                id: m._id,
+                                text: m.content,
+                                sender: areIdsEqual(m.sender?._id || m.sender, myId) ? (isPro ? 'pro' : 'client') : (isPro ? 'client' : 'pro'),
+                                timestamp: m.createdAt || m.timestamp,
+                                media: m.media,
+                                mediaType: m.mediaType
+                            }))
+                        }]
+                    },
+                    targetUser: {
+                        name: partner.name,
+                        role: isPro ? 'client' : 'pro',
+                        email: partner.email,
+                        id: partner._id,
+                        avatar: partner.avatar
+                    },
+                    lastSender: areIdsEqual(lastMsg.sender?._id || lastMsg.sender, myId) ? 'me' : 'other',
+                    hasMessages: true,
+                    rawTimestamp: new Date(lastMsg.createdAt || lastMsg.timestamp).getTime(),
+                    category: relatedRequest?.category || 'General',
+                    isArchived: isArchived,
+                    isFileChat: true
                 });
-            }
-        });
-    }
-
-    const getActionButton = (item) => {
-        // Lógica simple de botón
-        if (item.unreadCount > 0) return { text: 'Responder', color: '#EA580C', bg: '#FFF7ED' };
-        if (item.lastSender === 'other') return { text: 'Responder', color: '#EA580C', bg: '#FFF7ED' };
-        return { text: 'Ver Chat', color: '#3B82F6', bg: '#EFF6FF' };
-    };
-
-    // --- FILTRADO FINAL EN UI ---
-    const chatsWithMeta = activeChats.map(chat => ({
-        ...chat,
-        actionStatus: getActionButton(chat).text,
-        category: typeof chat.category === 'object' ? (chat.category.name || 'Otros') : (chat.category || 'Otros')
-    }));
-
-    const filteredChats = chatsWithMeta.filter(chat => {
-        if (filterCategory !== 'Todas' && chat.category !== filterCategory) return false;
-
-        // --- VISIBILIDAD DE ARCHIVADOS ---
-        // Default: Ocultar archivados. Toggle: Mostrar SOLO archivados (o todos? 'Podrá verlos si activa')
-        // Interpretación standard: Toggle ON = Ver archivados. Toggle OFF = Ver activos.
-        // El usuario dijo: "Si solicitud no activa, chat se archiva. No se elimina, pero se archiva."
-        if (showArchived) {
-            return chat.isArchived;
-        } else {
-            return !chat.isArchived;
+            });
         }
-    }).sort((a, b) => (b.rawTimestamp || 0) - (a.rawTimestamp || 0));
 
-    const uniqueCategories = ['Todas', ...new Set(chatsWithMeta.map(c => c.category).filter(Boolean))];
+        // --- B. FALLBACK LEGACY (SOLO CLIENTE) ---
+        if (!isPro && requests) {
+            requests.forEach(req => {
+                const rClient = req.client?._id || req.client;
+                if (rClient && !areIdsEqual(rClient, myId)) return;
+
+                if (req.conversations && req.conversations.length > 0) {
+                    req.conversations.forEach(conv => {
+                        if (typeof conv === 'string') return;
+                        const targetProId = conv.proId?._id || conv.proId;
+                        if (areIdsEqual(targetProId, myId)) return;
+
+                        const convId = conv.id || `${req._id}_${targetProId}`;
+                        if (visitedIds.has(convId) || visitedIds.has(conv._id)) return;
+
+                        let isArchived = ['canceled', 'closed', 'Cerrada', 'TERMINADO', 'FINALIZADA', 'ELIMINADA', 'rejected', 'lost'].includes(req.status);
+
+                        processedChats.push({
+                            id: convId,
+                            title: conv.proName || 'Profesional',
+                            subtitle: `Chat sobre ${req.title}`,
+                            time: '',
+                            rating: '5.0',
+                            image: conv.proImage || conv.proAvatar,
+                            unreadCount: conv.unreadCount || 0,
+                            requestData: req,
+                            targetUser: { name: conv.proName, role: 'pro', id: targetProId, avatar: conv.proImage || conv.proAvatar },
+                            hasMessages: true,
+                            rawTimestamp: 0,
+                            isArchived: isArchived,
+                            category: req.category || 'General',
+                            isLegacy: true
+                        });
+                    });
+                }
+            });
+        }
+        return processedChats;
+    }, [chats, requests, currentUser, userMode, isPro]);
+
+
+    // 2. FILTRADO FINAL (Memoized)
+    const filteredChats = useMemo(() => {
+        const getActionButton = (item) => {
+            if (item.unreadCount > 0) return { text: 'Responder' };
+            if (item.lastSender === 'other') return { text: 'Responder' };
+            return { text: 'Ver Chat' };
+        };
+
+        const chatsWithMeta = activeChats.map(chat => ({
+            ...chat,
+            actionStatus: getActionButton(chat).text,
+            category: typeof chat.category === 'object' ? (chat.category.name || 'Otros') : (chat.category || 'Otros')
+        }));
+
+        return chatsWithMeta.filter(chat => {
+            if (filterCategory !== 'Todas' && chat.category !== filterCategory) return false;
+            // Archivados logic
+            return showArchived ? chat.isArchived : !chat.isArchived;
+        }).sort((a, b) => (b.rawTimestamp || 0) - (a.rawTimestamp || 0));
+
+    }, [activeChats, filterCategory, showArchived]);
+
+    // Categories for filter
+    const uniqueCategories = useMemo(() => {
+        return ['Todas', ...new Set(activeChats.map(c => {
+            return typeof c.category === 'object' ? (c.category.name || 'Otros') : (c.category || 'Otros');
+        }).filter(Boolean))];
+    }, [activeChats]);
 
     const renderItem = ({ item }) => {
         // En los diseños, el botón SIEMPRE dice "Responder" y es outline naranja
         const hasValidImage = item.image && !item.image.includes('undefined') && !item.image.includes('placeholder');
+
+        // Helper para resolver URL de imagen
+        const getFullImageUrl = (img) => {
+            if (!img) return null;
+            if (img.startsWith('http') || img.startsWith('file://') || img.startsWith('data:')) return img;
+            // Remove '/api' from API_URL to get root, then append image path
+            const baseUrl = API_URL.replace('/api', '');
+            const cleanPath = img.startsWith('/') ? img.substring(1) : img;
+            return `${baseUrl}/${cleanPath}`;
+        };
+
         // Fallback de imagen
-        const validUri = hasValidImage ? item.image : `https://ui-avatars.com/api/?name=${encodeURIComponent(item.title)}&background=random`;
+        const validUri = hasValidImage ? getFullImageUrl(item.image) : `https://ui-avatars.com/api/?name=${encodeURIComponent(item.title)}&background=random`;
 
         return (
             <TouchableOpacity
@@ -277,9 +267,9 @@ export default function ChatListScreen({ currentUser, requests, chats = [], onSe
             {/* HEADER DESIGN MATCHED TO SCREENSHOTS */}
             <View style={[styles.headerContainer, { backgroundColor: themeColor }]}>
                 {/* Title Row */}
-                <View style={styles.headerTop}>
+                <View style={[styles.headerTop, { marginBottom: 0 }]}>
                     <Text style={styles.headerTitle}>
-                        {isPro ? 'Conversaciones' : 'Chatea con Profesionales'}
+                        {isPro ? 'Conversaciones' : 'Chatear'}
                     </Text>
                     <TouchableOpacity
                         onPress={() => setShowArchived(!showArchived)}
@@ -288,35 +278,6 @@ export default function ChatListScreen({ currentUser, requests, chats = [], onSe
                         <Feather name="archive" size={20} color={showArchived ? themeColor : 'white'} />
                     </TouchableOpacity>
                 </View>
-
-                {/* Filter Dropdown Section */}
-                <View style={styles.filterContainer}>
-                    <Text style={styles.filterLabel}>Categoría</Text>
-
-                    {/* Fake Dropdown for Visuals (since logic is simple switch) - In a real app this opens a modal */}
-                    <TouchableOpacity
-                        style={styles.dropdownInput}
-                    // For now we just cycle categories or reset, but UI demands a look. 
-                    // Let's keep it simple: On press, if we implemented the modal in MyRequests, we could reuse or just scroll.
-                    // Given the instruction "Quiero que se vea así", visuals are key.
-                    // I'll make it loop through categories for now or just visual if only 1 category.
-                    >
-                        <Text style={styles.dropdownText}>{filterCategory}</Text>
-                        <Feather name="chevron-down" size={20} color="white" />
-                    </TouchableOpacity>
-
-                    {/* Horizontal Scroll hidden visually but logic kept? No, screenshot shows Dropdown. 
-                         Let's just implement a simple categories cycler or just keep 'Todas' if dynamic modal is too complex to inject right now without imports.
-                         Actually, I can inject a simple Modal logic if I want, but to be safe and quick, I'll make it cycle or open a simple alert choice if pressed? 
-                         Better: I'll use the existing horizontal logic but styled as a dropdown (click -> change). 
-                         For this step, I will stick to the visual. The user wants it to LOOK like the screenshot. 
-                     */}
-                    {uniqueCategories.length > 1 && (
-                        <ScrollView horizontal style={{ position: 'absolute', top: 60, height: 0, opacity: 0 }}>
-                            {/* Hidden logical scroll keeper if needed, but we will rely on state */}
-                        </ScrollView>
-                    )}
-                </View>
             </View>
 
             {/* LISTA */}
@@ -324,18 +285,114 @@ export default function ChatListScreen({ currentUser, requests, chats = [], onSe
                 data={filteredChats}
                 renderItem={renderItem}
                 keyExtractor={item => item.id}
-                contentContainerStyle={{ padding: 15, paddingBottom: 100 }}
+                contentContainerStyle={{ paddingHorizontal: 10, paddingTop: 8, paddingBottom: 100 }}
                 refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[themeColor]} />}
                 ListEmptyComponent={
-                    <View style={styles.emptyState}>
-                        <Feather name="message-square" size={48} color="#D1D5DB" />
-                        <Text style={styles.emptyText}>
-                            {showArchived ? "No hay chats archivados" : "No tienes conversaciones activas"}
-                        </Text>
-                        {isPro && !showArchived && (
-                            <Text style={styles.emptySubtext}>
-                                Busca trabajos y envía ofertas para iniciar una conversación.
-                            </Text>
+                    <View style={{ alignItems: 'center', justifyContent: 'center', paddingTop: 0, paddingBottom: 25 }}>
+                        {isPro ? (
+                            <View style={{ width: '100%', backgroundColor: 'white', borderRadius: 24, padding: 25, shadowColor: '#2563EB', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 10, elevation: 5, borderWidth: 1, borderColor: '#F1F5F9' }}>
+                                <View style={{ alignItems: 'center', marginBottom: 25 }}>
+                                    <Image
+                                        source={require('../../assets/images/intro2.png')}
+                                        style={{ width: 180, height: 140, marginBottom: 15 }}
+                                        resizeMode="contain"
+                                    />
+                                    <Text style={{ fontSize: 22, fontWeight: '800', color: '#1E3A8A', textAlign: 'center' }}>Centro de Negocios</Text>
+                                    <Text style={{ fontSize: 14, color: '#64748B', textAlign: 'center', marginTop: 5 }}>Tu espacio seguro para gestionar clientes.</Text>
+                                </View>
+
+                                <View style={{ gap: 18 }}>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                        <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: '#F0F9FF', justifyContent: 'center', alignItems: 'center', marginRight: 15 }}>
+                                            <Feather name="message-circle" size={22} color="#0284C7" />
+                                        </View>
+                                        <View style={{ flex: 1 }}>
+                                            <Text style={{ fontWeight: 'bold', color: '#1E293B', fontSize: 15 }}>Chat Directo</Text>
+                                            <Text style={{ color: '#64748B', fontSize: 13 }}>Acuerda precios y horarios sin intermediarios.</Text>
+                                        </View>
+                                    </View>
+
+                                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                        <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: '#F0FDF4', justifyContent: 'center', alignItems: 'center', marginRight: 15 }}>
+                                            <Feather name="camera" size={22} color="#16A34A" />
+                                        </View>
+                                        <View style={{ flex: 1 }}>
+                                            <Text style={{ fontWeight: 'bold', color: '#1E293B', fontSize: 15 }}>Evidencia Visual</Text>
+                                            <Text style={{ color: '#64748B', fontSize: 13 }}>Sube fotos de tu progreso para evitar reclamos.</Text>
+                                        </View>
+                                    </View>
+
+                                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                        <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: '#FFF7ED', justifyContent: 'center', alignItems: 'center', marginRight: 15 }}>
+                                            <Feather name="lock" size={22} color="#EA580C" />
+                                        </View>
+                                        <View style={{ flex: 1 }}>
+                                            <Text style={{ fontWeight: 'bold', color: '#1E293B', fontSize: 15 }}>Notas Privadas</Text>
+                                            <Text style={{ color: '#64748B', fontSize: 13 }}>Guarda recordatorios que solo tú puedes ver.</Text>
+                                        </View>
+                                    </View>
+                                </View>
+
+                                <View style={{ marginTop: 25, paddingTop: 15, borderTopWidth: 1, borderTopColor: '#F1F5F9', alignItems: 'center' }}>
+                                    <Text style={{ color: '#94A3B8', fontSize: 12, textAlign: 'center' }}>
+                                        <Feather name="shield" size={12} color="#94A3B8" /> Tus datos de contacto están protegidos.
+                                    </Text>
+                                </View>
+                            </View>
+                        ) : (
+                            <View style={{ width: '100%', backgroundColor: 'white', borderRadius: 24, padding: 25, shadowColor: '#EA580C', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 10, elevation: 5, borderWidth: 1, borderColor: '#FFF7ED' }}>
+                                <View style={{ alignItems: 'center', marginBottom: 25 }}>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 15 }}>
+                                        <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: '#FFF7ED', justifyContent: 'center', alignItems: 'center', borderWidth: 3, borderColor: '#FED7AA', marginRight: -15, zIndex: 2 }}>
+                                            <Feather name="shield" size={32} color="#EA580C" />
+                                        </View>
+                                        <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: '#FED7AA', justifyContent: 'center', alignItems: 'center', zIndex: 1 }}>
+                                            <Feather name="message-circle" size={32} color="#EA580C" />
+                                        </View>
+                                    </View>
+
+                                    <Text style={{ fontSize: 20, fontWeight: '800', color: '#9A3412', textAlign: 'center' }}>
+                                        {showArchived ? "Archivo de Chats" : "Chatea con Seguridad"}
+                                    </Text>
+                                    <Text style={{ fontSize: 13, color: '#64748B', textAlign: 'center', marginTop: 5, paddingHorizontal: 10 }}>
+                                        {showArchived ? "Aquí están tus conversaciones antiguas." : "Conecta con expertos sin revelar tus datos personales. Cada conversación queda guardada como respaldo de tu solicitud."}
+                                    </Text>
+                                </View>
+
+                                {!showArchived && (
+                                    <View style={{ gap: 15 }}>
+                                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                            <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#FFF7ED', justifyContent: 'center', alignItems: 'center', marginRight: 12 }}>
+                                                <Feather name="users" size={20} color="#EA580C" />
+                                            </View>
+                                            <View style={{ flex: 1 }}>
+                                                <Text style={{ fontWeight: 'bold', color: '#1E293B', fontSize: 13 }}>Privacidad Blindada</Text>
+                                                <Text style={{ color: '#64748B', fontSize: 11 }}>Tu número y correo permanecen ocultos en todo momento.</Text>
+                                            </View>
+                                        </View>
+
+                                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                            <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#F0FDF4', justifyContent: 'center', alignItems: 'center', marginRight: 12 }}>
+                                                <Feather name="shield" size={20} color="#16A34A" />
+                                            </View>
+                                            <View style={{ flex: 1 }}>
+                                                <Text style={{ fontWeight: 'bold', color: '#1E293B', fontSize: 13 }}>Garantía de Registro</Text>
+                                                <Text style={{ color: '#64748B', fontSize: 11 }}>Todo lo conversado se organiza por solicitud para aclarar dudas o resolver controversias.</Text>
+                                            </View>
+                                        </View>
+
+                                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                            <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#EFF6FF', justifyContent: 'center', alignItems: 'center', marginRight: 12 }}>
+                                                <Feather name="image" size={20} color="#2563EB" />
+                                            </View>
+                                            <View style={{ flex: 1 }}>
+                                                <Text style={{ fontWeight: 'bold', color: '#1E293B', fontSize: 13 }}>Evidencia Visual</Text>
+                                                <Text style={{ color: '#64748B', fontSize: 11 }}>Comparte fotos y videos del trabajo para recibir presupuestos exactos.</Text>
+                                            </View>
+                                        </View>
+                                    </View>
+                                )}
+                            </View>
                         )}
                     </View>
                 }
@@ -349,8 +406,7 @@ const styles = StyleSheet.create({
 
     // Header Styles
     headerContainer: {
-        paddingTop: 12,
-        paddingBottom: 24,
+        paddingVertical: 18,
         borderBottomLeftRadius: 32,
         borderBottomRightRadius: 32,
         borderWidth: 0,
@@ -361,7 +417,7 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         alignItems: 'center',
         paddingHorizontal: 24,
-        marginBottom: 20
+        marginBottom: 0
     },
     headerTitle: {
         fontSize: 24,
@@ -377,48 +433,31 @@ const styles = StyleSheet.create({
         alignItems: 'center'
     },
 
-    // Filter Dropdown Styles
-    filterContainer: { paddingHorizontal: 24 },
-    filterLabel: { color: 'rgba(255,255,255,0.8)', fontSize: 13, marginBottom: 8, fontWeight: 'bold' },
-    dropdownInput: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        backgroundColor: 'rgba(255,255,255,0.15)',
-        borderRadius: 12,
-        paddingHorizontal: 16,
-        paddingVertical: 12,
-        minHeight: 48,
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.3)'
-    },
-    dropdownText: { color: 'white', fontWeight: '600', fontSize: 14 },
-
     // Card Styles
     chatItem: {
         backgroundColor: 'white',
-        padding: 20,
-        borderRadius: 24,
-        marginBottom: 16,
+        padding: 14,
+        borderRadius: 20,
+        marginBottom: 10,
         borderWidth: 1,
         borderColor: '#E5E7EB',
         flexDirection: 'row'
     },
-    avatarContainer: { marginRight: 16, justifyContent: 'flex-start' },
-    avatar: { width: 60, height: 60, borderRadius: 30, backgroundColor: '#F3F4F6' },
-    badge: { position: 'absolute', top: 0, right: 0, backgroundColor: '#EF4444', minWidth: 22, height: 22, borderRadius: 11, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: 'white' },
-    badgeText: { color: 'white', fontSize: 11, fontWeight: 'bold' },
+    avatarContainer: { marginRight: 12, justifyContent: 'flex-start' },
+    avatar: { width: 50, height: 50, borderRadius: 25, backgroundColor: '#F3F4F6' },
+    badge: { position: 'absolute', top: -2, right: -2, backgroundColor: '#EF4444', minWidth: 20, height: 20, borderRadius: 10, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: 'white' },
+    badgeText: { color: 'white', fontSize: 10, fontWeight: 'bold' },
 
     chatContent: { flex: 1 },
-    topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 },
-    chatTitle: { fontSize: 18, fontWeight: 'bold', color: '#111827', flex: 1, marginRight: 10 },
-    chatTime: { fontSize: 13, color: '#6B7280' },
+    topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 2 },
+    chatTitle: { fontSize: 15, fontWeight: 'bold', color: '#111827', flex: 1, marginRight: 8 },
+    chatTime: { fontSize: 11, color: '#6B7280' },
 
-    middleRow: { marginBottom: 8 },
-    jobTitle: { fontSize: 14, color: '#4B5563', fontStyle: 'italic' },
+    middleRow: { marginBottom: 4 },
+    jobTitle: { fontSize: 13, color: '#4B5563', fontStyle: 'italic' },
 
     bottomRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-    chatSubtitle: { fontSize: 15, color: '#4B5563', flex: 1, marginRight: 12 },
+    chatSubtitle: { fontSize: 13, color: '#4B5563', flex: 1, marginRight: 10 },
     unreadText: { fontWeight: '600', color: '#111827' },
 
     // Responder Button
@@ -426,16 +465,15 @@ const styles = StyleSheet.create({
     statusText: { fontSize: 11, fontWeight: 'bold' },
 
     responderButton: {
-        paddingHorizontal: 16,
-        paddingVertical: 10,
-        borderRadius: 12,
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        borderRadius: 10,
         borderWidth: 1,
         borderColor: '#EA580C',
         backgroundColor: 'white',
-        minHeight: 40,
         justifyContent: 'center'
     },
-    responderText: { fontSize: 13, fontWeight: 'bold', color: '#EA580C' },
+    responderText: { fontSize: 11, fontWeight: 'bold', color: '#EA580C' },
 
     emptyState: { alignItems: 'center', justifyContent: 'center', padding: 40, marginTop: 50 },
     emptyText: { fontSize: 18, color: '#4B5563', marginTop: 16, fontWeight: '600' },

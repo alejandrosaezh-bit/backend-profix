@@ -207,6 +207,7 @@ export default function AdminScreens({ onBack, onLogout }) {
             case 'categories': return <CategoriesManager />;
             case 'articles': return <ArticlesManager />;
             case 'businesses': return <BusinessesManager categories={categories} />;
+            case 'messages': return <MessagesManager />;
             default: return <Dashboard setActiveTab={setActiveTab} />;
         }
     };
@@ -331,6 +332,10 @@ const Dashboard = ({ setActiveTab }) => {
             <TouchableOpacity style={[styles.actionButton, { backgroundColor: '#EA580C' }]} onPress={() => setActiveTab('businesses')}>
                 <Feather name="briefcase" size={20} color="white" />
                 <Text style={styles.actionText}>Nuevo Anunciante</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.actionButton, { backgroundColor: '#7C3AED' }]} onPress={() => setActiveTab('messages')}>
+                <Feather name="message-square" size={20} color="white" />
+                <Text style={styles.actionText}>Mensajes Rotativos</Text>
             </TouchableOpacity>
         </ScrollView>
     );
@@ -1709,6 +1714,108 @@ const BusinessesManager = () => {
                 </View>
             ))}
 
+            <View style={{ height: 50 }} />
+        </ScrollView>
+    );
+};
+
+const MessagesManager = () => {
+    const [messages, setMessages] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [editingId, setEditingId] = useState(null);
+    const [form, setForm] = useState({ title: '', subtitle: '', buttonText: '' });
+
+    useEffect(() => {
+        loadMessages();
+    }, []);
+
+    const loadMessages = async () => {
+        try {
+            const data = await api.getAppMessages();
+            setMessages(data);
+        } catch (e) {
+            Alert.alert("Error", "No se cargaron los mensajes");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleEdit = (msg) => {
+        setEditingId(msg._id);
+        setForm({ title: msg.title, subtitle: msg.subtitle, buttonText: msg.buttonText });
+    };
+
+    const handleSave = async () => {
+        if (!form.title || !form.subtitle || !form.buttonText) return Alert.alert("Error", "Todos los campos son obligatorios");
+
+        try {
+            await api.updateAppMessage(editingId, form);
+            Alert.alert("Éxito", "Mensaje actualizado");
+            setEditingId(null);
+            loadMessages();
+        } catch (e) {
+            Alert.alert("Error", "No se pudo actualizar");
+        }
+    };
+
+    return (
+        <ScrollView>
+            <Text style={styles.sectionTitle}>Mensajes de Inicio</Text>
+            <Text style={{ marginBottom: 15, color: '#666' }}>Estos mensajes rotan cada vez que el usuario abre la app (Home).</Text>
+
+            {loading && <ActivityIndicator size="large" color="#2563EB" />}
+
+            {messages.map((msg, index) => (
+                <View key={msg._id || index} style={styles.card}>
+                    {editingId === msg._id ? (
+                        <View style={{ flex: 1 }}>
+                            <Text style={styles.label}>Título</Text>
+                            <TextInput
+                                style={[styles.input, { marginBottom: 10 }]}
+                                value={form.title}
+                                onChangeText={t => setForm({ ...form, title: t })}
+                            />
+
+                            <Text style={styles.label}>Subtítulo</Text>
+                            <TextInput
+                                style={[styles.input, { marginBottom: 10, height: 60 }]}
+                                multiline
+                                value={form.subtitle}
+                                onChangeText={t => setForm({ ...form, subtitle: t })}
+                            />
+
+                            <Text style={styles.label}>Texto Botón</Text>
+                            <TextInput
+                                style={[styles.input, { marginBottom: 15 }]}
+                                value={form.buttonText}
+                                onChangeText={t => setForm({ ...form, buttonText: t })}
+                            />
+
+                            <View style={{ flexDirection: 'row', gap: 10 }}>
+                                <TouchableOpacity onPress={handleSave} style={[styles.saveButton, { flex: 1 }]}>
+                                    <Text style={styles.saveButtonText}>Guardar</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity onPress={() => setEditingId(null)} style={[styles.saveButton, { flex: 1, backgroundColor: '#9CA3AF' }]}>
+                                    <Text style={styles.saveButtonText}>Cancelar</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                    ) : (
+                        <View style={{ flex: 1 }}>
+                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                <Text style={{ fontWeight: 'bold', fontSize: 16, color: '#1E293B', marginBottom: 4, flex: 1 }}>{msg.title}</Text>
+                                <TouchableOpacity onPress={() => handleEdit(msg)} style={{ padding: 5 }}>
+                                    <Feather name="edit-2" size={20} color="#2563EB" />
+                                </TouchableOpacity>
+                            </View>
+                            <Text style={{ color: '#4B5563', marginBottom: 8 }}>{msg.subtitle}</Text>
+                            <View style={{ alignSelf: 'flex-start', backgroundColor: '#EA580C', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 }}>
+                                <Text style={{ color: 'white', fontSize: 12, fontWeight: 'bold' }}>{msg.buttonText}</Text>
+                            </View>
+                        </View>
+                    )}
+                </View>
+            ))}
             <View style={{ height: 50 }} />
         </ScrollView>
     );

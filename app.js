@@ -3,6 +3,7 @@ import { Feather, FontAwesome5, MaterialCommunityIcons, MaterialIcons } from '@e
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
+import * as Notifications from 'expo-notifications'; // Import Notifications
 import { StatusBar } from 'expo-status-bar';
 import React, { useCallback, useContext, useEffect, useRef, useState } from 'react';
 import {
@@ -28,12 +29,10 @@ import {
     View
 } from 'react-native';
 
-// Ignorar advertencias específicas de notificaciones en Expo Go
-LogBox.ignoreLogs(['expo-notifications:']);
-
 // --- IMPORTS DE UTILIDADES ---
 // V13 Update
 import { AuthContext, AuthProvider } from './src/context/AuthContext';
+import { SocketProvider, useSocket } from './src/context/SocketContext'; // Updated Socket Import
 import AdminScreens from './src/screens/AdminScreens';
 import BlogPostScreen from './src/screens/BlogPostScreen';
 import CategoryDetailScreen from './src/screens/CategoryDetailScreen';
@@ -48,8 +47,21 @@ import ProfessionalProfileScreen from './src/screens/ProfessionalProfileScreen';
 import SubcategoryDetailScreen from './src/screens/SubcategoryDetailScreen';
 import { api } from './src/utils/api';
 import * as AuthLocal from './src/utils/auth_local';
+import { registerForPushNotificationsAsync } from './src/utils/push'; // Add Push Utility
 import { setRequests } from './src/utils/requests';
 import { saveSession } from './src/utils/session';
+
+// Ignorar advertencias específicas de notificaciones en Expo Go
+LogBox.ignoreLogs(['expo-notifications:']);
+
+// --- CONFIGURACIÓN DE NOTIFICACIONES (FOREGROUND) ---
+Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldPlaySound: true,
+        shouldSetBadge: false,
+    }),
+});
 
 const { checkCredentials, getUser, registerUser } = AuthLocal;
 
@@ -327,7 +339,7 @@ const TESTIMONIALS = [
 // --- DATOS DE ZONAS (MOCK) ---
 // Estructura: Ciudad/Región -> [Municipios]
 const LOCATIONS_DATA = {
-    "Gran Caracas": ["Libertador", "Chacao", "Baruta", "Sucre", "El Hatillo", "Caracas"],
+    "Gran Caracas": ["Libertador", "Chacao", "Baruta", "Sucre", "El Hatillo"],
     "La Guaira": ["Vargas"],
     "Altos Mirandinos": ["Los Salias", "Carrizal", "Guaicaipuro"],
     "Guarenas-Guatire": ["Plaza", "Zamora"],
@@ -385,8 +397,8 @@ const showConfirmation = (title, message, onConfirm, onCancel, confirmText = "Ac
 
 const SectionDivider = () => (
     <View style={{
-        height: 12,
-        backgroundColor: '#A19C9B',
+        height: 8,
+        backgroundColor: 'transparent',
         width: '100%',
     }} />
 );
@@ -515,15 +527,9 @@ const Header = ({ userMode, toggleMode, isLoggedIn, onLoginPress, currentUser, o
     return (
         <View style={styles.header}>
             <View style={styles.headerLeft}>
-                <View style={{ width: 40, height: 40, backgroundColor: '#EA580C', borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginRight: 10 }}>
-                    <MaterialCommunityIcons name="hammer" size={24} color="white" />
-                </View>
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <Text style={{ fontSize: 22, fontWeight: '800', color: '#2563EB' }}>Profesional</Text>
-                    <Text style={{ fontSize: 22, fontWeight: '800', color: '#EA580C', marginLeft: 6 }}>Cercano</Text>
-                    <View style={{ backgroundColor: '#F3F4F6', paddingHorizontal: 4, paddingVertical: 1, borderRadius: 4, marginLeft: 8 }}>
-                        <Text style={{ fontSize: 10, color: '#94A3B8', fontWeight: 'bold' }}>V32.0</Text>
-                    </View>
+                    <Text style={{ fontSize: 18, fontWeight: '800', color: '#2563EB' }}>Profesional</Text>
+                    <Text style={{ fontSize: 18, fontWeight: '800', color: '#EA580C', marginLeft: 6 }}>Cercano</Text>
                 </View>
             </View>
 
@@ -533,41 +539,52 @@ const Header = ({ userMode, toggleMode, isLoggedIn, onLoginPress, currentUser, o
                         onPress={toggleMode}
                         activeOpacity={0.8}
                         style={{
-                            width: 38,
-                            height: 38,
-                            borderRadius: 19,
-                            backgroundColor: userMode === 'client' ? '#DBEAFE' : '#FFEDD5',
-                            justifyContent: 'center',
+                            flexDirection: 'row',
                             alignItems: 'center',
-                            borderWidth: 1,
-                            borderColor: userMode === 'client' ? '#2563EB' : '#F97316',
-                            elevation: 2,
-                            shadowColor: '#000',
-                            shadowOffset: { width: 0, height: 1 },
-                            shadowOpacity: 0.1,
-                            shadowRadius: 2
+                            backgroundColor: 'white',
+                            borderRadius: 30,
+                            padding: 4,
+                            borderWidth: 1.5,
+                            borderColor: '#F1F5F9',
+                            elevation: 3,
+                            shadowColor: userMode === 'client' ? '#EA580C' : '#2563EB',
+                            shadowOffset: { width: 0, height: 2 },
+                            shadowOpacity: 0.15,
+                            shadowRadius: 5,
                         }}
                     >
-                        <Animated.View style={{ transform: [{ rotate: rotation }], alignItems: 'center', justifyContent: 'center' }}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                <MaterialCommunityIcons name="arrow-up" size={14} color="#2563EB" style={{ marginRight: -4 }} />
-                                <MaterialCommunityIcons name="arrow-down" size={14} color="#EA580C" style={{ marginLeft: -4 }} />
-                            </View>
-                        </Animated.View>
+                        {/* Lado Cliente */}
+                        <View style={{
+                            width: userMode === 'client' ? 45 : 32,
+                            height: 32,
+                            borderRadius: 16,
+                            backgroundColor: userMode === 'client' ? '#EA580C' : '#FFF7ED',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                        }}>
+                            <Feather name="user" size={16} color={userMode === 'client' ? 'white' : '#EA580C'} />
+                        </View>
 
-                        {hasOtherModeNotifications && (
-                            <View style={{
-                                position: 'absolute',
-                                top: -2,
-                                right: -2,
-                                width: 10,
-                                height: 10,
-                                borderRadius: 5,
-                                backgroundColor: '#EF4444',
-                                borderWidth: 1.5,
-                                borderColor: 'white'
-                            }} />
-                        )}
+                        {/* Flecha Central */}
+                        <View style={{ marginHorizontal: 4 }}>
+                            <Feather
+                                name={userMode === 'client' ? "arrow-right" : "arrow-left"}
+                                size={14}
+                                color={userMode === 'client' ? "#2563EB" : "#EA580C"}
+                            />
+                        </View>
+
+                        {/* Lado Profesional */}
+                        <View style={{
+                            width: userMode === 'pro' ? 45 : 32,
+                            height: 32,
+                            borderRadius: 16,
+                            backgroundColor: userMode === 'pro' ? '#2563EB' : '#EFF6FF',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                        }}>
+                            <MaterialCommunityIcons name="hammer" size={16} color={userMode === 'pro' ? 'white' : '#2563EB'} />
+                        </View>
                     </TouchableOpacity>
                 ) : (
                     <TouchableOpacity style={styles.loginButtonHeader} onPress={onLoginPress}>
@@ -575,7 +592,7 @@ const Header = ({ userMode, toggleMode, isLoggedIn, onLoginPress, currentUser, o
                     </TouchableOpacity>
                 )}
             </View>
-        </View>
+        </View >
     );
 };
 
@@ -906,9 +923,9 @@ const HomeSections = ({ onSelectCategory, onSelectPost, categories, articles }) 
     const displayArticles = (articles && articles.length > 0) ? articles : BLOG_POSTS;
 
     return (
-        <View style={{ backgroundColor: '#A19C9B' }}>
+        <View style={{ backgroundColor: 'transparent' }}>
             {/* Categorías */}
-            <View style={{ backgroundColor: 'white', borderRadius: 32, paddingHorizontal: 24, paddingVertical: 24 }}>
+            <View style={{ backgroundColor: 'white', marginHorizontal: 4, borderRadius: 24, borderWidth: 1, borderColor: '#FFF7ED', shadowColor: '#EA580C', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 10, elevation: 5, paddingHorizontal: 20, paddingVertical: 24 }}>
                 <Text style={styles.sectionTitle}>Categorías Populares</Text>
                 <View style={styles.categoriesGrid}>
                     {displayCategories.slice(0, 9).map(cat => (
@@ -929,7 +946,7 @@ const HomeSections = ({ onSelectCategory, onSelectPost, categories, articles }) 
             <SectionDivider />
 
             {/* Cómo funciona */}
-            <View style={[styles.howToCard, { marginBottom: 0, borderBottomLeftRadius: 32, borderBottomRightRadius: 32, borderTopLeftRadius: 32, borderTopRightRadius: 32, borderRadius: 32, borderWidth: 0, marginHorizontal: 0 }]}>
+            <View style={[styles.howToCard, { marginBottom: 0, marginHorizontal: 4, borderRadius: 24, borderWidth: 1, borderColor: '#FFF7ED', elevation: 5, shadowColor: '#EA580C', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 10 }]}>
                 <View style={styles.howToHeader}>
                     <Text style={styles.howToTitle}>¿Cómo funciona?</Text>
                     <Text style={styles.howToSubtitle}>Resuelve tu problema en 3 pasos</Text>
@@ -988,22 +1005,19 @@ const UrgencyBanner = ({ onPress, onActionPress, categories }) => {
     const actions = urgentSubs.slice(0, 5); // Limit to 5 for better layout in banner
 
     return (
-        <View style={{ marginHorizontal: 0, marginTop: 0, marginBottom: 0 }}>
+        <View style={{ marginHorizontal: 4, marginTop: 0, marginBottom: 0 }}>
             <View
                 style={{
-                    backgroundColor: 'white', // Pure white background as requested
-                    borderRadius: 0, // Edge connection
-                    borderTopLeftRadius: 32,
-                    borderTopRightRadius: 32,
-                    borderBottomLeftRadius: 32,
-                    borderBottomRightRadius: 32,
-                    padding: 24,
-                    borderWidth: 0,
+                    backgroundColor: 'white',
+                    borderRadius: 24,
+                    padding: 20,
+                    borderWidth: 1,
+                    borderColor: '#FFF7ED',
                     shadowColor: '#EA580C',
                     shadowOffset: { width: 0, height: 4 },
                     shadowOpacity: 0.1,
-                    shadowRadius: 12,
-                    elevation: 4
+                    shadowRadius: 10,
+                    elevation: 5
                 }}
             >
                 {/* Icons inside the banner (moved to top) */}
@@ -1295,12 +1309,7 @@ const ServiceForm = ({ onSubmit, isLoggedIn, onTriggerLogin, initialCategory, in
                 <View style={{ flex: 1, paddingRight: 15 }}>
                     <Text style={styles.serviceFormTitle}>{personalizedGreeting}</Text>
                 </View>
-                <View style={{ width: 85, height: 85, backgroundColor: '#FFF5ED', borderRadius: 20, justifyContent: 'center', alignItems: 'center', overflow: 'hidden' }}>
-                    <MaterialCommunityIcons name="toolbox" size={50} color="#EA580C" style={{ opacity: 0.9 }} />
-                    <View style={{ position: 'absolute', right: 5, bottom: 5 }}>
-                        <MaterialCommunityIcons name="map-marker" size={30} color="#2563EB" />
-                    </View>
-                </View>
+
             </View>
             <View style={styles.serviceFormContent}>
                 {/* QuickActionsRow removed from here - moved below to UrgencyBanner */}
@@ -1391,11 +1400,11 @@ const ServiceForm = ({ onSubmit, isLoggedIn, onTriggerLogin, initialCategory, in
                     <Text style={styles.label}>¿Dónde necesitas el servicio?</Text>
 
                     <Text style={[styles.privacyNote, { textAlign: 'left', marginBottom: 8, marginTop: 4 }]}>
-                        Solo detectaremos tu municipio. Tu dirección exacta se mantiene privada.
+                        Solo detectaremos tu municipio.
                     </Text>
 
                     <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
-                        <View style={[styles.inputWrapper, { flex: 1, marginTop: 0 }]}>
+                        <View style={[styles.inputWrapper, { flex: 1, marginTop: 0, zIndex: 100, position: 'relative' }]}>
                             <TextInput
                                 ref={locationInputRef}
                                 style={{ flex: 1, paddingVertical: 12, fontSize: 17, color: '#111827', fontWeight: 'bold' }}
@@ -1406,6 +1415,24 @@ const ServiceForm = ({ onSubmit, isLoggedIn, onTriggerLogin, initialCategory, in
                             />
                             {locationDetected && (
                                 <Feather name="check-circle" size={20} color="#10B981" style={{ marginLeft: 5 }} />
+                            )}
+
+                            {/* Autocomplete Suggestions placed INSIDE the wrapper */}
+                            {showSuggestions && suggestions.length > 0 && (
+                                <View style={styles.suggestionsContainer}>
+                                    {suggestions.map((s, i) => (
+                                        <TouchableOpacity
+                                            key={i}
+                                            style={styles.suggestionItem}
+                                            onPress={() => handleSelectSuggestion(s)}
+                                        >
+                                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                                <MapPin name="map-pin" size={14} color="#6B7280" style={{ marginRight: 8 }} />
+                                                <Text style={styles.suggestionText}>{s}</Text>
+                                            </View>
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
                             )}
                         </View>
 
@@ -1421,22 +1448,6 @@ const ServiceForm = ({ onSubmit, isLoggedIn, onTriggerLogin, initialCategory, in
                             )}
                         </TouchableOpacity>
                     </View>
-                    {showSuggestions && suggestions.length > 0 && (
-                        <View style={styles.suggestionsContainer}>
-                            {suggestions.map((s, i) => (
-                                <TouchableOpacity
-                                    key={i}
-                                    style={styles.suggestionItem}
-                                    onPress={() => handleSelectSuggestion(s)}
-                                >
-                                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                        <MapPin name="map-pin" size={14} color="#6B7280" style={{ marginRight: 8 }} />
-                                        <Text style={styles.suggestionText}>{s}</Text>
-                                    </View>
-                                </TouchableOpacity>
-                            ))}
-                        </View>
-                    )}
                 </View>
                 <View style={[styles.inputGroup, { marginTop: 15 }]}>
                     <Text style={styles.label}>Complementa con una imagen o Vídeo</Text>
@@ -1704,177 +1715,166 @@ const RequestDetailClient = ({ request, onBack, onAcceptOffer, onOpenChat, onUpd
 
     return (
         <View style={{ flex: 1, backgroundColor: '#F8FAFC' }}>
-            {/* ORANGE HEADER TALL */}
-            <View style={{
-                backgroundColor: '#EA580C',
-                paddingHorizontal: 20,
-                paddingTop: 20,
-                paddingBottom: 30,
-                borderBottomLeftRadius: 30,
-                borderBottomRightRadius: 30,
-                elevation: 6,
-                ...Platform.select({
-                    web: { boxShadow: '0px 4px 8px rgba(234, 88, 12, 0.2)' },
-                    default: {
-                        shadowColor: '#EA580C',
-                        shadowOffset: { width: 0, height: 4 },
-                        shadowOpacity: 0.2,
-                        shadowRadius: 8
-                    }
-                })
-            }}>
-                {isEditing ? (
-                    <View>
-                        <TouchableOpacity onPress={onBack} style={{ marginBottom: 15 }}>
-                            <Feather name="arrow-left" size={24} color="white" />
-                        </TouchableOpacity>
-                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                            <Text style={{ fontSize: 10, color: 'rgba(255,255,255,0.8)', fontWeight: 'bold', letterSpacing: 1 }}>EDITANDO SOLICITUD</Text>
-                            <TouchableOpacity
-                                onPress={handleSave}
-                                style={{ backgroundColor: 'white', paddingHorizontal: 15, paddingVertical: 8, borderRadius: 12 }}
-                            >
-                                <Text style={{ color: '#EA580C', fontWeight: 'bold', fontSize: 13 }}>Guardar</Text>
-                            </TouchableOpacity>
-                        </View>
-                        <TextInput
-                            value={data.title}
-                            onChangeText={t => setData({ ...data, title: t })}
-                            style={{ fontSize: 24, fontWeight: 'bold', color: 'white', borderBottomWidth: 1, borderColor: 'rgba(255,255,255,0.5)', paddingVertical: 6, marginBottom: 15 }}
-                        />
-                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                            <Feather name="map-pin" size={14} color="white" />
-                            <TextInput
-                                value={data.location}
-                                onChangeText={t => setData({ ...data, location: t })}
-                                style={{ flex: 1, marginLeft: 8, borderBottomWidth: 1, borderColor: 'rgba(255,255,255,0.5)', paddingVertical: 4, fontSize: 14, color: 'white' }}
-                                placeholder="Ciudad, Estado"
-                                placeholderTextColor="rgba(255,255,255,0.4)"
-                            />
-                        </View>
-                    </View>
-                ) : (
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                        <TouchableOpacity onPress={onBack} style={{ marginRight: 12, marginTop: 4 }}>
-                            <Feather name="arrow-left" size={24} color="white" />
-                        </TouchableOpacity>
-                        <View style={{ flex: 1, marginRight: 15 }}>
-                            <Text style={{ fontSize: 12, color: 'rgba(255,255,255,0.9)', fontWeight: 'bold', textTransform: 'uppercase', marginBottom: 4 }}>
-                                {(typeof data.category === 'object' ? data.category.name : data.category)} • {(typeof data.subcategory === 'object' ? data.subcategory.name : (data.subcategory || 'General'))}
-                            </Text>
-                            <Text style={{ fontSize: 24, fontWeight: 'bold', color: 'white', lineHeight: 28 }}>{data.title}</Text>
 
-                            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12 }}>
-                                <View style={{
-                                    backgroundColor: getClientStatusColor(getClientStatus(data)).bg,
-                                    paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, marginRight: 12
-                                }}>
-                                    <Text style={{ color: getClientStatusColor(getClientStatus(data)).text, fontSize: 10, fontWeight: 'bold' }}>
-                                        {getClientStatus(data).toUpperCase()}
-                                    </Text>
-                                </View>
-                                <View style={{ flexDirection: 'row', alignItems: 'center', marginRight: 12 }}>
-                                    <Feather name="map-pin" size={12} color="white" />
-                                    <Text style={{ color: 'white', fontSize: 11, marginLeft: 4 }}>{data.location || 'Sin ubicación'}</Text>
-                                </View>
-                                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                    <Feather name="calendar" size={12} color="white" />
-                                    <Text style={{ color: 'white', fontSize: 11, marginLeft: 4 }}>{(data.createdAt && !isNaN(new Date(data.createdAt))) ? new Date(data.createdAt).toLocaleDateString() : 'Reciente'}</Text>
-                                </View>
-                            </View>
-                        </View>
-                        <View style={{ flexDirection: 'row', gap: 10 }}>
-                            <TouchableOpacity
-                                onPress={() => setIsEditing(true)}
-                                style={{ backgroundColor: 'rgba(255,255,255,0.25)', width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)' }}
-                            >
-                                <Feather name="edit-2" size={18} color="white" />
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-                )}
-            </View>
 
             <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
-                {/* CONTENIDO BLANCO */}
-                <View style={{ backgroundColor: 'white', padding: 20, borderRadius: 16, marginBottom: 20, elevation: 2, marginHorizontal: 20 }}>
-                    {isEditing ? (
-                        <View>
-                            <CustomDropdown
-                                label="Categoría"
-                                value={typeof data.category === 'object' ? data.category.name : data.category}
-                                options={categories.map(c => c.name)}
-                                onSelect={(val) => setData({ ...data, category: val, subcategory: null })}
-                                placeholder="Selecciona categoría"
-                            />
-                            <CustomDropdown
-                                label="Subcategoría"
-                                value={data.subcategory}
-                                options={(() => {
-                                    const catName = typeof data.category === 'object' ? data.category.name : data.category;
-                                    const catObj = categories.find(c => c.name === catName);
-                                    return catObj ? (catObj.subcategories || []) : [];
-                                })()}
-                                onSelect={(val) => setData({ ...data, subcategory: val })}
-                                placeholder="Selecciona subcategoría"
-                            />
-                            <Text style={{ fontSize: 12, fontWeight: 'bold', color: '#6B7280', marginBottom: 4, marginTop: 10 }}>Descripción</Text>
-                        </View>
-                    ) : null}
+                {/* Caja Unificada (Header + Info) */}
+                <View style={{ backgroundColor: 'white', borderBottomLeftRadius: 36, borderBottomRightRadius: 36, elevation: 6, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 10, marginBottom: 30 }}>
+                    {/* PARTE NARANJA (HEADER) */}
+                    <View style={{
+                        backgroundColor: '#EA580C',
+                        paddingHorizontal: 20,
+                        paddingTop: 24,
+                        paddingBottom: 32,
+                        borderBottomLeftRadius: 36,
+                        borderBottomRightRadius: 36,
+                    }}>
+                        {isEditing ? (
+                            <View>
+                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 }}>
+                                    <Text style={{ fontSize: 10, color: 'rgba(255,255,255,0.8)', fontWeight: 'bold', letterSpacing: 1 }}>EDITANDO SOLICITUD</Text>
+                                    <TouchableOpacity
+                                        onPress={handleSave}
+                                        style={{ backgroundColor: 'white', paddingHorizontal: 15, paddingVertical: 8, borderRadius: 12 }}
+                                    >
+                                        <Text style={{ color: '#EA580C', fontWeight: 'bold', fontSize: 13 }}>Guardar</Text>
+                                    </TouchableOpacity>
+                                </View>
+                                <TextInput
+                                    value={data.title}
+                                    onChangeText={t => setData({ ...data, title: t })}
+                                    style={{ fontSize: 24, fontWeight: 'bold', color: 'white', borderBottomWidth: 1, borderColor: 'rgba(255,255,255,0.5)', paddingVertical: 6, marginBottom: 15 }}
+                                />
+                                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                    <Feather name="map-pin" size={14} color="white" />
+                                    <TextInput
+                                        value={data.location}
+                                        onChangeText={t => setData({ ...data, location: t })}
+                                        style={{ flex: 1, marginLeft: 8, borderBottomWidth: 1, borderColor: 'rgba(255,255,255,0.5)', paddingVertical: 4, fontSize: 14, color: 'white' }}
+                                        placeholder="Ciudad, Estado"
+                                        placeholderTextColor="rgba(255,255,255,0.4)"
+                                    />
+                                </View>
+                            </View>
+                        ) : (
+                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                <View style={{ flex: 1, marginRight: 15 }}>
+                                    <Text style={{ fontSize: 12, color: 'rgba(255,255,255,0.9)', fontWeight: 'bold', textTransform: 'uppercase', marginBottom: 4 }}>
+                                        {(typeof data.category === 'object' ? data.category.name : data.category)} • {(typeof data.subcategory === 'object' ? data.subcategory.name : (data.subcategory || 'General'))}
+                                    </Text>
+                                    <Text style={{ fontSize: 24, fontWeight: 'bold', color: 'white', lineHeight: 28 }}>{data.title}</Text>
 
-                    {isEditing ? (
-                        <TextInput
-                            value={data.description}
-                            onChangeText={t => setData({ ...data, description: t })}
-                            multiline
-                            style={{ color: '#374151', fontSize: 15, lineHeight: 24, minHeight: 80, textAlignVertical: 'top' }}
-                            placeholder="Descripción del problema..."
-                        />
-                    ) : (
-                        <Text style={{ color: '#374151', fontSize: 15, lineHeight: 24 }}>{data.description}</Text>
-                    )}
-
-                    {/* FOTOS */}
-                    <View style={{ marginTop: 20 }}>
-                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                            <Text style={{ fontSize: 12, fontWeight: 'bold', color: '#6B7280' }}>FOTOS ADJUNTAS</Text>
-                            {isEditing && (
-                                <TouchableOpacity onPress={handleAddImage} style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                    <Feather name="plus-circle" size={16} color="#EA580C" />
-                                    <Text style={{ fontSize: 12, color: '#EA580C', marginLeft: 4, fontWeight: 'bold' }}>Agregar</Text>
-                                </TouchableOpacity>
-                            )}
-                        </View>
-
-                        {(data.images && data.images.length > 0) || isEditing ? (
-                            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                                {data.images && data.images.map((img, i) => (
-                                    <View key={i} style={{ position: 'relative', marginRight: 10 }}>
-                                        <TouchableOpacity onPress={() => onViewImage(img)}>
-                                            <Image source={{ uri: img }} style={{ width: 100, height: 100, borderRadius: 12, borderWidth: 1, borderColor: '#E5E7EB' }} />
-                                        </TouchableOpacity>
-                                        {isEditing && (
-                                            <TouchableOpacity
-                                                style={{ position: 'absolute', top: -8, right: -8, backgroundColor: 'white', borderRadius: 12, width: 24, height: 24, alignItems: 'center', justifyContent: 'center', elevation: 2 }}
-                                                onPress={() => {
-                                                    const newImages = [...data.images];
-                                                    newImages.splice(i, 1);
-                                                    setData({ ...data, images: newImages });
-                                                }}
-                                            >
-                                                <Feather name="x" size={14} color="#EF4444" />
-                                            </TouchableOpacity>
-                                        )}
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12 }}>
+                                        <View style={{
+                                            backgroundColor: '#FFFFFF',
+                                            paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, marginRight: 12
+                                        }}>
+                                            <Text style={{ color: getClientStatusColor(getClientStatus(data)).text, fontSize: 10, fontWeight: 'bold' }}>
+                                                {getClientStatus(data).toUpperCase()}
+                                            </Text>
+                                        </View>
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', marginRight: 12 }}>
+                                            <Feather name="map-pin" size={12} color="rgba(255,255,255,0.8)" />
+                                            <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 11, marginLeft: 4 }}>{data.location || 'Sin ubicación'}</Text>
+                                        </View>
+                                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                            <Feather name="calendar" size={12} color="rgba(255,255,255,0.8)" />
+                                            <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 11, marginLeft: 4 }}>{(data.createdAt && !isNaN(new Date(data.createdAt))) ? new Date(data.createdAt).toLocaleDateString() : 'Reciente'}</Text>
+                                        </View>
                                     </View>
-                                ))}
-                            </ScrollView>
+                                </View>
+                                <View style={{ flexDirection: 'row', gap: 10 }}>
+                                    <TouchableOpacity
+                                        onPress={() => setIsEditing(true)}
+                                        style={{ backgroundColor: 'rgba(255,255,255,0.25)', width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)' }}
+                                    >
+                                        <Feather name="edit-2" size={18} color="white" />
+                                    </TouchableOpacity>
+                                </View>
+                            </View>
+                        )}
+                    </View>
+
+                    {/* CONTENIDO BLANCO */}
+                    <View style={{ backgroundColor: 'white', padding: 24 }}>
+                        {isEditing ? (
+                            <View>
+                                <CustomDropdown
+                                    label="Categoría"
+                                    value={typeof data.category === 'object' ? data.category.name : data.category}
+                                    options={categories.map(c => c.name)}
+                                    onSelect={(val) => setData({ ...data, category: val, subcategory: null })}
+                                    placeholder="Selecciona categoría"
+                                />
+                                <CustomDropdown
+                                    label="Subcategoría"
+                                    value={data.subcategory}
+                                    options={(() => {
+                                        const catName = typeof data.category === 'object' ? data.category.name : data.category;
+                                        const catObj = categories.find(c => c.name === catName);
+                                        return catObj ? (catObj.subcategories || []) : [];
+                                    })()}
+                                    onSelect={(val) => setData({ ...data, subcategory: val })}
+                                    placeholder="Selecciona subcategoría"
+                                />
+                                <Text style={{ fontSize: 12, fontWeight: 'bold', color: '#6B7280', marginBottom: 4, marginTop: 10 }}>Descripción</Text>
+                            </View>
                         ) : null}
+
+                        {isEditing ? (
+                            <TextInput
+                                value={data.description}
+                                onChangeText={t => setData({ ...data, description: t })}
+                                multiline
+                                style={{ color: '#374151', fontSize: 15, lineHeight: 24, minHeight: 80, textAlignVertical: 'top' }}
+                                placeholder="Descripción del problema..."
+                            />
+                        ) : (
+                            <Text style={{ color: '#374151', fontSize: 15, lineHeight: 24 }}>{data.description}</Text>
+                        )}
+
+                        {/* FOTOS */}
+                        <View style={{ marginTop: 20 }}>
+                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                                <Text style={{ fontSize: 12, fontWeight: 'bold', color: '#6B7280' }}>FOTOS ADJUNTAS</Text>
+                                {isEditing && (
+                                    <TouchableOpacity onPress={handleAddImage} style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                        <Feather name="plus-circle" size={16} color="#EA580C" />
+                                        <Text style={{ fontSize: 12, color: '#EA580C', marginLeft: 4, fontWeight: 'bold' }}>Agregar</Text>
+                                    </TouchableOpacity>
+                                )}
+                            </View>
+
+                            {(data.images && data.images.length > 0) || isEditing ? (
+                                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                                    {data.images && data.images.map((img, i) => (
+                                        <View key={i} style={{ position: 'relative', marginRight: 10 }}>
+                                            <TouchableOpacity onPress={() => onViewImage(img)}>
+                                                <Image source={{ uri: img }} style={{ width: 100, height: 100, borderRadius: 12, borderWidth: 1, borderColor: '#E5E7EB' }} />
+                                            </TouchableOpacity>
+                                            {isEditing && (
+                                                <TouchableOpacity
+                                                    style={{ position: 'absolute', top: -8, right: -8, backgroundColor: 'white', borderRadius: 12, width: 24, height: 24, alignItems: 'center', justifyContent: 'center', elevation: 2 }}
+                                                    onPress={() => {
+                                                        const newImages = [...data.images];
+                                                        newImages.splice(i, 1);
+                                                        setData({ ...data, images: newImages });
+                                                    }}
+                                                >
+                                                    <Feather name="x" size={14} color="#EF4444" />
+                                                </TouchableOpacity>
+                                            )}
+                                        </View>
+                                    ))}
+                                </ScrollView>
+                            ) : null}
+                        </View>
                     </View>
                 </View>
 
                 {/* SECCIÓN UNIFICADA DE INTERACCIONES (CHATS + OFERTAS) */}
-                <View style={{ paddingHorizontal: 20, marginBottom: 20 }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                <View style={{ paddingHorizontal: 0, marginBottom: 20 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, paddingHorizontal: 20 }}>
                         <Text style={styles.sectionTitle}>Interacciones y Ofertas</Text>
                         <View style={{ backgroundColor: '#EFF6FF', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 }}>
                             <Text style={{ color: '#2563EB', fontWeight: 'bold', fontSize: 12 }}>
@@ -1887,7 +1887,7 @@ const RequestDetailClient = ({ request, onBack, onAcceptOffer, onOpenChat, onUpd
                     </View>
 
                     {(!request.conversations || request.conversations.length === 0) && (!request.offers || request.offers.length === 0) && (
-                        <View style={{ alignItems: 'center', padding: 30, backgroundColor: 'white', borderRadius: 16, borderStyle: 'dashed', borderWidth: 1, borderColor: '#E5E7EB' }}>
+                        <View style={{ alignItems: 'center', padding: 30, backgroundColor: 'white', borderRadius: 24, marginHorizontal: 4, elevation: 5, shadowColor: '#EA580C', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 10, borderWidth: 1, borderColor: '#FFF7ED' }}>
                             <Feather name="message-square" size={32} color="#D1D5DB" />
                             <Text style={{ color: '#999', marginTop: 10 }}>Aún no hay mensajes ni ofertas.</Text>
                         </View>
@@ -1949,7 +1949,7 @@ const RequestDetailClient = ({ request, onBack, onAcceptOffer, onOpenChat, onUpd
                                     const isWinner = pro.offer?.status === 'accepted';
 
                                     return (
-                                        <View key={index} style={{ backgroundColor: 'white', borderRadius: 20, padding: 16, marginBottom: 16, elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 10, borderWidth: 1, borderColor: '#F1F5F9' }}>
+                                        <View key={index} style={{ backgroundColor: 'white', borderRadius: 24, padding: 16, marginHorizontal: 4, marginBottom: 16, elevation: 5, shadowColor: '#EA580C', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 10, borderWidth: 1, borderColor: '#FFF7ED' }}>
                                             {/* Cabecera Pro */}
                                             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 15 }}>
                                                 <TouchableOpacity
@@ -1996,18 +1996,19 @@ const RequestDetailClient = ({ request, onBack, onAcceptOffer, onOpenChat, onUpd
                                                     {lastThree.map((msg, mIdx) => (
                                                         <View key={mIdx} style={{
                                                             backgroundColor: msg.sender === 'pro' ? '#F1F5F9' : '#FFF7ED',
-                                                            padding: 10,
-                                                            borderRadius: 12,
-                                                            borderBottomLeftRadius: msg.sender === 'pro' ? 2 : 12,
-                                                            borderBottomRightRadius: msg.sender === 'pro' ? 12 : 2,
-                                                            marginBottom: 6,
+                                                            paddingVertical: 4,
+                                                            paddingHorizontal: 10,
+                                                            borderRadius: 14,
+                                                            borderBottomLeftRadius: msg.sender === 'pro' ? 2 : 14,
+                                                            borderBottomRightRadius: msg.sender === 'pro' ? 14 : 2,
+                                                            marginBottom: 2,
                                                             alignSelf: msg.sender === 'pro' ? 'flex-start' : 'flex-end',
                                                             maxWidth: '85%'
                                                         }}>
-                                                            <Text style={{ fontSize: 13, color: '#334155' }}>
+                                                            <Text style={{ fontSize: 12, color: '#334155', lineHeight: 16 }}>
                                                                 {msg.text || (msg.media ? '📷 Foto/Video' : '...')}
                                                             </Text>
-                                                            <Text style={{ fontSize: 8, color: '#94A3B8', marginTop: 2, textAlign: 'right' }}>
+                                                            <Text style={{ fontSize: 8, color: '#94A3B8', marginTop: 1, textAlign: 'right' }}>
                                                                 {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                                             </Text>
                                                         </View>
@@ -2016,13 +2017,17 @@ const RequestDetailClient = ({ request, onBack, onAcceptOffer, onOpenChat, onUpd
                                                     <TouchableOpacity
                                                         style={{
                                                             backgroundColor: isLastFromPro ? '#EA580C' : 'white',
-                                                            paddingVertical: 12,
-                                                            borderRadius: 12,
+                                                            paddingVertical: 14,
+                                                            borderRadius: 16,
                                                             alignItems: 'center',
-                                                            borderWidth: 1,
+                                                            borderWidth: 1.5,
                                                             borderColor: '#EA580C',
                                                             elevation: isLastFromPro ? 2 : 0,
-                                                            marginTop: 5
+                                                            marginTop: 8,
+                                                            shadowColor: '#EA580C',
+                                                            shadowOffset: { width: 0, height: 2 },
+                                                            shadowOpacity: 0.1,
+                                                            shadowRadius: 4
                                                         }}
                                                         onPress={() => onOpenChat && onOpenChat(request, {
                                                             name: pro.name,
@@ -2032,7 +2037,7 @@ const RequestDetailClient = ({ request, onBack, onAcceptOffer, onOpenChat, onUpd
                                                             avatar: pro.avatar
                                                         })}
                                                     >
-                                                        <Text style={{ color: isLastFromPro ? 'white' : '#EA580C', fontWeight: 'bold', fontSize: 14 }}>
+                                                        <Text style={{ color: isLastFromPro ? 'white' : '#EA580C', fontWeight: 'bold', fontSize: 16 }}>
                                                             {isLastFromPro ? 'Responder' : 'Preguntar'}
                                                         </Text>
                                                     </TouchableOpacity>
@@ -2263,8 +2268,7 @@ const RequestDetailClient = ({ request, onBack, onAcceptOffer, onOpenChat, onUpd
                         </TouchableOpacity>
                     </View>
                 )}
-
-            </ScrollView >
+            </ScrollView>
 
             {/* Modal de Detalle de Presupuesto */}
             <Modal
@@ -2470,9 +2474,7 @@ const RequestDetailClient = ({ request, onBack, onAcceptOffer, onOpenChat, onUpd
                         )}
                     </View>
                 </View>
-            </Modal>
-
-
+            </Modal >
         </View >
     );
 };
@@ -2700,14 +2702,22 @@ const JobDetailPro = ({ job: initialJob, onBack, onSendQuote, onOpenChat, proSta
                 </View>
             </Modal>
 
-            <View style={{ backgroundColor: '#2563EB', paddingTop: 20, paddingBottom: 25, paddingHorizontal: 20, borderBottomLeftRadius: 30, borderBottomRightRadius: 30, elevation: 5 }}>
-                <TouchableOpacity onPress={onBack} style={{ marginBottom: 15 }}>
-                    <Feather name="arrow-left" size={24} color="white" />
-                </TouchableOpacity>
 
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <View style={{ flex: 1 }}>
-                        <Text style={{ fontSize: 12, color: 'rgba(255,255,255,0.8)', fontWeight: 'bold', textTransform: 'uppercase' }}>
+
+
+            <ScrollView contentContainerStyle={{ paddingBottom: 120 }}>
+                {/* CABECERA AZUL (SCROLLABLE) */}
+                <View style={{
+                    backgroundColor: '#2563EB', paddingTop: Platform.OS === 'android' ? (RNStatusBar.currentHeight || 0) + 5 : 20,
+                    paddingBottom: 18, paddingHorizontal: 24, borderBottomLeftRadius: 40, borderBottomRightRadius: 40,
+                    elevation: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 10,
+                    marginBottom: -20, zIndex: 1
+                }}>
+                    <View>
+                        {/* Título Principal - Ancho Completo */}
+                        <Text style={{ fontSize: 28, fontWeight: 'bold', color: 'white', lineHeight: 32, letterSpacing: -0.5 }}>{job.title}</Text>
+
+                        <Text style={{ fontSize: 12, color: 'rgba(255,255,255,0.9)', fontWeight: 'bold', textTransform: 'uppercase', marginTop: 8, letterSpacing: 0.5 }}>
                             {(() => {
                                 const c = job.category;
                                 if (typeof c === 'object' && c.name) return c.name;
@@ -2715,327 +2725,344 @@ const JobDetailPro = ({ job: initialJob, onBack, onSendQuote, onOpenChat, proSta
                                 return found ? found.name : c;
                             })()} • {(typeof job.subcategory === 'object' ? job.subcategory.name : (job.subcategory || 'General'))}
                         </Text>
-                        <Text style={{ fontSize: 24, fontWeight: 'bold', color: 'white', marginTop: 4 }}>{job.title}</Text>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
-                            <View style={{
-                                backgroundColor: getProStatusColor(getProStatus(job, currentUser?._id)).bg,
-                                paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, marginRight: 10
-                            }}>
-                                <Text style={{ color: getProStatusColor(getProStatus(job, currentUser?._id)).text, fontSize: 10, fontWeight: 'bold' }}>
+
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10 }}>
+                            <Feather name="map-pin" size={12} color="rgba(255,255,255,0.8)" />
+                            <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 12, marginLeft: 6 }}>{job.location || 'Sin ubicación'}</Text>
+                        </View>
+
+                        <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12, marginTop: 4 }}>
+                            Creado el {job.createdAt ? new Date(job.createdAt).toLocaleDateString() : '22/2/2026'}
+                        </Text>
+
+                        {/* Sección de Cliente y Estado - Alineados en Fila */}
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 15 }}>
+                            <View style={{ backgroundColor: '#FFFFFF', paddingHorizontal: 15, paddingVertical: 5, borderRadius: 20 }}>
+                                <Text style={{ color: '#059669', fontSize: 11, fontWeight: 'bold' }}>
                                     {getProStatus(job, currentUser?._id).toUpperCase()}
                                 </Text>
                             </View>
-                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                <Feather name="map-pin" size={12} color="white" />
-                                <Text style={{ color: 'white', fontSize: 11, marginLeft: 4 }}>{job.location}</Text>
-                            </View>
+
+                            <TouchableOpacity onPress={onViewProfile} style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.2)', borderWidth: 1.5, borderColor: 'white', overflow: 'hidden', justifyContent: 'center', alignItems: 'center' }}>
+                                    {(job.clientAvatar || job.client?.avatar) ? (
+                                        <Image source={{ uri: job.clientAvatar || job.client?.avatar }} style={{ width: '100%', height: '100%' }} />
+                                    ) : (
+                                        <Feather name="user" size={20} color="white" />
+                                    )}
+                                </View>
+                                <View style={{ marginLeft: 10 }}>
+                                    <Text style={{ color: 'white', fontSize: 13, fontWeight: 'bold' }}>{job.clientName || job.client?.name || 'Cliente'}</Text>
+                                    <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 10 }}>Ver perfil</Text>
+                                </View>
+                            </TouchableOpacity>
                         </View>
                     </View>
-                    <TouchableOpacity onPress={onViewProfile} style={{ alignItems: 'center' }}>
-                        <View style={{ width: 50, height: 50, borderRadius: 25, backgroundColor: 'rgba(255,255,255,0.3)', borderWidth: 2, borderColor: 'white', overflow: 'hidden', justifyContent: 'center', alignItems: 'center' }}>
-                            {(job.clientAvatar || job.client?.avatar) ? (
-                                <Image source={{ uri: job.clientAvatar || job.client?.avatar }} style={{ width: '100%', height: '100%' }} />
-                            ) : (
-                                <Feather name="user" size={24} color="white" />
-                            )}
-                        </View>
-                        <Text style={{ color: 'white', fontSize: 10, fontWeight: 'bold', marginTop: 4 }}>{job.clientName || job.client?.name || 'Cliente'}</Text>
-                    </TouchableOpacity>
                 </View>
-            </View>
-
-            <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 120 }}>
-                {/* Descripción y Fotos */}
-                <View style={{ backgroundColor: 'white', borderRadius: 20, padding: 20, marginBottom: 20, elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 10 }}>
-                    {myOffer && (myOffer.status === 'rejected' || proStatus === 'PERDIDA') && (
-                        <View style={{ backgroundColor: '#FEE2E2', padding: 16, borderRadius: 16, marginBottom: 20, borderWidth: 1, borderColor: '#FCA5A5' }}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-                                <Feather name={proStatus === 'PERDIDA' ? "slash" : "alert-triangle"} size={24} color="#EF4444" />
-                                <Text style={{ color: '#EF4444', fontWeight: 'bold', fontSize: 16, marginLeft: 10 }}>
-                                    {proStatus === 'PERDIDA' ? 'TRABAJO PERDIDO' : 'PRESUPUESTO RECHAZADO'}
-                                </Text>
-                            </View>
-                            <Text style={{ color: '#7F1D1D', fontSize: 14, marginBottom: 12 }}>
-                                {proStatus === 'PERDIDA'
-                                    ? 'Esta solicitud ha sido asignada a otro profesional o ya no está disponible.'
-                                    : 'El cliente ha rechazado tu presupuesto.'}
-                                {myOffer.rejectionReason && (
-                                    <Text style={{ fontWeight: 'bold' }}>{"\n"}Motivo: "{myOffer.rejectionReason}"</Text>
-                                )}
-                            </Text>
-                            <View style={{ flexDirection: 'row', gap: 10 }}>
-                                <TouchableOpacity
-                                    style={{ flex: 1, backgroundColor: 'white', padding: 10, borderRadius: 8, alignItems: 'center', borderWidth: 1, borderColor: '#EF4444' }}
-                                    onPress={() => {
-                                        showConfirmation(
-                                            "Confirmar Archivo",
-                                            "¿Estás seguro de archivar esta oferta? No podrás verla nuevamente en la lista principal.",
-                                            () => {
-                                                onArchive();
-                                                showAlert("Archivado", "La solicitud ha sido archivada.");
-                                                onBack();
-                                            },
-                                            null,
-                                            "Archivar",
-                                            "Cancelar"
-                                        );
-                                    }}
-                                >
-                                    <Text style={{ color: '#EF4444', fontWeight: 'bold' }}>Archivar</Text>
-                                </TouchableOpacity>
-
-                                {proStatus !== 'PERDIDA' && (
-                                    <TouchableOpacity
-                                        style={{ flex: 1, backgroundColor: '#EF4444', padding: 10, borderRadius: 8, alignItems: 'center' }}
-                                        onPress={onGoToQuote}
-                                    >
-                                        <Text style={{ color: 'white', fontWeight: 'bold' }}>Modificar y Reenviar</Text>
-                                    </TouchableOpacity>
-                                )}
-                            </View>
-                        </View>
-                    )}
-
-                    <Text style={{ fontSize: 16, color: '#374151', lineHeight: 24, marginBottom: 20 }}>{job.description}</Text>
-
-                    {job.images && job.images.length > 0 && (
-                        <View>
-                            <Text style={{ fontSize: 12, fontWeight: 'bold', color: '#9CA3AF', marginBottom: 12 }}>FOTOS ADJUNTAS</Text>
-                            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                                {job.images.map((img, i) => (
-                                    <TouchableOpacity
-                                        key={i}
-                                        onPress={() => onViewImage(img)}
-                                    >
-                                        <Image source={{ uri: img }} style={{ width: 120, height: 120, borderRadius: 12, marginRight: 12, borderWidth: 1, borderColor: '#F1F5F9' }} />
-                                    </TouchableOpacity>
-                                ))}
-                            </ScrollView>
-                        </View>
-                    )}
-                </View>
-
-                {/* HEADER: Conversaciones con el Cliente */}
-                <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#1F2937', marginBottom: 15, marginTop: 10 }}>
-                    Conversaciones con el Cliente
-                </Text>
-
-                {/* Chat Styled Like Reference Image */}
-                <View style={{
-                    backgroundColor: 'white',
-                    borderRadius: 20,
-                    padding: 20,
-                    marginBottom: 35,
-                    elevation: 4,
-                    shadowColor: '#000',
-                    shadowOffset: { width: 0, height: 2 },
-                    shadowOpacity: 0.1,
-                    shadowRadius: 8
-                }}>
-                    {/* Header: Avatar + Name + Rating */}
-                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 20 }}>
-                        <Image
-                            source={
-                                (job.client && job.client.profileImage) ? { uri: job.client.profileImage } :
-                                    (job.client && job.client.avatar) ? { uri: job.client.avatar } :
-                                        (job.clientAvatar) ? { uri: job.clientAvatar } :
-                                            (job.clientProfileImage) ? { uri: job.clientProfileImage } :
-                                                { uri: 'https://cdn-icons-png.flaticon.com/512/149/149071.png' }
-                            }
-                            style={{ width: 50, height: 50, borderRadius: 25, marginRight: 15, backgroundColor: '#E2E8F0' }}
-                            resizeMode="cover"
-                        />
-                        <View>
-                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#1F2937', marginRight: 8 }}>
-                                    {job.clientName || (job.client && job.client.name) || 'Cliente'}
-                                </Text>
-                            </View>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
-                                <Feather name="star" size={14} color="#F59E0B" style={{ marginRight: 4 }} />
-                                <Text style={{ color: '#64748B', fontSize: 13, fontWeight: 'bold' }}>{job.clientRating || '5.0'}</Text>
-                            </View>
-                        </View>
-                    </View>
-
-                    {/* Messages Area */}
-                    <View style={{ marginBottom: 20 }}>
-                        {messages.length === 0 ? (
-                            <View style={{ padding: 15, backgroundColor: '#F3F4F6', borderRadius: 12 }}>
-                                <Text style={{ color: '#64748B', fontStyle: 'italic', textAlign: 'center' }}>
-                                    Inicia la conversación con {job.clientName}...
-                                </Text>
-                            </View>
-                        ) : (
-                            messages.slice(-3).map((msg, i) => (
-                                <View key={i} style={{
-                                    maxWidth: '85%',
-                                    padding: 15,
-                                    borderRadius: 16,
-                                    marginBottom: 10,
-                                    alignSelf: msg.sender === 'pro' ? 'flex-end' : 'flex-start',
-                                    backgroundColor: msg.sender === 'pro' ? '#FFF7ED' : '#F3F4F6', // Orange tint for Pro, Gray for Client
-                                    borderBottomRightRadius: msg.sender === 'pro' ? 4 : 16,
-                                    borderBottomLeftRadius: msg.sender === 'pro' ? 16 : 4,
-                                }}>
-                                    <Text style={{ color: '#374151', fontSize: 14, lineHeight: 20 }}>{msg.text}</Text>
-                                    <Text style={{ color: '#9CA3AF', fontSize: 10, marginTop: 5, textAlign: 'right' }}>
-                                        {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }).toLowerCase()}
+                {/* PARTE BLANCA (INFO) como tarjeta */}
+                <View style={{ backgroundColor: 'white', borderRadius: 36, elevation: 6, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 12, marginBottom: 30 }}>
+                    <View style={{ padding: 24 }}>
+                        {myOffer && (myOffer.status === 'rejected' || proStatus === 'PERDIDA') && (
+                            <View style={{ backgroundColor: '#FEE2E2', padding: 18, borderRadius: 20, marginBottom: 24, borderWidth: 1, borderColor: '#FCA5A5' }}>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
+                                    <Feather name={proStatus === 'PERDIDA' ? "slash" : "alert-triangle"} size={22} color="#EF4444" />
+                                    <Text style={{ color: '#EF4444', fontWeight: 'bold', fontSize: 16, marginLeft: 10 }}>
+                                        {proStatus === 'PERDIDA' ? 'TRABAJO PERDIDO' : 'PRESUPUESTO RECHAZADO'}
                                     </Text>
                                 </View>
-                            ))
+                                <Text style={{ color: '#7F1D1D', fontSize: 14, lineHeight: 20, marginBottom: 15 }}>
+                                    {proStatus === 'PERDIDA'
+                                        ? 'Esta solicitud ha sido asignada a otro profesional o ya no está disponible.'
+                                        : 'El cliente ha rechazado tu presupuesto.'}
+                                    {myOffer.rejectionReason && (
+                                        <Text style={{ fontWeight: 'bold' }}>{"\n"}Motivo: "{myOffer.rejectionReason}"</Text>
+                                    )}
+                                </Text>
+                                <View style={{ flexDirection: 'row', gap: 10 }}>
+                                    <TouchableOpacity
+                                        style={{ flex: 1, backgroundColor: 'white', padding: 12, borderRadius: 10, alignItems: 'center', borderWidth: 1, borderColor: '#EF4444' }}
+                                        onPress={() => {
+                                            showConfirmation(
+                                                "Confirmar Archivo",
+                                                "¿Estás seguro de archivar esta oferta? No podrás verla nuevamente en la lista principal.",
+                                                () => {
+                                                    onArchive();
+                                                    showAlert("Archivado", "La solicitud ha sido archivada.");
+                                                    onBack();
+                                                },
+                                                null,
+                                                "Archivar",
+                                                "Cancelar"
+                                            );
+                                        }}
+                                    >
+                                        <Text style={{ color: '#EF4444', fontWeight: 'bold' }}>Archivar</Text>
+                                    </TouchableOpacity>
+
+                                    {proStatus !== 'PERDIDA' && (
+                                        <TouchableOpacity
+                                            style={{ flex: 1, backgroundColor: '#EF4444', padding: 12, borderRadius: 10, alignItems: 'center' }}
+                                            onPress={onGoToQuote}
+                                        >
+                                            <Text style={{ color: 'white', fontWeight: 'bold' }}>Modificar y Reenviar</Text>
+                                        </TouchableOpacity>
+                                    )}
+                                </View>
+                            </View>
+                        )}
+
+                        <Text style={{ fontSize: 17, color: '#1F2937', lineHeight: 26, marginBottom: 24 }}>{job.description}</Text>
+
+                        {job.images && job.images.length > 0 && (
+                            <View>
+                                <Text style={{ fontSize: 11, fontWeight: '800', color: '#94A3B8', marginBottom: 15, letterSpacing: 1 }}>FOTOS ADJUNTAS</Text>
+                                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                                    {job.images.map((img, i) => (
+                                        <TouchableOpacity
+                                            key={i}
+                                            onPress={() => onViewImage(img)}
+                                            activeOpacity={0.9}
+                                        >
+                                            <Image source={{ uri: img }} style={{ width: 140, height: 140, borderRadius: 20, marginRight: 15, borderWidth: 1, borderColor: '#F1F5F9' }} />
+                                        </TouchableOpacity>
+                                    ))}
+                                </ScrollView>
+                            </View>
+                        )}
+                    </View>
+                </View>
+
+                {/* Resto del contenido con padding */}
+                <View style={{ paddingHorizontal: 0 }}>
+
+                    {/* HEADER: Conversaciones con el Cliente */}
+                    <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#1F2937', marginBottom: 15, marginTop: 10, paddingHorizontal: 20 }}>
+                        Conversaciones con el Cliente
+                    </Text>
+
+                    {/* Chat Styled Like Reference Image */}
+                    <View style={{
+                        backgroundColor: 'white',
+                        borderRadius: 20,
+                        padding: 16,
+                        marginHorizontal: 4,
+                        marginBottom: 35,
+                        elevation: 4,
+                        shadowColor: '#000',
+                        shadowOffset: { width: 0, height: 2 },
+                        shadowOpacity: 0.1,
+                        shadowRadius: 8
+                    }}>
+                        {/* Header: Avatar + Name + Rating */}
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 20 }}>
+                            <Image
+                                source={
+                                    (job.client && job.client.profileImage) ? { uri: job.client.profileImage } :
+                                        (job.client && job.client.avatar) ? { uri: job.client.avatar } :
+                                            (job.clientAvatar) ? { uri: job.clientAvatar } :
+                                                (job.clientProfileImage) ? { uri: job.clientProfileImage } :
+                                                    { uri: 'https://cdn-icons-png.flaticon.com/512/149/149071.png' }
+                                }
+                                style={{ width: 50, height: 50, borderRadius: 25, marginRight: 15, backgroundColor: '#E2E8F0' }}
+                                resizeMode="cover"
+                            />
+                            <View>
+                                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                    <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#1F2937', marginRight: 8 }}>
+                                        {job.clientName || (job.client && job.client.name) || 'Cliente'}
+                                    </Text>
+                                </View>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
+                                    <Feather name="star" size={14} color="#F59E0B" style={{ marginRight: 4 }} />
+                                    <Text style={{ color: '#64748B', fontSize: 13, fontWeight: 'bold' }}>{job.clientRating || '5.0'}</Text>
+                                </View>
+                            </View>
+                        </View>
+
+                        {/* Messages Area */}
+                        <View style={{ marginBottom: 20 }}>
+                            {messages.length === 0 ? (
+                                <View style={{ padding: 15, backgroundColor: '#F3F4F6', borderRadius: 12 }}>
+                                    <Text style={{ color: '#64748B', fontStyle: 'italic', textAlign: 'center' }}>
+                                        Inicia la conversación con {job.clientName}...
+                                    </Text>
+                                </View>
+                            ) : (
+                                messages.slice(-3).map((msg, i) => (
+                                    <View key={i} style={{
+                                        maxWidth: '85%',
+                                        paddingVertical: 4,
+                                        paddingHorizontal: 10,
+                                        borderRadius: 14,
+                                        marginBottom: 2,
+                                        alignSelf: msg.sender === 'pro' ? 'flex-end' : 'flex-start',
+                                        backgroundColor: msg.sender === 'pro' ? '#FFF7ED' : '#F3F4F6', // Orange tint for Pro, Gray for Client
+                                        borderBottomRightRadius: msg.sender === 'pro' ? 4 : 14,
+                                        borderBottomLeftRadius: msg.sender === 'pro' ? 14 : 4,
+                                    }}>
+                                        <Text style={{ color: '#374151', fontSize: 12, lineHeight: 16 }}>{msg.text}</Text>
+                                        <Text style={{ color: '#9CA3AF', fontSize: 8, marginTop: 1, textAlign: 'right' }}>
+                                            {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }).toLowerCase()}
+                                        </Text>
+                                    </View>
+                                ))
+                            )}
+                        </View>
+
+                        {/* Button "Preguntar" / "Responder" Style */}
+                        <TouchableOpacity
+                            onPress={() => {
+                                onUpdateStatus('CONTACTADO');
+                                const cName = job.clientName || job.client?.name || 'Cliente';
+                                const pName = currentUser?.name || 'Profesional';
+                                const defaultMsg = `Hola ${cName}, mi nombre es ${pName}. Me interesa tu solicitud de ${job.title}.`;
+                                onOpenChat && onOpenChat(job, null, messages.length > 0 ? null : defaultMsg);
+                            }}
+                            style={{
+                                backgroundColor: (messages.length > 0 && isClientLast) ? '#EA580C' : 'white',
+                                borderWidth: 1.5,
+                                borderColor: '#EA580C',
+                                paddingVertical: 14,
+                                borderRadius: 16,
+                                alignItems: 'center',
+                                elevation: (messages.length > 0 && isClientLast) ? 2 : 0,
+                                shadowColor: '#EA580C',
+                                shadowOffset: { width: 0, height: 2 },
+                                shadowOpacity: 0.1,
+                                shadowRadius: 4
+                            }}
+                        >
+                            <Text style={{ color: (messages.length > 0 && isClientLast) ? 'white' : '#EA580C', fontWeight: 'bold', fontSize: 16 }}>
+                                {messages.length === 0 ? 'Saludar' : (isClientLast ? 'Responder' : 'Preguntar')}
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
+
+                    {/* SECCIÓN PRECIOS Y PRESUPUESTOS (NUEVA LÓGICA) */}
+                    <View style={{ marginBottom: 25 }}>
+                        <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#64748B', marginBottom: 10, letterSpacing: 1 }}>PRESUPUESTOS</Text>
+
+                        {!myOffer ? (
+                            <TouchableOpacity
+                                onPress={onGoToQuote}
+                                style={{
+                                    backgroundColor: '#2563EB',
+                                    paddingVertical: 16,
+                                    borderRadius: 16,
+                                    alignItems: 'center',
+                                    elevation: 3,
+                                    shadowColor: '#2563EB',
+                                    shadowOffset: { width: 0, height: 4 },
+                                    shadowOpacity: 0.3,
+                                    shadowRadius: 5
+                                }}
+                            >
+                                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                    <Feather name="plus-circle" size={20} color="white" style={{ marginRight: 8 }} />
+                                    <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 16 }}>ENVIAR PRESUPUESTO</Text>
+                                </View>
+                            </TouchableOpacity>
+                        ) : (
+                            <View style={{
+                                backgroundColor: myOffer.status === 'rejected' ? '#FEF2F2' : (myOffer.status === 'accepted' ? '#ECFDF5' : 'white'),
+                                borderRadius: 16,
+                                padding: 16,
+                                borderWidth: 1,
+                                borderColor: myOffer.status === 'rejected' ? '#FCA5A5' : (myOffer.status === 'accepted' ? '#6EE7B7' : '#E2E8F0'),
+                                elevation: 2
+                            }}>
+                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                        <View style={{
+                                            width: 8, height: 8, borderRadius: 4,
+                                            backgroundColor: myOffer.status === 'rejected' ? '#EF4444' : (myOffer.status === 'accepted' ? '#10B981' : '#F59E0B'),
+                                            marginRight: 8
+                                        }} />
+                                        <Text style={{
+                                            fontWeight: 'bold',
+                                            color: myOffer.status === 'rejected' ? '#991B1B' : (myOffer.status === 'accepted' ? '#065F46' : '#92400E'),
+                                            fontSize: 14
+                                        }}>
+                                            {myOffer.status === 'rejected' ? 'PROPUESTA RECHAZADA' : (myOffer.status === 'accepted' ? '¡PROPUESTA ACEPTADA!' : 'PRESUPUESTO ENVIADO')}
+                                        </Text>
+                                    </View>
+                                    <Text style={{ fontSize: 11, color: '#64748B' }}>
+                                        {new Date(myOffer.createdAt).toLocaleDateString()}
+                                    </Text>
+                                </View>
+
+                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 15 }}>
+                                    <View>
+                                        <Text style={{ fontSize: 11, color: '#64748B', fontWeight: 'bold' }}>MONTO TOTAL</Text>
+                                        <Text style={{ fontSize: 22, fontWeight: 'bold', color: '#1F2937' }}>
+                                            {myOffer.currency || '$'} {myOffer.amount || myOffer.price}
+                                        </Text>
+                                    </View>
+                                    {myOffer.status === 'pending' && (
+                                        <View style={{ backgroundColor: '#FEF3C7', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 }}>
+                                            <Text style={{ fontSize: 10, color: '#D97706', fontWeight: 'bold' }}>PENDIENTE</Text>
+                                        </View>
+                                    )}
+                                </View>
+
+                                {myOffer.status === 'rejected' && (
+                                    <View style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', padding: 10, borderRadius: 8, marginBottom: 15 }}>
+                                        <Text style={{ color: '#7F1D1D', fontSize: 13, fontStyle: 'italic' }}>
+                                            "{myOffer.rejectionReason || 'No especificado'}"
+                                        </Text>
+                                    </View>
+                                )}
+
+                                <View style={{ flexDirection: 'row', gap: 10 }}>
+                                    <TouchableOpacity
+                                        onPress={() => setShowMyProposal(true)}
+                                        style={{ flex: 1, paddingVertical: 10, alignItems: 'center', backgroundColor: 'white', borderRadius: 8, borderWidth: 1, borderColor: '#CBD5E1' }}
+                                    >
+                                        <Text style={{ color: '#475569', fontWeight: 'bold', fontSize: 13 }}>Ver Detalle</Text>
+                                    </TouchableOpacity>
+
+                                    {myOffer.status !== 'accepted' && (
+                                        <TouchableOpacity
+                                            onPress={onGoToQuote}
+                                            style={{ flex: 1, paddingVertical: 10, alignItems: 'center', backgroundColor: '#3B82F6', borderRadius: 8 }}
+                                        >
+                                            <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 13 }}>
+                                                {myOffer.status === 'rejected' ? 'Modificar y Reenviar' : 'Editar'}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    )}
+                                </View>
+                            </View>
                         )}
                     </View>
 
-                    {/* Button "Preguntar" / "Responder" Style */}
-                    <TouchableOpacity
-                        onPress={() => {
-                            onUpdateStatus('CONTACTADO');
-                            const cName = job.clientName || job.client?.name || 'Cliente';
-                            const pName = currentUser?.name || 'Profesional';
-                            const defaultMsg = `Hola ${cName}, mi nombre es ${pName}. Me interesa tu solicitud de ${job.title}.`;
-                            onOpenChat && onOpenChat(job, null, messages.length > 0 ? null : defaultMsg);
-                        }}
-                        style={{
-                            backgroundColor: (messages.length > 0 && isClientLast) ? '#EA580C' : 'white',
-                            borderWidth: 1.5,
-                            borderColor: '#EA580C', // Orange border
-                            paddingVertical: 12,
-                            borderRadius: 12, // Rounded like the button in image
-                            alignItems: 'center',
-                            elevation: (messages.length > 0 && isClientLast) ? 2 : 0
-                        }}
-                    >
-                        <Text style={{ color: (messages.length > 0 && isClientLast) ? 'white' : '#EA580C', fontWeight: 'bold', fontSize: 16 }}>
-                            {messages.length === 0 ? 'Saludar' : (isClientLast ? 'Responder' : 'Preguntar')}
-                        </Text>
-                    </TouchableOpacity>
-                </View>
-
-                {/* SECCIÓN PRECIOS Y PRESUPUESTOS (NUEVA LÓGICA) */}
-                <View style={{ marginBottom: 25 }}>
-                    <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#64748B', marginBottom: 10, letterSpacing: 1 }}>PRESUPUESTOS</Text>
-
-                    {!myOffer ? (
-                        <TouchableOpacity
-                            onPress={onGoToQuote}
-                            style={{
-                                backgroundColor: '#2563EB',
-                                paddingVertical: 16,
-                                borderRadius: 16,
-                                alignItems: 'center',
-                                elevation: 3,
-                                shadowColor: '#2563EB',
-                                shadowOffset: { width: 0, height: 4 },
-                                shadowOpacity: 0.3,
-                                shadowRadius: 5
-                            }}
-                        >
-                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                <Feather name="plus-circle" size={20} color="white" style={{ marginRight: 8 }} />
-                                <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 16 }}>ENVIAR PRESUPUESTO</Text>
-                            </View>
-                        </TouchableOpacity>
-                    ) : (
-                        <View style={{
-                            backgroundColor: myOffer.status === 'rejected' ? '#FEF2F2' : (myOffer.status === 'accepted' ? '#ECFDF5' : 'white'),
-                            borderRadius: 16,
-                            padding: 16,
-                            borderWidth: 1,
-                            borderColor: myOffer.status === 'rejected' ? '#FCA5A5' : (myOffer.status === 'accepted' ? '#6EE7B7' : '#E2E8F0'),
-                            elevation: 2
-                        }}>
-                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                    <View style={{
-                                        width: 8, height: 8, borderRadius: 4,
-                                        backgroundColor: myOffer.status === 'rejected' ? '#EF4444' : (myOffer.status === 'accepted' ? '#10B981' : '#F59E0B'),
-                                        marginRight: 8
-                                    }} />
-                                    <Text style={{
-                                        fontWeight: 'bold',
-                                        color: myOffer.status === 'rejected' ? '#991B1B' : (myOffer.status === 'accepted' ? '#065F46' : '#92400E'),
-                                        fontSize: 14
-                                    }}>
-                                        {myOffer.status === 'rejected' ? 'PROPUESTA RECHAZADA' : (myOffer.status === 'accepted' ? '¡PROPUESTA ACEPTADA!' : 'PRESUPUESTO ENVIADO')}
-                                    </Text>
-                                </View>
-                                <Text style={{ fontSize: 11, color: '#64748B' }}>
-                                    {new Date(myOffer.createdAt).toLocaleDateString()}
-                                </Text>
-                            </View>
-
-                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 15 }}>
-                                <View>
-                                    <Text style={{ fontSize: 11, color: '#64748B', fontWeight: 'bold' }}>MONTO TOTAL</Text>
-                                    <Text style={{ fontSize: 22, fontWeight: 'bold', color: '#1F2937' }}>
-                                        {myOffer.currency || '$'} {myOffer.amount || myOffer.price}
-                                    </Text>
-                                </View>
-                                {myOffer.status === 'pending' && (
-                                    <View style={{ backgroundColor: '#FEF3C7', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 }}>
-                                        <Text style={{ fontSize: 10, color: '#D97706', fontWeight: 'bold' }}>PENDIENTE</Text>
-                                    </View>
-                                )}
-                            </View>
-
-                            {myOffer.status === 'rejected' && (
-                                <View style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', padding: 10, borderRadius: 8, marginBottom: 15 }}>
-                                    <Text style={{ color: '#7F1D1D', fontSize: 13, fontStyle: 'italic' }}>
-                                        "{myOffer.rejectionReason || 'No especificado'}"
-                                    </Text>
-                                </View>
-                            )}
-
-                            <View style={{ flexDirection: 'row', gap: 10 }}>
-                                <TouchableOpacity
-                                    onPress={() => setShowMyProposal(true)}
-                                    style={{ flex: 1, paddingVertical: 10, alignItems: 'center', backgroundColor: 'white', borderRadius: 8, borderWidth: 1, borderColor: '#CBD5E1' }}
-                                >
-                                    <Text style={{ color: '#475569', fontWeight: 'bold', fontSize: 13 }}>Ver Detalle</Text>
-                                </TouchableOpacity>
-
-                                {myOffer.status !== 'accepted' && (
-                                    <TouchableOpacity
-                                        onPress={onGoToQuote}
-                                        style={{ flex: 1, paddingVertical: 10, alignItems: 'center', backgroundColor: '#3B82F6', borderRadius: 8 }}
-                                    >
-                                        <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 13 }}>
-                                            {myOffer.status === 'rejected' ? 'Modificar y Reenviar' : 'Editar'}
-                                        </Text>
-                                    </TouchableOpacity>
-                                )}
-                            </View>
+                    {/* ACCIONES DE ESTADO (Iniciar/Finalizar) - Solo si Ganada o Terminada */}
+                    {(isWinner || ['TERMINADO', 'Culminada', 'rated', 'completed'].includes(job.status)) && (
+                        <View style={{ marginBottom: 15 }}>
+                            <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#64748B', marginBottom: 5, letterSpacing: 1 }}>HISTORIAL LEGAL & AVANCE</Text>
+                            {/* El botón de inicio se maneja dentro de ProjectTimeline para evitar duplicados */}
                         </View>
                     )}
+
+                    {
+                        (isWinner || ['TERMINADO', 'Culminada', 'rated', 'completed'].includes(job.status)) &&
+                        (job.trackingStatus !== 'none' || ['TERMINADO', 'Culminada', 'rated', 'completed'].includes(job.status)) && (
+                            <ProjectTimeline
+                                job={job}
+                                userMode={userMode}
+                                currentUser={currentUser}
+                                onConfirmStart={(val) => onStartJob(val || job.id)}
+                                onAddTimelineEvent={onAddTimelineEvent}
+                                onFinish={handleFinishInternal}
+                                onRate={handleRateInternal}
+                                onTogglePortfolio={onTogglePortfolio}
+                                onViewImage={onViewImage}
+                            />
+                        )
+                    }
+
                 </View>
-
-                {/* ACCIONES DE ESTADO (Iniciar/Finalizar) - Solo si Ganada o Terminada */}
-                {(isWinner || ['TERMINADO', 'Culminada', 'rated', 'completed'].includes(job.status)) && (
-                    <View style={{ marginBottom: 15 }}>
-                        <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#64748B', marginBottom: 5, letterSpacing: 1 }}>HISTORIAL LEGAL & AVANCE</Text>
-                        {/* El botón de inicio se maneja dentro de ProjectTimeline para evitar duplicados */}
-                    </View>
-                )}
-
-                {
-                    (isWinner || ['TERMINADO', 'Culminada', 'rated', 'completed'].includes(job.status)) &&
-                    (job.trackingStatus !== 'none' || ['TERMINADO', 'Culminada', 'rated', 'completed'].includes(job.status)) && (
-                        <ProjectTimeline
-                            job={job}
-                            userMode={userMode}
-                            currentUser={currentUser}
-                            onConfirmStart={(val) => onStartJob(val || job.id)}
-                            onAddTimelineEvent={onAddTimelineEvent}
-                            onFinish={handleFinishInternal}
-                            onRate={handleRateInternal}
-                            onTogglePortfolio={onTogglePortfolio}
-                            onViewImage={onViewImage}
-                        />
-                    )
-                }
-
-            </ScrollView >
+            </ScrollView>
         </View >
     );
 };
@@ -3727,28 +3754,99 @@ const ImageLightbox = ({ visible, imageUrl, onClose }) => {
 function MainApp() {
     /* AUTH CONTEXT INTEGRATION */
     const { userToken, userInfo, logout, updateUser, isLoading } = useContext(AuthContext);
+    const { socket } = useSocket(); // Access socket
     const isLoggedIn = !!userToken;
     const currentUser = userInfo;
+
+    // --- HELPER: MATCHING LOGIC ---
+    const isJobMatchingProfile = useCallback((job, user) => {
+        if (!user || !job) return false;
+
+        // 1. Own Job / Client check
+        const myId = String(user._id || user.id || '').trim();
+        let jobClientId = '';
+        if (job.client) {
+            jobClientId = String(job.client._id || job.client.id || job.client || '').trim();
+        }
+        if (myId && jobClientId && myId === jobClientId) return false;
+        if (job.clientId) {
+            const legacyClientId = String(job.clientId).trim();
+            if (myId && legacyClientId && myId === legacyClientId) return false;
+        }
+        if (user.email && job.client?.email) {
+            if (user.email.trim().toLowerCase() === job.client.email.trim().toLowerCase()) return false;
+        }
+
+        // 2. Profile Categories & Zones
+        const myProfiles = user.profiles || {};
+        const activeProfileKeys = Object.keys(myProfiles).filter(key => {
+            const p = myProfiles[key];
+            return p && p.isActive !== false;
+        });
+
+        if (activeProfileKeys.length === 0) return false;
+
+        const jobCategoryName = job.category?.name || job.category;
+        const jobSubcategoryName = job.subcategory?.name || job.subcategory;
+        const jobLocation = job.location;
+
+        return activeProfileKeys.some(profileCatName => {
+            if (profileCatName !== jobCategoryName) return false;
+
+            const profile = myProfiles[profileCatName];
+
+            // Zone Check
+            const profileZones = profile.zones || [];
+            if (profileZones.length > 0) {
+                const jobLocNormalized = (jobLocation || '').trim();
+                const hasZone = profileZones.some(z => z.trim() === jobLocNormalized);
+                if (!hasZone) return false;
+            } else {
+                // If no zones defined, maybe strict or loose? Assuming strict based on previous code
+                return false;
+            }
+
+            // Subcategory Check
+            const profileSubs = profile.subcategories || [];
+            if (profileSubs.length > 0) {
+                if (jobSubcategoryName && !profileSubs.includes(jobSubcategoryName)) return false;
+            }
+
+            return true;
+        });
+    }, []);
 
     // --- ESTADO GLOBAL (Data) ---
     const [allRequests, setAllRequests] = useState([]);
     const [allChats, setAllChats] = useState([]);
     const [refreshing, setRefreshing] = useState(false);
+    const [homeMessages, setHomeMessages] = useState([]);
     const [dynamicCopy, setDynamicCopy] = useState(HOME_COPY_OPTIONS[0]);
 
     useEffect(() => {
-        const rotateMessaging = async () => {
+        const initMessaging = async () => {
+            let messages = HOME_COPY_OPTIONS;
+            try {
+                const fetched = await api.getAppMessages();
+                if (fetched && fetched.length > 0) {
+                    messages = fetched;
+                    setHomeMessages(fetched);
+                }
+            } catch (e) {
+                console.warn("Error fetching messages", e);
+            }
+
             try {
                 const lastIdxStr = await AsyncStorage.getItem(ROTATION_KEY);
                 const lastIdx = lastIdxStr ? parseInt(lastIdxStr, 10) : -1;
-                const nextIdx = (lastIdx + 1) % HOME_COPY_OPTIONS.length;
-                setDynamicCopy(HOME_COPY_OPTIONS[nextIdx]);
+                const nextIdx = (lastIdx + 1) % messages.length;
+                setDynamicCopy(messages[nextIdx]);
                 await AsyncStorage.setItem(ROTATION_KEY, nextIdx.toString());
             } catch (e) {
                 console.warn("Error rotating home messaging:", e);
             }
         };
-        rotateMessaging();
+        initMessaging();
     }, []);
 
     // --- ESTADO UI/NAV ---
@@ -3775,6 +3873,7 @@ function MainApp() {
     const [clientFilterCategory, setClientFilterCategory] = useState('Todas');
     const [clientFilterStatus, setClientFilterStatus] = useState('Todas');
     const [showArchivedOffers, setShowArchivedOffers] = useState(false);
+    const [showFilterBar, setShowFilterBar] = useState(false);
 
     // --- MODALES ---
     const [isRegister, setIsRegister] = useState(false);
@@ -3782,6 +3881,7 @@ function MainApp() {
     const [categoryModalVisible, setCategoryModalVisible] = useState(false);
     const [statusModalVisible, setStatusModalVisible] = useState(false);
     const [showBudgetModal, setShowBudgetModal] = useState(false);
+    const [showClientProfileModal, setShowClientProfileModal] = useState(false);
 
     // --- NUEVO ESTADO FALTANTE ---
     const [selectedBudget, setSelectedBudget] = useState(null);
@@ -3796,6 +3896,80 @@ function MainApp() {
             setShowAuth(false);
         }
     }, [isLoggedIn]);
+
+    useEffect(() => {
+        const loadData = async () => {
+            // ...
+        }
+        // ... Logic continues ...
+    }, []); // Placeholder to avoid breaking existing useEffect, but we will add the new one below
+
+    // --- NOTIFICATION & SOCKET SETUP ---
+    useEffect(() => {
+        const setupNotifications = async () => {
+            if (isLoggedIn && userInfo?._id) {
+                // 1. Register Push Token and Save to Backend
+                const token = await registerForPushNotificationsAsync();
+                if (token) {
+                    console.log("Push Token obtained:", token);
+                    try {
+                        // Only update if it's different or just to be safe
+                        await api.updateProfile({ pushToken: token });
+                        console.log("Push Token synced with backend.");
+                    } catch (e) {
+                        console.log("Error syncing push token:", e.message);
+                    }
+                }
+
+                // 2. Join Socket Room
+                if (socket) {
+                    socket.emit('join_user_dates', userInfo._id);
+
+                    // 3. Listen for Socket Notifications (Real-time)
+                    socket.off('notification'); // Prevent duplicates
+                    socket.on('notification', (data) => {
+                        console.log("Socket Notification:", data);
+                        // Show local notification immediately
+                        Notifications.scheduleNotificationAsync({
+                            content: {
+                                title: data.title,
+                                body: data.body,
+                                data: { jobId: data.jobId },
+                                sound: 'default'
+                            },
+                            trigger: null,
+                        });
+
+                        // Optional: Refresh data if needed
+                        setCounts(prev => {
+                            const isClient = userMode === 'client';
+                            const type = isClient ? 'client' : 'pro';
+                            return { ...prev, [type]: { ...prev[type], updates: prev[type].updates + 1 } };
+                        });
+                    });
+                }
+            }
+        };
+
+        setupNotifications();
+
+        // Listeners for Foreground/Response
+        const bgSubscription = Notifications.addNotificationResponseReceivedListener(response => {
+            const data = response.notification.request.content.data;
+            if (data?.jobId) {
+                // Navigate to job detail
+                console.log("Notification tapped, navigating to job:", data.jobId);
+                // Logic to navigate can be added here if 'navigation' ref was available, 
+                // or by setting state that triggers view change.
+                // For now, we rely on user opening app and seeing update.
+            }
+        });
+
+        return () => {
+            if (socket) socket.off('notification');
+            bgSubscription.remove();
+        };
+    }, [isLoggedIn, userInfo, socket, userMode]);
 
     useEffect(() => {
         const loadData = async () => {
@@ -3831,7 +4005,12 @@ function MainApp() {
                 if (req.offers?.some(o => o.status === 'pending')) clientUpdateCount++;
                 if (req.conversations) req.conversations.forEach(c => clientChatCount += (c.unreadCount || 0));
             } else { // Count for pro view
-                if (req.proInteractionStatus === 'new') proUpdateCount++;
+                // FILTER: Only count if it matches my profile!
+                const isMatch = isJobMatchingProfile(req, currentUser);
+                if (isMatch && req.proInteractionStatus === 'new') proUpdateCount++;
+
+                // For chats, we usually only have chats on jobs we interacted with, so this is likely fine.
+                // But conceptually, if I have a chat, I should count it regardless of profile match (e.g. if I changed profile later).
                 if (req.conversations) req.conversations.forEach(c => proChatCount += (c.unreadCount || 0));
             }
         });
@@ -4965,60 +5144,7 @@ function MainApp() {
         if (!catMatch) return false;
 
         // --- 2. FILTROS DE NEGOCIO (Matching de Perfil) ---
-        const myId = String(currentUser?._id || currentUser?.id || '').trim();
-        let jobClientId = '';
-        if (job.client) {
-            if (typeof job.client === 'object') {
-                jobClientId = String(job.client._id || job.client.id || '').trim();
-            } else {
-                jobClientId = String(job.client).trim();
-            }
-        }
-
-        if (myId && jobClientId && myId === jobClientId) return false;
-
-        if (job.clientId) {
-            const legacyClientId = String(job.clientId).trim();
-            if (myId && legacyClientId && myId === legacyClientId) return false;
-        }
-
-        if (currentUser?.email && job.client?.email) {
-            if (currentUser.email.trim().toLowerCase() === job.client.email.trim().toLowerCase()) {
-                return false;
-            }
-        }
-
-        const myProfiles = currentUser?.profiles || {};
-        const activeProfileKeys = Object.keys(myProfiles).filter(key => {
-            const p = myProfiles[key];
-            return p && p.isActive !== false;
-        });
-
-        if (activeProfileKeys.length === 0) return false;
-
-        const jobCategoryName = job.category?.name || job.category;
-        const jobSubcategoryName = job.subcategory?.name || job.subcategory;
-        const jobLocation = job.location;
-
-        const isMatch = activeProfileKeys.some(profileCatName => {
-            if (profileCatName !== jobCategoryName) return false;
-            const profile = myProfiles[profileCatName];
-            const profileZones = profile.zones || [];
-            if (profileZones.length > 0) {
-                const jobLocNormalized = (jobLocation || '').trim();
-                const hasZone = profileZones.some(z => z.trim() === jobLocNormalized);
-                if (!hasZone) return false;
-            } else {
-                return false;
-            }
-            const profileSubs = profile.subcategories || [];
-            if (profileSubs.length > 0) {
-                if (jobSubcategoryName && !profileSubs.includes(jobSubcategoryName)) return false;
-            }
-            return true;
-        });
-
-        return isMatch;
+        return isJobMatchingProfile(job, currentUser);
     });
 
 
@@ -5091,7 +5217,7 @@ function MainApp() {
             <View style={{ flex: 1 }}>
                 {/* CLIENTE HOME */}
                 {userMode === 'client' && view === 'home' && (
-                    <ScrollView style={{ flex: 1, backgroundColor: '#A19C9B' }} contentContainerStyle={{ paddingBottom: 0 }}>
+                    <ScrollView style={{ flex: 1, backgroundColor: '#F8F9FA' }} contentContainerStyle={{ paddingBottom: 0 }}>
                         <SectionDivider />
                         <ServiceForm
                             onSubmit={createRequest} // Acceso directo para pruebas, idealmente pasar por handleCreateNewRequest
@@ -5237,34 +5363,50 @@ function MainApp() {
                 {userMode === 'pro' && view === 'home' && (
                     <View style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
                         {/* HEADER AZUL */}
-                        <View style={{ backgroundColor: '#2563EB', paddingHorizontal: 16, paddingTop: 10, paddingBottom: 10, borderBottomLeftRadius: 24, borderBottomRightRadius: 24, elevation: 4 }}>
-                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                                <Text style={{ fontSize: 24, fontWeight: 'bold', color: 'white' }}>Trabajos Disponibles</Text>
-                                <TouchableOpacity
-                                    onPress={() => setShowArchivedOffers(!showArchivedOffers)}
-                                    style={{
-                                        width: 40, height: 40, borderRadius: 20,
-                                        backgroundColor: showArchivedOffers ? 'white' : 'rgba(255,255,255,0.2)',
-                                        justifyContent: 'center', alignItems: 'center'
-                                    }}
-                                >
-                                    <Feather name="archive" size={20} color={showArchivedOffers ? '#2563EB' : 'white'} />
-                                </TouchableOpacity>
-                            </View>
-
-                            {/* FILTERS - CATEGORY ONLY */}
-                            <View style={{ flexDirection: 'row', paddingHorizontal: 0, gap: 10, marginTop: 8 }}>
-                                <View style={{ flex: 1 }}>
-                                    <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12, marginBottom: 4, fontWeight: 'bold' }}>Categoría</Text>
+                        <View style={{ backgroundColor: '#2563EB', paddingVertical: 18, borderBottomLeftRadius: 32, borderBottomRightRadius: 32, elevation: 0, marginBottom: 0, paddingHorizontal: 24 }}>
+                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: showFilterBar && activeCategories.length > 1 ? 8 : 0 }}>
+                                <Text style={{ fontSize: 24, fontWeight: 'bold', color: 'white' }}>Ofertas</Text>
+                                <View style={{ flexDirection: 'row', gap: 10 }}>
+                                    {activeCategories.length > 1 && (
+                                        <TouchableOpacity
+                                            onPress={() => setShowFilterBar(!showFilterBar)}
+                                            style={{
+                                                width: 48, height: 48, borderRadius: 24,
+                                                backgroundColor: showFilterBar ? 'white' : 'rgba(255,255,255,0.2)',
+                                                justifyContent: 'center', alignItems: 'center'
+                                            }}
+                                        >
+                                            <Feather name="filter" size={24} color={showFilterBar ? '#2563EB' : 'white'} />
+                                        </TouchableOpacity>
+                                    )}
                                     <TouchableOpacity
-                                        onPress={() => setCategoryModalVisible(true)}
-                                        style={styles.dropdownButton}
+                                        onPress={() => setShowArchivedOffers(!showArchivedOffers)}
+                                        style={{
+                                            width: 48, height: 48, borderRadius: 24,
+                                            backgroundColor: showArchivedOffers ? 'white' : 'rgba(255,255,255,0.2)',
+                                            justifyContent: 'center', alignItems: 'center'
+                                        }}
                                     >
-                                        <Text style={styles.dropdownButtonText} numberOfLines={1}>{filterCategory}</Text>
-                                        <Feather name="chevron-down" size={16} color="white" />
+                                        <Feather name="archive" size={24} color={showArchivedOffers ? '#2563EB' : 'white'} />
                                     </TouchableOpacity>
                                 </View>
                             </View>
+
+                            {/* FILTERS - CATEGORY ONLY */}
+                            {showFilterBar && activeCategories.length > 1 && (
+                                <View style={{ flexDirection: 'row', paddingHorizontal: 0, gap: 10, marginTop: 8 }}>
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12, marginBottom: 4, fontWeight: 'bold' }}>Categoría</Text>
+                                        <TouchableOpacity
+                                            onPress={() => setCategoryModalVisible(true)}
+                                            style={styles.dropdownButton}
+                                        >
+                                            <Text style={styles.dropdownButtonText} numberOfLines={1}>{filterCategory}</Text>
+                                            <Feather name="chevron-down" size={16} color="white" />
+                                        </TouchableOpacity>
+                                    </View>
+                                </View>
+                            )}
 
                             {/* MODALS */}
                             <Modal
@@ -5308,99 +5450,189 @@ function MainApp() {
 
                         <ScrollView
                             style={{ flex: 1 }}
-                            contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 120 }}
+                            contentContainerStyle={{ paddingHorizontal: 4, paddingTop: 8, paddingBottom: 100 }}
                             refreshControl={
                                 <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#2563EB']} />
                             }
                         >
                             {availableJobsForPro.length === 0 ? (
                                 activeCategories.length === 0 ? (
-                                    <View style={{ alignItems: 'center', marginTop: 40, padding: 20, backgroundColor: '#EFF6FF', borderRadius: 16, borderWidth: 1, borderColor: '#BFDBFE' }}>
-                                        <Feather name="briefcase" size={48} color="#2563EB" style={{ marginBottom: 16 }} />
-                                        <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#1E3A8A', textAlign: 'center', marginBottom: 8 }}>¡Empieza a Ganar Dinero!</Text>
-                                        <Text style={{ fontSize: 14, color: '#3B82F6', textAlign: 'center', marginBottom: 20 }}>
-                                            No tienes categorías activas en tu perfil. Activa las categorías en las que eres experto para empezar a recibir ofertas de trabajo.
+                                    <View style={{ marginHorizontal: 4, marginTop: 20, padding: 25, backgroundColor: '#FFFFFF', borderRadius: 20, borderWidth: 1, borderColor: '#BFDBFE', alignItems: 'center', shadowColor: '#2563EB', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 10, elevation: 5 }}>
+                                        <Image
+                                            source={require('./assets/images/plomero.png')}
+                                            style={{ width: 140, height: 140, marginBottom: 15 }}
+                                            resizeMode="contain"
+                                        />
+
+                                        <Text style={{ fontSize: 22, fontWeight: '800', color: '#1E3A8A', textAlign: 'center', marginBottom: 10 }}>
+                                            ¡Empieza a Ganar Dinero!
                                         </Text>
+
+                                        <Text style={{ fontSize: 15, color: '#4B5563', textAlign: 'center', marginBottom: 25, lineHeight: 22, paddingHorizontal: 10 }}>
+                                            No tienes categorías activas en tu perfil. Activa las categorías en las que eres experto para ver las
+                                            <Text style={{ fontWeight: 'bold', color: '#2563EB' }}> Ofertas Disponibles</Text> y comenzar a trabajar.
+                                        </Text>
+
+                                        <View style={{ width: '100%', marginBottom: 25 }}>
+                                            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+                                                <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: '#DCFCE7', justifyContent: 'center', alignItems: 'center', marginRight: 12 }}>
+                                                    <Feather name="check" size={18} color="#166534" />
+                                                </View>
+                                                <Text style={{ fontSize: 14, color: '#374151', flex: 1 }}>Accede a trabajos en tiempo real</Text>
+                                            </View>
+                                            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+                                                <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: '#DCFCE7', justifyContent: 'center', alignItems: 'center', marginRight: 12 }}>
+                                                    <Feather name="check" size={18} color="#166534" />
+                                                </View>
+                                                <Text style={{ fontSize: 14, color: '#374151', flex: 1 }}>Envía presupuestos y chatea directo</Text>
+                                            </View>
+                                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                                <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: '#DCFCE7', justifyContent: 'center', alignItems: 'center', marginRight: 12 }}>
+                                                    <Feather name="check" size={18} color="#166534" />
+                                                </View>
+                                                <Text style={{ fontSize: 14, color: '#374151', flex: 1 }}>Construye tu reputación y cartera</Text>
+                                            </View>
+                                        </View>
+
                                         <TouchableOpacity
-                                            style={{ backgroundColor: '#2563EB', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 24 }}
+                                            style={{
+                                                backgroundColor: '#2563EB',
+                                                width: '100%',
+                                                paddingVertical: 16,
+                                                borderRadius: 16,
+                                                shadowColor: '#2563EB',
+                                                shadowOffset: { width: 0, height: 4 },
+                                                shadowOpacity: 0.3,
+                                                shadowRadius: 8,
+                                                elevation: 4,
+                                                flexDirection: 'row',
+                                                justifyContent: 'center',
+                                                alignItems: 'center'
+                                            }}
                                             onPress={() => setView('profile')}
                                         >
-                                            <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 15 }}>Activar Mi Perfil</Text>
+                                            <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 16, marginRight: 8 }}>Activar Mi Perfil</Text>
+                                            <Feather name="arrow-right" size={20} color="white" />
                                         </TouchableOpacity>
                                     </View>
                                 ) : (
-                                    <View style={{ alignItems: 'center', marginTop: 40 }}>
-                                        <Text style={{ color: '#9CA3AF', fontSize: 16 }}>No hay trabajos disponibles en tus categorías.</Text>
+                                    <View style={{ marginHorizontal: 4, alignItems: 'center', marginTop: 40, padding: 25, backgroundColor: '#F8FAFC', borderRadius: 20, borderStyle: 'dashed', borderWidth: 2, borderColor: '#CBD5E1' }}>
+                                        <View style={{ width: 64, height: 64, backgroundColor: '#F1F5F9', borderRadius: 32, justifyContent: 'center', alignItems: 'center', marginBottom: 15 }}>
+                                            <Feather name="search" size={32} color="#94A3B8" />
+                                        </View>
+                                        <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#475569', marginBottom: 8 }}>Sin ofertas por ahora</Text>
+                                        <Text style={{ fontSize: 14, color: '#64748B', textAlign: 'center', marginBottom: 20, lineHeight: 20 }}>
+                                            No encontramos trabajos nuevos en tus categorías. {"\n"}Intenta ampliar tus zonas de cobertura.
+                                        </Text>
+                                        <TouchableOpacity
+                                            onPress={() => setView('profile')}
+                                            style={{ flexDirection: 'row', alignItems: 'center' }}
+                                        >
+                                            <Text style={{ color: '#2563EB', fontWeight: 'bold', fontSize: 14, marginRight: 4 }}>Revisar Perfil</Text>
+                                            <Feather name="arrow-right" size={14} color="#2563EB" />
+                                        </TouchableOpacity>
                                     </View>
                                 )
                             ) : null}
 
                             {/* Helper to get colors for Pro Statuses moved to top level as getProStatusColor */}
                             {(() => {
-                                return availableJobsForPro.map(job => (
-                                    <TouchableOpacity
-                                        key={job.id}
-                                        style={{
-                                            backgroundColor: 'white',
-                                            borderRadius: 16,
-                                            padding: 16,
-                                            marginBottom: 12, // Reduced from 16 to match Orange List
-                                            elevation: 2,
-                                            ...Platform.select({
-                                                web: { boxShadow: '0px 2px 4px rgba(0,0,0,0.05)' },
-                                                default: {
-                                                    shadowColor: '#000',
-                                                    shadowOffset: { width: 0, height: 2 },
-                                                    shadowOpacity: 0.05,
-                                                    shadowRadius: 4,
-                                                }
-                                            }),
-                                            borderWidth: 1,
-                                            borderColor: '#F3F4F6'
-                                        }}
-                                        onPress={() => handleOpenJobDetail(job.id, 'job-detail-pro')}
-                                    >
-                                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
-                                            <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                                return availableJobsForPro.map(job => {
+                                    const totalUnread = (job.conversations || []).reduce((acc, c) => acc + (c.unreadCount || 0), 0);
+                                    const isNewJob = job.proInteractionStatus === 'new';
+
+                                    return (
+                                        <TouchableOpacity
+                                            key={job.id}
+                                            style={{
+                                                backgroundColor: 'white',
+                                                borderRadius: 24,
+                                                padding: 20,
+                                                marginHorizontal: 4,
+                                                marginTop: 0,
+                                                marginBottom: 12,
+                                                elevation: 8,
+                                                ...Platform.select({
+                                                    web: { boxShadow: '0px 4px 12px rgba(37, 99, 235, 0.1)' },
+                                                    default: {
+                                                        shadowColor: '#2563EB',
+                                                        shadowOffset: { width: 0, height: 4 },
+                                                        shadowOpacity: 0.1,
+                                                        shadowRadius: 10,
+                                                    }
+                                                }),
+                                                borderWidth: 1,
+                                                borderColor: isNewJob ? '#DBEAFE' : '#F1F5F9',
+                                                position: 'relative'
+                                            }}
+                                            onPress={() => handleOpenJobDetail(job.id, 'job-detail-pro')}
+                                        >
+                                            {/* BADGE: NEW JOB INDICATOR */}
+                                            {isNewJob && (
                                                 <View style={{
-                                                    width: 40, height: 40, borderRadius: 20, marginRight: 12,
-                                                    backgroundColor: '#EFF6FF', alignItems: 'center', justifyContent: 'center',
-                                                    overflow: 'hidden'
+                                                    position: 'absolute', top: -6, right: 20,
+                                                    backgroundColor: '#EF4444', paddingHorizontal: 10, paddingVertical: 4,
+                                                    borderRadius: 10, zIndex: 10, elevation: 5,
+                                                    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 3
+                                                }}>
+                                                    <Text style={{ color: 'white', fontSize: 10, fontWeight: 'bold' }}>NUEVO</Text>
+                                                </View>
+                                            )}
+
+                                            {/* MAIN TITLE */}
+                                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 15 }}>
+                                                <Text style={{ fontSize: 18, fontWeight: '800', color: '#1E3A8A', flex: 1, marginRight: 10 }} numberOfLines={1}>
+                                                    {job.title}
+                                                </Text>
+                                            </View>
+
+                                            {/* CONTENT ROW: AVATAR & METADATA */}
+                                            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 15 }}>
+                                                <View style={{
+                                                    width: 54, height: 54, borderRadius: 27,
+                                                    backgroundColor: '#F3F4F6', borderWidth: 2, borderColor: '#EFF6FF',
+                                                    overflow: 'hidden', alignItems: 'center', justifyContent: 'center'
                                                 }}>
                                                     {job.clientAvatar ? (
                                                         <Image source={{ uri: job.clientAvatar }} style={{ width: '100%', height: '100%' }} />
                                                     ) : (
-                                                        <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#2563EB' }}>
-                                                            {job.clientName ? job.clientName.substring(0, 2).toUpperCase() : 'CL'}
+                                                        <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#2563EB' }}>
+                                                            {job.clientName ? job.clientName.substring(0, 1).toUpperCase() : 'C'}
                                                         </Text>
                                                     )}
                                                 </View>
-                                                <View style={{ flex: 1 }}>
-                                                    {/* TITLE FIRST (Start) - BOLD & BIG */}
-                                                    <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#111827' }} numberOfLines={2}>{job.title}</Text>
 
-                                                    {/* CLIENT NAME BELOW - SMALLER WITH ICON */}
-                                                    <View style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 2 }}>
-                                                        <Feather name="user" size={12} color="#6B7280" style={{ marginRight: 4 }} />
-                                                        <Text style={{ fontSize: 13, fontWeight: '600', color: '#4B5563' }}>{job.clientName || 'Cliente'}</Text>
+                                                <View style={{ flex: 1, marginLeft: 15 }}>
+                                                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 3 }}>
+                                                        <Feather name="user" size={12} color="#6B7280" />
+                                                        <Text style={{ fontSize: 14, fontWeight: '700', color: '#374151', marginLeft: 6 }}>{job.clientName || 'Cliente'}</Text>
                                                     </View>
-
+                                                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 3 }}>
+                                                        <Feather name="map-pin" size={12} color="#6B7280" />
+                                                        <Text style={{ fontSize: 13, color: '#6B7280', marginLeft: 6 }}>{job.location || 'Sin ubicación'}</Text>
+                                                    </View>
                                                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                                        <Feather name="map-pin" size={12} color="#9CA3AF" />
-                                                        <Text style={{ fontSize: 12, color: '#6B7280', marginLeft: 4 }} numberOfLines={1}>{job.location || 'Sin ubicación'}</Text>
-                                                    </View>
-                                                    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
                                                         <Feather name="tag" size={12} color="#9CA3AF" />
-                                                        <Text style={{ fontSize: 12, color: '#6B7280', marginLeft: 4 }} numberOfLines={1}>
+                                                        <Text style={{ fontSize: 12, color: '#9CA3AF', marginLeft: 6 }} numberOfLines={1}>
                                                             {job.category?.name || job.category} {job.subcategory ? `> ${job.subcategory}` : ''}
                                                         </Text>
                                                     </View>
                                                 </View>
                                             </View>
-                                            <View style={{ alignItems: 'flex-end' }}>
+
+                                            {/* FOOTER: DATE & STATUS BADGE */}
+                                            <View style={{
+                                                flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+                                                borderTopWidth: 1, borderTopColor: '#F1F5F9', paddingTop: 15, marginTop: 5
+                                            }}>
+                                                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                                    <Feather name="calendar" size={12} color="#9CA3AF" style={{ marginRight: 6 }} />
+                                                    <Text style={{ fontSize: 12, color: '#9CA3AF' }}>{new Date(job.createdAt).toLocaleDateString()}</Text>
+                                                </View>
+
                                                 <View style={{
                                                     backgroundColor: getProStatusColor(job.proStatus).bg,
-                                                    paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20, marginBottom: 4
+                                                    paddingHorizontal: 12, paddingVertical: 4, borderRadius: 20
                                                 }}>
                                                     <Text style={{
                                                         fontSize: 10, fontWeight: 'bold',
@@ -5410,36 +5642,9 @@ function MainApp() {
                                                     </Text>
                                                 </View>
                                             </View>
-                                        </View>
-
-                                        {/* DIVIDER LINE (Darker for visibility) */}
-                                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderTopWidth: 1, borderTopColor: '#E5E7EB', paddingTop: 10, marginTop: 4 }}>
-                                            {/* DATE INSTEAD OF TITLE */}
-                                            <Text style={{ fontSize: 13, color: '#9CA3AF' }}>Publicado el {new Date(job.createdAt).toLocaleDateString()}</Text>
-
-                                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                                {job.hasUnread && (
-                                                    <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#FEF2F2', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, marginRight: 8 }}>
-                                                        <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#EF4444', marginRight: 6 }} />
-                                                        <Text style={{ fontSize: 10, color: '#EF4444', fontWeight: 'bold' }}>Novedades</Text>
-                                                    </View>
-                                                )}
-                                                <View style={{
-                                                    backgroundColor: job.hasUnread ? '#FEF2F2' : '#F3F4F6', // LIGHT RED if unread/new
-                                                    paddingHorizontal: 10, paddingVertical: 6, borderRadius: 12,
-                                                    flexDirection: 'row', alignItems: 'center',
-                                                    borderWidth: 1, borderColor: job.hasUnread ? '#EF4444' : 'transparent' // Optional border check
-                                                }}>
-                                                    {/* CHANGED ICON TO FILE-TEXT TO MATCH ORANGE LIST */}
-                                                    <Feather name="file-text" size={14} color={job.hasUnread ? '#EF4444' : '#6B7280'} />
-                                                    <Text style={{ fontSize: 12, fontWeight: 'bold', color: job.hasUnread ? '#EF4444' : '#6B7280', marginLeft: 6 }}>
-                                                        {job.offers ? job.offers.length : 0}
-                                                    </Text>
-                                                </View>
-                                            </View>
-                                        </View>
-                                    </TouchableOpacity>
-                                ));
+                                        </TouchableOpacity>
+                                    );
+                                });
                             })()}
                         </ScrollView>
                     </View>
@@ -5457,7 +5662,7 @@ function MainApp() {
                         onUpdateStatus={(s) => updateProStatus(selectedRequest.id || selectedRequest._id, s)}
                         onArchive={() => updateProStatus(selectedRequest.id || selectedRequest._id, 'Archivada')}
                         onGoToQuote={() => setView('create-quote')}
-                        onViewProfile={() => setView('client-profile')}
+                        onViewProfile={() => setShowClientProfileModal(true)}
                         onAddWorkPhoto={handleAddWorkPhoto}
                         onFinish={handleFinishJob}
                         onRate={handleRateMutual}
@@ -5480,16 +5685,7 @@ function MainApp() {
                     />
                 )}
 
-                {/* PERFIL CLIENTE */}
-                {view === 'client-profile' && selectedRequest && (
-                    <ClientProfileView
-                        client={{
-                            name: selectedRequest.clientName,
-                            email: selectedRequest.clientEmail,
-                        }}
-                        onBack={() => setView('job-detail-pro')}
-                    />
-                )}
+
 
                 {/* PERFIL PRO PÚBLICO */}
                 {view === 'professional-profile-public' && selectedUser && (
@@ -5673,6 +5869,18 @@ function MainApp() {
                 offers={selectedRequest?.offers || []}
             />
 
+            <ClientProfileView
+                visible={showClientProfileModal}
+                onClose={() => setShowClientProfileModal(false)}
+                client={selectedRequest ? {
+                    _id: selectedRequest.clientId,
+                    name: selectedRequest.clientName,
+                    email: selectedRequest.clientEmail,
+                    avatar: selectedRequest.clientAvatar,
+                    location: selectedRequest.location
+                } : null}
+            />
+
             <ImageLightbox
                 visible={!!fullscreenImage}
                 imageUrl={fullscreenImage}
@@ -5684,7 +5892,6 @@ function MainApp() {
     );
 }
 
-import { SocketProvider } from './src/context/SocketContext';
 
 export default function App() {
     return (
@@ -5702,17 +5909,23 @@ export default function App() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#FFFFFF', // Solid White
+        backgroundColor: '#F8F9FA', // Standard Grey Background
         // BAJAR CONTENIDO DE BARRA DE ESTADO
         paddingTop: Platform.OS === 'android' ? (RNStatusBar.currentHeight || 30) + 5 : 5
     },
     header: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        paddingHorizontal: 24, // Wider margins
-        paddingVertical: 8, // Further reduced to match screenshot
+        paddingHorizontal: 24,
+        paddingVertical: 10,
         backgroundColor: 'white',
-        borderBottomWidth: 0, // Removed to match requested boxed look
+        borderBottomWidth: 0,
+        elevation: 5,
+        shadowColor: '#EA580C',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 10,
+        zIndex: 10
     },
     headerLeft: { flexDirection: 'row', alignItems: 'center' },
     logoIcon: { padding: 8, borderRadius: 12, marginRight: 10 },
@@ -5809,7 +6022,9 @@ const styles = StyleSheet.create({
     },
     suggestionsContainer: {
         position: 'absolute',
-        top: 155,
+        top: '100%',
+        paddingTop: 0,
+        marginTop: 4,
         left: 0,
         right: 0,
         backgroundColor: 'white',
@@ -5849,12 +6064,12 @@ const styles = StyleSheet.create({
         backgroundColor: '#EA580C',
         flexDirection: 'row',
         justifyContent: 'center',
-        padding: 20,
+        padding: 16, // Reduced form 20
         borderRadius: 16,
         alignItems: 'center',
-        minHeight: 64,
-        marginTop: 20,
-        marginBottom: 30
+        minHeight: 56, // Reduced from 64
+        marginTop: 16, // Reduced from 20
+        marginBottom: 12 // Drastically reduced from 30
     },
     searchButtonText: { color: 'white', fontWeight: 'bold', fontSize: 17, marginRight: 8 },
 
@@ -5992,11 +6207,18 @@ const styles = StyleSheet.create({
     // ESTILOS FORMULARIO SEPARADO
     serviceFormCard: {
         backgroundColor: 'white',
-        borderRadius: 32, // Apply to all corners
-        marginBottom: 0,
-        borderWidth: 0,
-        paddingHorizontal: 24,
-        paddingBottom: 25, // Added padding at the bottom
+        borderRadius: 24,
+        marginHorizontal: 4,
+        borderWidth: 1,
+        borderColor: '#FFF7ED',
+        elevation: 5,
+        shadowColor: '#EA580C',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 10,
+        paddingHorizontal: 20,
+        paddingTop: 15,
+        paddingBottom: 25,
     },
     serviceFormHeader: { backgroundColor: 'white', paddingVertical: 15, paddingBottom: 10 },
     serviceFormTitle: { fontSize: 22, fontWeight: 'bold', color: '#111811', lineHeight: 28 },
@@ -6082,7 +6304,7 @@ const styles = StyleSheet.create({
         borderTopLeftRadius: 32,
         borderTopRightRadius: 32,
         padding: 24,
-        height: '100%', // Full Screen
+        height: '92%', // Full Screen but with gap
         maxHeight: '100%'
     },
     categoryGridHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },

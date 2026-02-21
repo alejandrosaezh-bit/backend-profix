@@ -1,0 +1,133 @@
+[
+  {
+    "_id": "6988cf78d198eebd1e70d10c",
+    "job": "6988a1cdcac07e36460870bd",
+    "participants": [
+      "69417ba1a3824e1ba2607445",
+      "6987982f22d0fecb5512ec86"
+    ],
+    "messages": [
+      {
+        "sender": "69417ba1a3824e1ba2607445",
+        "content": "Hola Gresmar Robles , mi nombre es Alejandro Sáez ES. Me interesa tu solicitud de Pintarme el cabello.",
+        "media": null,
+        "read": true,
+        "_id": "6988cfc0d198eebd1e70d19c",
+        "createdAt": "2026-02-08T18:02:40.043Z"
+      },
+      {
+        "sender": "69417ba1a3824e1ba2607445",
+        "content": "Hola",
+        "media": null,
+        "read": true,
+        "_id": "6988d63d0008aa0871bee5ad",
+        "createdAt": "2026-02-08T18:30:21.370Z"
+      },
+      {
+        "sender": "6987982f22d0fecb5512ec86",
+        "content": "Un placer",
+        "media": null,
+        "read": true,
+        "_id": "6988d6bb0008aa0871bee7db",
+        "createdAt": "2026-02-08T18:32:27.603Z"
+      },
+      {
+        "sender": "69417ba1a3824e1ba2607445",
+        "content": "He enviado una oferta de $ 100",
+        "read": true,
+        "_id": "6988d7570008aa0871bee939",
+        "createdAt": "2026-02-08T18:35:03.343Z"
+      },
+      {
+        "sender": "69417ba1a3824e1ba2607445",
+        "content": "Voy mañana",
+        "media": null,
+        "read": true,
+        "_id": "6988dd10766687f48e052b27",
+        "createdAt": "2026-02-08T18:59:28.057Z"
+      }
+    ],
+    "lastMessageDate": "2026-02-08T18:59:28.058Z",
+    "createdAt": "2026-02-08T18:01:28.603Z",
+    "updatedAt": "2026-02-08T19:00:21.189Z",
+    "__v": 5,
+    "lastMessage": "Voy mañana"
+  },
+  {
+    "_id": "6988da390008aa0871bef1f7",
+    "job": "6988a1cdcac07e36460870bd",
+    "participants": [
+      "695528e792fcfa981d053ff6",
+      "6987982f22d0fecb5512ec86"
+    ],
+    "messages": [
+      {
+        "sender": "695528e792fcfa981d053ff6",
+        "content": "Hola Gresmar Robles , mi nombre es Testeando Ando. Me interesa tu solicitud de Pintarme el cabello.",
+        "media": null,
+        "read": true,
+        "_id": "6988da410008aa0871bef227",
+        "createdAt": "2026-02-08T18:47:29.095Z"
+      },
+      {
+        "sender": "695528e792fcfa981d053ff6",
+        "content": "Hola Gresmar Robles , mi nombre es Testeando Ando. Me interesa tu solicitud de Pintarme el cabello.",
+        "media": null,
+        "read": true,
+        "_id": "6988da590008aa0871bef2a0",
+        "createdAt": "2026-02-08T18:47:53.479Z"
+      },
+      {
+        "sender": "695528e792fcfa981d053ff6",
+        "content": "Hola",
+        "media": null,
+        "read": true,
+        "_id": "6988da700008aa0871bef2fc",
+        "createdAt": "2026-02-08T18:48:16.470Z"
+      },
+      {
+        "sender": "6987982f22d0fecb5512ec86",
+        "content": "Hola",
+        "media": null,
+        "read": false,
+        "_id": "6988da8c0008aa0871bef3ca",
+        "createdAt": "2026-02-08T18:48:44.953Z"
+      },
+      {
+        "sender": "695528e792fcfa981d053ff6",
+        "content": "He enviado una oferta de $ 250",
+        "read": false,
+        "_id": "6988daa10008aa0871bef41b",
+        "createdAt": "2026-02-08T18:49:05.759Z"
+      }
+    ],
+    "lastMessageDate": "2026-02-08T18:49:05.759Z",
+    "createdAt": "2026-02-08T18:47:21.791Z",
+    "updatedAt": "2026-02-08T18:49:05.759Z",
+    "__v": 5,
+    "lastMessage": "Hola"
+  },
+  {
+    "_id": "698e372cdadac094c03382fe",
+    "job": "698e2db89268ce082bb4ca84",
+    "participants": [
+      "69417ba1a3824e1ba2607445",
+      "6941cfdcfd8ac2c570c363fa"
+    ],
+    "messages": [
+      {
+        "sender": "69417ba1a3824e1ba2607445",
+        "content": "Hola Alejandro Sáez, mi nombre es Juan García. Me interesa tu solicitud de Revisión general para antes de moto.",
+        "media": null,
+        "read": false,
+        "_id": "698e3747dadac094c03383d5",
+        "createdAt": "2026-02-12T20:25:43.195Z"
+      }
+    ],
+    "lastMessageDate": "2026-02-12T20:25:43.196Z",
+    "createdAt": "2026-02-12T20:25:16.647Z",
+    "updatedAt": "2026-02-12T20:25:43.198Z",
+    "__v": 1,
+    "lastMessage": "Hola Alejandro Sáez, mi nombre es Juan García. Me interesa tu solicitud de Revisión general para antes de moto."
+  }
+]

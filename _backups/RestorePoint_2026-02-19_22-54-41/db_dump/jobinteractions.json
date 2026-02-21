@@ -1,0 +1,38 @@
+[
+  {
+    "_id": "6988cf4fa3edc207b4cf5ea7",
+    "job": "6988a1cdcac07e36460870bd",
+    "user": "69417ba1a3824e1ba2607445",
+    "__v": 0,
+    "hasUnread": false,
+    "status": "viewed",
+    "updatedAt": "2026-02-19T19:50:42.424Z"
+  },
+  {
+    "_id": "6988da2da3edc207b4cf6052",
+    "job": "6988a1cdcac07e36460870bd",
+    "user": "695528e792fcfa981d053ff6",
+    "__v": 0,
+    "hasUnread": false,
+    "status": "viewed",
+    "updatedAt": "2026-02-08T19:00:06.182Z"
+  },
+  {
+    "_id": "698e36eea3edc207b4cfe3d1",
+    "job": "698e2db89268ce082bb4ca84",
+    "user": "69417ba1a3824e1ba2607445",
+    "__v": 0,
+    "hasUnread": false,
+    "status": "viewed",
+    "updatedAt": "2026-02-20T02:10:13.514Z"
+  },
+  {
+    "_id": "69979d0588a3680f6fca29ee",
+    "job": "69977bf9a70f06d02317a385",
+    "user": "69417ba1a3824e1ba2607445",
+    "__v": 0,
+    "hasUnread": false,
+    "status": "viewed",
+    "updatedAt": "2026-02-20T02:16:21.108Z"
+  }
+]

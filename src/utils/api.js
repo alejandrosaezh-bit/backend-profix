@@ -667,5 +667,22 @@ export const api = {
     getBusinesses: async () => {
         const res = await fetchWithTimeout(`${API_URL}/businesses`);
         return res.json();
+    },
+
+    // --- APP MESSAGES ---
+    getAppMessages: async () => {
+        const res = await fetchWithTimeout(`${API_URL}/messages`);
+        if (!res.ok) throw new Error('Error fetching app messages');
+        return res.json();
+    },
+    updateAppMessage: async (id, data) => {
+        const headers = await getHeaders();
+        const res = await fetchWithTimeout(`${API_URL}/messages/${id}`, {
+            method: 'PUT',
+            headers,
+            body: JSON.stringify(data)
+        });
+        if (!res.ok) throw new Error('Error updating app message');
+        return res.json();
     }
 };

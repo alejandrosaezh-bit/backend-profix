@@ -1,0 +1,52 @@
+﻿{
+  "id": "3b194e85-b9df-4ba5-9165-c193b55201b8",
+  "status": "FINISHED",
+  "platform": "ANDROID",
+  "artifacts": {
+    "buildUrl": "https://expo.dev/artifacts/eas/8igJa8Vc9pWcMUG8Jjzgk7.apk",
+    "applicationArchiveUrl": "https://expo.dev/artifacts/eas/8igJa8Vc9pWcMUG8Jjzgk7.apk"
+  },
+  "fingerprint": {
+    "id": "019c11bb-2a52-76a3-bd20-04de4fae876d",
+    "hash": "c6f6411f0ef3bfa9b2fc840267c17faf97089ae0"
+  },
+  "initiatingActor": {
+    "id": "d1955531-367e-4ac8-9050-67a501e1b146",
+    "displayName": "alejandrosaezh"
+  },
+  "logFiles": [
+    "https://job-logs.eascdn.net/production/3b194e85-b9df-4ba5-9165-c193b55201b8/1769965882281-5919f4e8-2c38-4429-b0cd-552064a72c74.txt?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-Credential=www-production%40exponentjs.iam.gserviceaccount.com%2F20260206%2Fauto%2Fstorage%2Fgoog4_request&X-Goog-Date=20260206T122030Z&X-Goog-Expires=900&X-Goog-SignedHeaders=host&X-Goog-Signature=7ae4e363a43fc42324c0c58dc2181cfa5da3f6c77c6308f759d0492bc43645ac7eb1f506547f33d523044c25a2ee8f8a3666d03991686778d587bf76aa96c2d8329c05e9ed46ebc5de5f69bd4023527338d71e2437dfdcd82fcba14cfd75d27fe85ac7a8e344ec1178024b5779bef9f29d85f7dc0ce0adbadb6ca1e214f1e28622210aaacb56bc9c52daf4a4cdd058f4cf6c095505dd506e7157538348b20076c208ad469d0bc71e2c78da3a54e99164ce9fa0299ef165a3f63ab3977de27b35a3c6c3c0ac7074e8be7a7032e02f554a8533f68b530c9e4b9d74787459110f71808032ad83856cff25863797371427b8b5e180e4acdd383149c8de546d492d31",
+    "https://job-logs.eascdn.net/production/3b194e85-b9df-4ba5-9165-c193b55201b8/1769965883551-06e44b2f-90d8-4236-945b-e8c940f8b520.txt?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-Credential=www-production%40exponentjs.iam.gserviceaccount.com%2F20260206%2Fauto%2Fstorage%2Fgoog4_request&X-Goog-Date=20260206T122030Z&X-Goog-Expires=900&X-Goog-SignedHeaders=host&X-Goog-Signature=052c3d89cf3d8a5d15df7bb2f4156fd91e01f331453fce0a79d10c284d0ed041391ee875b983de4acccabc4e32d3a3b3c1742531d746599a9a581bff5bdf3a686558d57a6722cc9e2cdba7013a2ac4f057275d085958c96daabf7fd046e046177ff1ff0abcd96f9ff47073c125b99de3f8d87750334c070ec9415202632be5bb6214052b69dcace957f051df9fab2a4b0d4bb325ba560c3e641353a10a07ddf9d771c77f8c5f409eb2b1ab5c2492a0be892ca976b802a93b8f164b047ac57176de059026143f0d44fac2c75dbe5ab90fcc9a990972c2b3ad2a70ced6065a2f2321f5ebee8606aca9698249d1970fa380354ab38526ad18f4babe85a9dc2424b3",
+    "https://job-logs.eascdn.net/production/3b194e85-b9df-4ba5-9165-c193b55201b8/1769965883781-db29534e-75f8-409f-9f81-59e66315ad82.txt?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-Credential=www-production%40exponentjs.iam.gserviceaccount.com%2F20260206%2Fauto%2Fstorage%2Fgoog4_request&X-Goog-Date=20260206T122030Z&X-Goog-Expires=900&X-Goog-SignedHeaders=host&X-Goog-Signature=6f44df90e0d02a9bec024646c8c132fc38883152b1771e0254184b64d706fe3a9d9801a9359382f2b1873a0ffbd5c30545b698ca2ad83f9388392c0bcd938b5a32725d96fdd3a052c1cfd608e1832f72640f3156d449b676988074a841b536fa42c518bf546ab74e81120467608de2d5a1e29df7289aa92bd20c7ed8ceeff32e75560bed73e5dfe21ff1b8183a6658c774fbed42d2beb3873c4de76725f35911ac3900ad9692c9a7d5a0ab4a3ad02c84812eadde7898806a417ad2f2c3c39a8506706a7a80bff9f32fc42ab526476051dd6d04b28d32471f4b45701e9aa48ef22d0dd4cd779d942f758144b8672ff8956286512885374fb2dc237c5f2061df72",
+    "https://job-logs.eascdn.net/production/3b194e85-b9df-4ba5-9165-c193b55201b8/1769965883962-0446685a-ee00-48b9-8659-cd80b99ebce5.txt?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-Credential=www-production%40exponentjs.iam.gserviceaccount.com%2F20260206%2Fauto%2Fstorage%2Fgoog4_request&X-Goog-Date=20260206T122030Z&X-Goog-Expires=900&X-Goog-SignedHeaders=host&X-Goog-Signature=93730c5603c4c3ea7351fbbc334e8b49cbca74c6fd44627ce492052bd87db81dac7a4b99ee80ac72abebdbf0b941ebfcc4bc251f6d1feb28a79115e5bf07b9798feba959cdfb7eec9cee8198141148ac3061ce6eb581d2bcec30bf2161fdad844f839ba39e4d8d1822df8f8c750fba614bff8e61bdc8b6de5e2c826c5f9039d3a92bfcea83cc719e94af56abdf0aecd8a2c0a8507ce969b90dddae896839f36110344fa50ede0b18dcf535b053cee1479b3f08f4bc28245db63903d4f6afaa02e7e43642aa5125e4e969c9697cd800883dc96a2cd8e7ccc846ef1a8c18e295f0c3b525cfb234d3fd8abed65965ce40d7211075828284c524668bd9263cb27e1a"
+  ],
+  "project": {
+    "id": "19584c7c-7dfb-4799-aa70-26a452f02714",
+    "name": "profix",
+    "slug": "profix",
+    "ownerAccount": {
+      "id": "b7c61ffb-636c-484b-949a-9534f245a2ab",
+      "name": "alejandrosaezh"
+    }
+  },
+  "channel": "preview",
+  "distribution": "INTERNAL",
+  "buildProfile": "preview",
+  "sdkVersion": "54.0.0",
+  "appVersion": "1.0.13",
+  "appBuildVersion": "30",
+  "runtimeVersion": "1.0.13",
+  "gitCommitHash": "3ce43463e38efc66230652829ade4386b7814d22",
+  "gitCommitMessage": "Optimize admin routes: Exclude heavy fields from user list",
+  "priority": "HIGH",
+  "createdAt": "2026-02-01T17:11:22.040Z",
+  "updatedAt": "2026-02-01T17:23:17.577Z",
+  "completedAt": "2026-02-01T17:23:15.762Z",
+  "expirationDate": "2026-05-02T17:11:22.079Z",
+  "isForIosSimulator": false,
+  "metrics": {
+    "buildWaitTime": 140,
+    "buildQueueTime": 38693,
+    "buildDuration": 674560
+  }
+}

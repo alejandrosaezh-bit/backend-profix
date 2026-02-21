@@ -10,6 +10,7 @@ export default function LoginScreen({ navigation }) {
   const { login, register, isLoading } = useContext(AuthContext);
   const [isRegistering, setIsRegistering] = useState(false);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     const showSubscription = Keyboard.addListener('keyboardDidShow', () => setKeyboardVisible(true));
@@ -164,10 +165,13 @@ export default function LoginScreen({ navigation }) {
             style={styles.input}
             value={password}
             onChangeText={setPassword}
-            secureTextEntry
+            secureTextEntry={!showPassword}
             autoCapitalize="none"
             autoCorrect={false}
           />
+          <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={{ padding: 10 }}>
+            <Feather name={showPassword ? "eye" : "eye-off"} size={20} color="#4B5563" />
+          </TouchableOpacity>
         </View>
 
         {errorMessage ? (

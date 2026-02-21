@@ -1,7 +1,7 @@
 import * as ImagePicker from 'expo-image-picker';
 import { Camera, ChevronDown, ChevronRight, Crosshair, ImagePlus, MapPin, X } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Image, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import HomeSections from '../data/HomeSections';
 import { api } from '../utils/api';
 
@@ -115,72 +115,78 @@ export default function HomeScreen({ onSubmit, isLoggedIn, onTriggerLogin, initi
     };
 
     return (
-        <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: 100 }}>
-            {/* FORMULARIO */}
-            <View style={styles.heroCard}>
-                <View style={styles.heroHeader}>
-                    <Text style={styles.heroTitle}>Nueva Solicitud</Text>
-                    <Text style={styles.heroSubtitle}>Describe tu problema para recibir ofertas.</Text>
-                </View>
-                <View style={styles.formContainer}>
-                    <CustomDropdown
-                        label="CATEGORÍA"
-                        placeholder="Selecciona..."
-                        value={formData.category}
-                        options={categories.map(c => c.name)}
-                        onSelect={(c) => {
-                            setFormData({ ...formData, category: c, subcategory: '' });
-                            setPlaceholders({ title: 'Ej. Fuga en el baño', desc: 'Detalles...' });
-                        }}
-                    />
-                    {formData.category && (
+        <KeyboardAvoidingView
+            style={{ flex: 1 }}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 80}
+        >
+            <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: 180 }} keyboardShouldPersistTaps="handled">
+                {/* FORMULARIO */}
+                <View style={styles.heroCard}>
+                    <View style={styles.heroHeader}>
+                        <Text style={styles.heroTitle}>Nueva Solicitud</Text>
+                        <Text style={styles.heroSubtitle}>Describe tu problema para recibir ofertas.</Text>
+                    </View>
+                    <View style={styles.formContainer}>
                         <CustomDropdown
-                            label="SUBCATEGORÍA"
-                            placeholder="Específico..."
-                            value={formData.subcategory}
-                            options={categories.find(c => c.name === formData.category)?.subcategories?.map(s => (typeof s === 'object' ? s.name : s)) || []}
-                            onSelect={handleSubcategorySelect}
+                            label="CATEGORÍA"
+                            placeholder="Selecciona..."
+                            value={formData.category}
+                            options={categories.map(c => c.name)}
+                            onSelect={(c) => {
+                                setFormData({ ...formData, category: c, subcategory: '' });
+                                setPlaceholders({ title: 'Ej. Fuga en el baño', desc: 'Detalles...' });
+                            }}
                         />
-                    )}
+                        {formData.category && (
+                            <CustomDropdown
+                                label="SUBCATEGORÍA"
+                                placeholder="Específico..."
+                                value={formData.subcategory}
+                                options={categories.find(c => c.name === formData.category)?.subcategories?.map(s => (typeof s === 'object' ? s.name : s)) || []}
+                                onSelect={handleSubcategorySelect}
+                            />
+                        )}
 
-                    <View style={styles.inputGroup}>
-                        <Text style={styles.label}>TÍTULO</Text>
-                        <TextInput style={styles.inputBox} placeholder={placeholders.title} placeholderTextColor="#4B5563" value={formData.title} onChangeText={t => setFormData({ ...formData, title: t })} />
-                    </View>
-                    <View style={styles.inputGroup}>
-                        <Text style={styles.label}>DESCRIPCIÓN</Text>
-                        <TextInput style={[styles.inputBox, { height: 80, textAlignVertical: 'top' }]} multiline placeholder={placeholders.desc} placeholderTextColor="#4B5563" value={formData.description} onChangeText={t => setFormData({ ...formData, description: t })} />
-                    </View>
-                    <View style={styles.inputGroup}>
-                        <Text style={styles.label}>UBICACIÓN</Text>
-                        <View style={styles.inputWrapper}>
-                            <MapPin size={18} color="#666" style={{ marginRight: 5 }} />
-                            <TextInput style={{ flex: 1, fontSize: 16, color: '#111827' }} placeholder="Ej. Caracas, Altamira" placeholderTextColor="#4B5563" value={formData.location} onChangeText={t => setFormData({ ...formData, location: t })} />
-                            <TouchableOpacity onPress={handleLocateMe}>
-                                {isLocating ? <ActivityIndicator size="small" color="#EA580C" /> : <Crosshair size={20} color="#2563EB" />}
-                            </TouchableOpacity>
+                        <View style={styles.inputGroup}>
+                            <Text style={styles.label}>TÍTULO</Text>
+                            <TextInput style={styles.inputBox} placeholder={placeholders.title} placeholderTextColor="#4B5563" value={formData.title} onChangeText={t => setFormData({ ...formData, title: t })} />
                         </View>
-                    </View>
-                    <View style={styles.inputGroup}>
-                        <Text style={styles.label}>EVIDENCIA</Text>
-                        <View style={{ flexDirection: 'row', gap: 10 }}>
-                            <TouchableOpacity style={styles.mediaButton} onPress={pickImage}><ImagePlus size={20} color="#4B5563" /><Text style={{ marginLeft: 5 }}>Galería</Text></TouchableOpacity>
-                            <TouchableOpacity style={styles.mediaButton} onPress={takePhoto}><Camera size={20} color="#4B5563" /><Text style={{ marginLeft: 5 }}>Cámara</Text></TouchableOpacity>
+                        <View style={styles.inputGroup}>
+                            <Text style={styles.label}>DESCRIPCIÓN</Text>
+                            <TextInput style={[styles.inputBox, { height: 80, textAlignVertical: 'top' }]} multiline placeholder={placeholders.desc} placeholderTextColor="#4B5563" value={formData.description} onChangeText={t => setFormData({ ...formData, description: t })} />
                         </View>
-                        <ScrollView horizontal style={{ marginTop: 10 }}>
-                            {images.map((img, i) => <Image key={i} source={{ uri: img }} style={{ width: 60, height: 60, borderRadius: 8, marginRight: 5 }} />)}
-                        </ScrollView>
+                        <View style={styles.inputGroup}>
+                            <Text style={styles.label}>UBICACIÓN</Text>
+                            <View style={styles.inputWrapper}>
+                                <MapPin size={18} color="#666" style={{ marginRight: 5 }} />
+                                <TextInput style={{ flex: 1, fontSize: 16, color: '#111827' }} placeholder="Ej. Caracas, Altamira" placeholderTextColor="#4B5563" value={formData.location} onChangeText={t => setFormData({ ...formData, location: t })} />
+                                <TouchableOpacity onPress={handleLocateMe}>
+                                    {isLocating ? <ActivityIndicator size="small" color="#EA580C" /> : <Crosshair size={20} color="#2563EB" />}
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                        <View style={styles.inputGroup}>
+                            <Text style={styles.label}>EVIDENCIA</Text>
+                            <View style={{ flexDirection: 'row', gap: 10 }}>
+                                <TouchableOpacity style={styles.mediaButton} onPress={pickImage}><ImagePlus size={20} color="#4B5563" /><Text style={{ marginLeft: 5 }}>Galería</Text></TouchableOpacity>
+                                <TouchableOpacity style={styles.mediaButton} onPress={takePhoto}><Camera size={20} color="#4B5563" /><Text style={{ marginLeft: 5 }}>Cámara</Text></TouchableOpacity>
+                            </View>
+                            <ScrollView horizontal style={{ marginTop: 10 }}>
+                                {images.map((img, i) => <Image key={i} source={{ uri: img }} style={{ width: 60, height: 60, borderRadius: 8, marginRight: 5 }} />)}
+                            </ScrollView>
+                        </View>
+                        <TouchableOpacity style={styles.searchButton} onPress={handlePreSubmit}>
+                            <Text style={styles.searchButtonText}>Pedir Presupuesto</Text>
+                            <ChevronRight color="white" size={20} />
+                        </TouchableOpacity>
                     </View>
-                    <TouchableOpacity style={styles.searchButton} onPress={handlePreSubmit}>
-                        <Text style={styles.searchButtonText}>Pedir Presupuesto</Text>
-                        <ChevronRight color="white" size={20} />
-                    </TouchableOpacity>
                 </View>
-            </View>
 
-            {/* SECCIONES RECUPERADAS (BLOG, CÓMO FUNCIONA) */}
-            <HomeSections onSelectCategory={(cat) => setFormData({ ...formData, category: cat.name })} />
-        </ScrollView>
+                {/* SECCIONES RECUPERADAS (BLOG, CÓMO FUNCIONA) */}
+                <HomeSections onSelectCategory={(cat) => setFormData({ ...formData, category: cat.name })} />
+            </ScrollView>
+        </KeyboardAvoidingView>
     );
 }
 

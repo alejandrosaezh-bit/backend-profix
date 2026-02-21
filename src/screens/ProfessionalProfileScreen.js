@@ -2,7 +2,6 @@ import { Feather, FontAwesome5 } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
     Alert,
     Dimensions,
     Image,
@@ -53,9 +52,21 @@ export default function ProfessionalProfileScreen({
     // Si no hay usuario (ej: durante logout), no renderizar nada para evitar errores
     if (!user) return null;
 
-    const [isEditing, setIsEditing] = useState(false);
+    const [isEditing, setIsEditing] = useState(false); // Professional Profile Editing
+    const [isEditingPersonal, setIsEditingPersonal] = useState(false); // Personal Data Editing
+    const [personalData, setPersonalData] = useState({}); // Temp state for personal data editing
     const [reviews, setReviews] = useState([]);
     const [isLoadingReviews, setIsLoadingReviews] = useState(false);
+
+    // Location Selector State
+    const [expandedStates, setExpandedStates] = useState({});
+
+    const toggleStateExpansion = (stateName) => {
+        setExpandedStates(prev => ({
+            ...prev,
+            [stateName]: !prev[stateName]
+        }));
+    };
 
     // Fetch reviews when category or user changes
     const [stats, setStats] = useState({
@@ -197,44 +208,55 @@ export default function ProfessionalProfileScreen({
 
     // --- ACCIONES ---
 
-    const handleSave = () => {
-        // Convertir Map a Objeto para la API
+    // --- SAVE HANDLERS ---
+
+    const handleSavePersonal = () => {
+        const dataToUpdate = {
+            ...user,
+            ...personalData
+        };
+        // Clean password/nulls
+        if (!dataToUpdate.password) delete dataToUpdate.password;
+
+        console.log("Saving Personal Data:", dataToUpdate.name);
+        if (onUpdate) onUpdate(dataToUpdate);
+        setIsEditingPersonal(false);
+    };
+
+    const handleSaveProfessional = () => {
+        // Convert Map to Object
         const profilesObject = {};
         if (profileData.profiles instanceof Map) {
             profileData.profiles.forEach((value, key) => {
                 profilesObject[key] = value;
             });
         } else if (typeof profileData.profiles === 'object' && profileData.profiles !== null) {
-            // Si ya es objeto, usarlo
             Object.assign(profilesObject, profileData.profiles);
         }
 
-        // Sanitize Data
         const dataToUpdate = {
             ...profileData,
             profiles: profilesObject
         };
 
-        // Fix: Evitar enviar string vacío en cédula para no romper unique sparse index
-        if (dataToUpdate.cedula === '') {
-            dataToUpdate.cedula = undefined; // O null
-        }
-        // Limpiar campos nulos o undefined para reducir payload
+        if (dataToUpdate.cedula === '') dataToUpdate.cedula = undefined;
         if (!dataToUpdate.password) delete dataToUpdate.password;
 
-        console.log("ProfessionalProfileScreen: Handling Save.");
-        console.log("- Avatar length:", dataToUpdate.avatar ? dataToUpdate.avatar.length : 0);
-        console.log("- Name:", dataToUpdate.name);
-        console.log("- Profiles Keys:", Object.keys(profilesObject));
-        console.log("- Full Payload Preview:", JSON.stringify(dataToUpdate).substring(0, 200) + "...");
-
-        if (onUpdate) {
-            console.log("ProfessionalProfileScreen: Calling onUpdate prop...");
-            onUpdate(dataToUpdate);
-        } else {
-            console.warn("ProfessionalProfileScreen: onUpdate prop is missing!");
-        }
+        console.log("Saving Professional Data");
+        if (onUpdate) onUpdate(dataToUpdate);
         setIsEditing(false);
+    };
+
+    // Initialize personal data on edit start
+    const startEditingPersonal = () => {
+        setPersonalData({
+            name: profileData.name || '',
+            email: profileData.email || '',
+            phone: profileData.phone || '',
+            cedula: profileData.cedula || '',
+            avatar: profileData.avatar || profileData.image
+        });
+        setIsEditingPersonal(true);
     };
 
     const handleClearChats = async () => {
@@ -315,17 +337,23 @@ export default function ProfessionalProfileScreen({
         updateCurrentProfile({ subcategories: newSubs });
     };
 
-    const toggleZone = (zone) => {
+    const toggleMunicipality = (municipality, state) => {
         if (!isCategoryActive) return;
+        const fullZoneName = `${municipality}, ${state}`;
         const currentZones = currentCatProfile.zones || [];
         let newZones;
-        if (currentZones.includes(zone)) {
-            newZones = currentZones.filter(z => z !== zone);
+        if (currentZones.includes(fullZoneName)) {
+            newZones = currentZones.filter(z => z !== fullZoneName);
         } else {
-            newZones = [...currentZones, zone];
+            newZones = [...currentZones, fullZoneName];
         }
-
         updateCurrentProfile({ zones: newZones });
+    };
+
+    // Helper to check if a state has any selected municipalities
+    const getSelectedMunicipalitiesInState = (state) => {
+        const currentZones = currentCatProfile.zones || [];
+        return currentZones.filter(z => z.endsWith(`, ${state}`)).map(z => z.split(', ')[0]);
     };
 
     const updateCurrentProfile = (updates) => {
@@ -359,8 +387,11 @@ export default function ProfessionalProfileScreen({
 
         if (!result.canceled) {
             const base64Img = `data:image/jpeg;base64,${result.assets[0].base64}`;
-            // Usar 'avatar' para coincidir con el backend y el perfil de cliente
-            setProfileData(prev => ({ ...prev, avatar: base64Img }));
+            if (isEditingPersonal) {
+                setPersonalData(prev => ({ ...prev, avatar: base64Img }));
+            } else {
+                setProfileData(prev => ({ ...prev, avatar: base64Img }));
+            }
         }
     };
 
@@ -447,492 +478,471 @@ export default function ProfessionalProfileScreen({
 
     return (
         <View style={styles.container}>
-            {/* Header Profil Profesional */}
-            <View style={{ backgroundColor: '#2563EB', paddingHorizontal: 16, paddingTop: Platform.OS === 'ios' ? 50 : 20, paddingBottom: 20, borderBottomLeftRadius: 24, borderBottomRightRadius: 24, flexDirection: 'row', alignItems: 'center' }}>
-                <TouchableOpacity onPress={onBack} style={{ marginRight: 16 }}>
-                    <Feather name="arrow-left" size={24} color="white" />
+            {/* Header Redesign */}
+            <View style={styles.header}>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Text style={styles.headerTitle}>Perfil Profesional</Text>
+                    <View style={{ backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, marginLeft: 10 }}>
+                        <Text style={{ fontSize: 10, color: 'white', fontWeight: 'bold' }}>V32.0</Text>
+                    </View>
+                </View>
+                <TouchableOpacity onPress={onLogout} style={styles.logoutIconButton}>
+                    <Feather name="log-out" size={20} color="white" />
                 </TouchableOpacity>
-                <Text style={{ fontSize: 20, fontWeight: 'bold', color: 'white' }}>Perfil Profesional</Text>
             </View>
 
-            {/* Add paddingBottom to prevent content hiding behind footer */}
-            <ScrollView contentContainerStyle={[styles.scrollContent, isEditing && { paddingBottom: 100 }]}>
+            <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
 
-                {/* PROFILE CARD */}
+                {/* PERSONAL INFO CARD (FLOATING) */}
                 <View style={styles.profileCard}>
                     <View style={styles.avatarContainer}>
-                        {/* Usar 'avatar' en lugar de 'image' */}
-                        {(profileData.avatar || profileData.image) ? (
-                            <Image source={{ uri: profileData.avatar || profileData.image }} style={styles.avatar} />
-                        ) : (
-                            <View style={[styles.avatar, { backgroundColor: '#E5E7EB', justifyContent: 'center', alignItems: 'center' }]}>
-                                <Feather name="user" size={60} color="#9CA3AF" />
-                            </View>
-                        )}
-                        {isEditing && (
+                        <TouchableOpacity disabled={!isEditingPersonal} onPress={pickMainImage}>
+                            {(isEditingPersonal ? personalData.avatar : (profileData.avatar || profileData.image)) ? (
+                                <Image
+                                    source={{ uri: isEditingPersonal ? personalData.avatar : (profileData.avatar || profileData.image) }}
+                                    style={styles.avatar}
+                                />
+                            ) : (
+                                <View style={[styles.avatar, { justifyContent: 'center', alignItems: 'center' }]}>
+                                    <Feather name="user" size={40} color="#9CA3AF" />
+                                </View>
+                            )}
+                        </TouchableOpacity>
+                        {isEditingPersonal && (
                             <TouchableOpacity style={styles.editBadge} onPress={pickMainImage}>
-                                <Feather name="camera" size={20} color="white" />
+                                <Feather name="camera" size={14} color="white" />
                             </TouchableOpacity>
                         )}
                     </View>
 
-                    {!isEditing ? (
-                        <View style={{ alignItems: 'center', marginTop: 10 }}>
-                            <Text style={styles.userName}>{profileData.name || 'Profesional'}</Text>
-                            <Text style={styles.userEmail}>{profileData.email}</Text>
-                            <View style={styles.ratingContainer}>
-                                <Feather name="star" size={16} color="#FBBF24" style={{ marginRight: 4 }} />
-                                <Text style={styles.ratingText}>{user.rating || '5.0'} (Valoración de Profesionales)</Text>
+                    {isEditingPersonal ? (
+                        <View style={styles.formContainer}>
+                            <View style={styles.inputGroup}>
+                                <Text style={styles.inputLabel}>Nombre Completo</Text>
+                                <TextInput
+                                    style={styles.textInput}
+                                    value={personalData.name}
+                                    onChangeText={(t) => setPersonalData(p => ({ ...p, name: t }))}
+                                />
                             </View>
-                            {isOwner && (
-                                <TouchableOpacity style={styles.editButton} onPress={() => setIsEditing(true)}>
-                                    <Text style={styles.editButtonText}>Editar Perfil</Text>
+                            <View style={styles.inputGroup}>
+                                <Text style={styles.inputLabel}>Teléfono</Text>
+                                <TextInput
+                                    style={styles.textInput}
+                                    value={personalData.phone}
+                                    onChangeText={(t) => setPersonalData(p => ({ ...p, phone: t }))}
+                                    placeholder="+56 9 1234 5678"
+                                    keyboardType="phone-pad"
+                                />
+                            </View>
+                            <View style={styles.inputGroup}>
+                                <Text style={styles.inputLabel}>Cédula (Solo lectura)</Text>
+                                <TextInput
+                                    style={[styles.textInput, { backgroundColor: '#F3F4F6', color: '#6B7280' }]}
+                                    value={personalData.cedula}
+                                    editable={false}
+                                />
+                            </View>
+                            <View style={styles.rowButtons}>
+                                <TouchableOpacity style={styles.btnCancel} onPress={() => setIsEditingPersonal(false)}>
+                                    <Text style={styles.btnTextCancel}>Cancelar</Text>
                                 </TouchableOpacity>
-                            )}
-                        </View>
-                    ) : (
-                        <View style={{ width: '100%', marginTop: 20 }}>
-                            <Text style={styles.label}>Nombre Completo</Text>
-                            <TextInput
-                                style={styles.input}
-                                value={profileData.name}
-                                onChangeText={(t) => setProfileData({ ...profileData, name: t })}
-                            />
-
-                            <Text style={styles.label}>Correo Electrónico</Text>
-                            <TextInput
-                                style={styles.input}
-                                value={profileData.email}
-                                onChangeText={(t) => setProfileData({ ...profileData, email: t })}
-                                keyboardType="email-address"
-                            />
-
-                            <Text style={styles.label}>Teléfono</Text>
-                            <TextInput
-                                style={styles.input}
-                                value={profileData.phone || ''}
-                                onChangeText={(t) => setProfileData({ ...profileData, phone: t })}
-                                keyboardType="phone-pad"
-                                placeholder="+56 9 1234 5678"
-                            />
-
-                            <Text style={styles.label}>Cédula de Identidad (Solo lectura)</Text>
-                            <TextInput
-                                style={[styles.input, { backgroundColor: '#E5E7EB', color: '#6B7280' }]}
-                                value={profileData.cedula || ''}
-                                editable={false}
-                                placeholder="12.345.678-9"
-                            />
-
-                        </View>
-                    )}
-                </View>
-
-                {/* Separador */}
-                <View style={{ height: 1, backgroundColor: '#E5E7EB', marginHorizontal: 24, marginVertical: 10 }} />
-
-                {/* SELECTOR DE CATEGORÍAS (VIEW MODE - BUTTONS) */}
-                {
-                    !isEditing && (
-                        <View style={styles.categoryBar}>
-                            <Text style={{ marginBottom: 10, fontSize: 13, fontWeight: 'bold', color: '#6B7280', paddingHorizontal: 16 }}>Categoría</Text>
-                            <View style={{ flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 16, gap: 10 }}>
-                                {sortedCategories
-                                    .filter(cat => {
-                                        const key = cat.fullName || cat.name;
-                                        return !!profileData.profiles?.[key] && profileData.profiles[key].isActive !== false;
-                                    })
-                                    .map((cat) => {
-                                        const isSelected = selectedCategory.id === cat.id;
-                                        return (
-                                            <TouchableOpacity
-                                                key={cat.id}
-                                                style={[
-                                                    styles.catButton,
-                                                    isSelected && styles.catButtonSelected
-                                                ]}
-                                                onPress={() => setSelectedCategory(cat)}
-                                            >
-                                                {/* Icon Resolver */}
-                                                {typeof cat.icon === 'function' ? (
-                                                    <View style={{ marginRight: 6 }}>
-                                                        <cat.icon size={16} color={isSelected ? 'white' : '#4B5563'} />
-                                                    </View>
-                                                ) : (
-                                                    <Feather
-                                                        name={cat.icon || ICON_MAP[cat.name] || 'grid'}
-                                                        size={16}
-                                                        color={isSelected ? 'white' : '#4B5563'}
-                                                        style={{ marginRight: 6 }}
-                                                    />
-                                                )}
-                                                <Text style={[
-                                                    styles.catButtonText,
-                                                    isSelected && { color: 'white' }
-                                                ]}>
-                                                    {cat.name}
-                                                </Text>
-                                            </TouchableOpacity>
-                                        );
-                                    })}
-                                {/* Fallback if no categories active */}
-                                {sortedCategories.filter(cat => {
-                                    const key = cat.fullName || cat.name;
-                                    return !!profileData.profiles?.[key] && profileData.profiles[key].isActive !== false;
-                                }).length === 0 && (
-                                        <Text style={{ color: '#999', fontStyle: 'italic', paddingLeft: 5 }}>No tienes categorías activas.</Text>
-                                    )}
-                            </View>
-                        </View>
-                    )
-                }
-
-                {/* EDICIÓN TABS (SOLO SI ESTÁ EDITANDO PARA ACTIVAR/DESACTIVAR) */}
-                {
-                    isEditing && (
-                        <View style={styles.categoryBar}>
-                            <Text style={{ marginLeft: 16, marginBottom: 10, fontSize: 12, color: '#666' }}>Gestionar Categorías:</Text>
-                            <View style={{ flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 16, gap: 8 }}>
-                                {sortedCategories.map((cat) => {
-                                    const catKey = cat.fullName || cat.name;
-                                    const isActive = !!profileData.profiles?.[catKey] && profileData.profiles[catKey].isActive !== false;
-                                    const isSelected = selectedCategory.id === cat.id;
-                                    return (
-                                        <TouchableOpacity
-                                            key={cat.id}
-                                            style={[
-                                                styles.catTab,
-                                                isSelected && styles.catTabSelected,
-                                                isActive && !isSelected && styles.catTabActive
-                                            ]}
-                                            onPress={() => setSelectedCategory(cat)}
-                                        >
-                                            {/* Icon Resolver */}
-                                            {typeof cat.icon === 'function' ? (
-                                                <View style={{ marginRight: 4 }}>
-                                                    <cat.icon size={14} color={isSelected ? 'white' : (isActive ? '#2563EB' : '#6B7280')} />
-                                                </View>
-                                            ) : (
-                                                <Feather
-                                                    name={cat.icon || ICON_MAP[cat.name] || 'grid'}
-                                                    size={14}
-                                                    color={isSelected ? 'white' : (isActive ? '#2563EB' : '#6B7280')}
-                                                    style={{ marginRight: 4 }}
-                                                />
-                                            )}
-                                            <Text style={[
-                                                styles.catTabText,
-                                                isSelected && { color: 'white' },
-                                                isActive && !isSelected && { color: '#2563EB' }
-                                            ]}>
-                                                {cat.name}
-                                            </Text>
-                                            {isActive && <View style={styles.activeDot} />}
-                                        </TouchableOpacity>
-                                    );
-                                })}
-                            </View>
-                        </View>
-                    )
-                }
-
-                {/* ESTADO DE LA CATEGORÍA */}
-                <View style={styles.section}>
-                    {isEditing && (
-                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 }}>
-                            <Text style={styles.sectionTitle}>Perfil de {selectedCategory.name}</Text>
-                            {isOwner && (
-                                <TouchableOpacity
-                                    style={[styles.toggleButton, isCategoryActive ? styles.btnDestructive : styles.btnPrimary]}
-                                    onPress={toggleCategoryActivation}
-                                >
-                                    <Text style={[styles.toggleButtonText, isCategoryActive ? { color: '#EF4444' } : { color: 'white' }]}>
-                                        {isCategoryActive ? 'Pausar Categoría' : 'Reactivar Categoría'}
-                                    </Text>
+                                <TouchableOpacity style={styles.btnSave} onPress={handleSavePersonal}>
+                                    <Text style={styles.btnTextSave}>Guardar Datos</Text>
                                 </TouchableOpacity>
-                            )}
-                        </View>
-                    )}
-
-                    {!isCategoryActive ? (
-                        <View style={styles.emptyState}>
-                            <Feather name="briefcase" size={48} color="#ccc" />
-                            <Text style={styles.emptyStateText}>No tienes un perfil activo para {selectedCategory.name}.</Text>
-                            <Text style={styles.emptyStateSubtext}>Actívalo para empezar a recibir solicitudes de este tipo.</Text>
+                            </View>
                         </View>
                     ) : (
                         <>
-                            {/* ESTADÍSTICAS DE LA CATEGORÍA */}
-                            {/* ESTADÍSTICAS DE LA CATEGORÍA */}
-                            <View style={styles.statsCard}>
-                                <View style={styles.statItem}>
-                                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                        <FontAwesome5 name="trophy" size={14} color="#F59E0B" style={{ marginRight: 5 }} />
-                                        <Text style={styles.statValue}>{categoryStats.jobs}</Text>
-                                    </View>
-                                    <Text style={styles.statLabel}>Ganados</Text>
-                                </View>
-                                <View style={styles.statDivider} />
-                                <View style={styles.statItem}>
-                                    <Text style={styles.statValue}>{categoryStats.rating} ★</Text>
-                                    <Text style={styles.statLabel}>Valoración</Text>
-                                </View>
-                                <View style={styles.statDivider} />
-                                <View style={styles.statItem}>
-                                    <Text style={styles.statValue}>{categoryStats.success}</Text>
-                                    <Text style={styles.statLabel}>Éxito</Text>
-                                </View>
+                            <Text style={styles.userName}>{profileData.name || 'Profesional'}</Text>
+                            <Text style={styles.userEmail}>{profileData.email}</Text>
+                            <View style={styles.ratingContainer}>
+                                <Feather name="star" size={14} color="#D97706" style={{ marginRight: 4 }} />
+                                <Text style={styles.ratingText}>{globalRating} (General)</Text>
                             </View>
 
-                            {/* SUBCATEGORÍAS */}
-                            <Text style={styles.label}>Especialidades (Subcategorías)</Text>
-                            <View style={styles.tagsContainer}>
-                                {(allSubcategories[categoryKey] || [])
-                                    .filter(sub => {
-                                        const subName = typeof sub === 'object' ? sub.name : sub;
-                                        return isEditing || currentCatProfile.subcategories?.includes(subName);
-                                    })
-                                    .map((sub, index) => {
-                                        const subName = typeof sub === 'object' ? sub.name : sub;
-                                        const isSelected = currentCatProfile.subcategories?.includes(subName);
-                                        return (
-                                            <TouchableOpacity
-                                                key={index}
-                                                style={[styles.tag, isSelected && styles.tagSelected]}
-                                                onPress={() => isEditing && toggleSubcategory(subName)}
-                                                disabled={!isEditing}
-                                            >
-                                                <Text style={[styles.tagText, isSelected && styles.tagTextSelected]}>{subName}</Text>
-                                            </TouchableOpacity>
-                                        );
-                                    })}
-                                {!isEditing && (!currentCatProfile.subcategories || currentCatProfile.subcategories.length === 0) && (
-                                    <Text style={{ color: '#999', fontStyle: 'italic', fontSize: 12 }}>No hay especialidades seleccionadas.</Text>
-                                )}
-                            </View>
-
-                            {/* ZONAS DE TRABAJO */}
-                            <Text style={styles.label}>Zonas de Cobertura</Text>
-
-                            {isEditing ? (
-                                // MODO EDICIÓN: Mostrar lista agrupada por ciudades
-                                <View>
-                                    {Object.keys(allZones).map((city) => (
-                                        <View key={city} style={{ marginBottom: 15 }}>
-                                            <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#4B5563', marginBottom: 8 }}>{city}</Text>
-                                            <View style={styles.tagsContainer}>
-                                                {allZones[city].map((muni) => {
-                                                    const fullZoneName = `${muni}, ${city}`;
-                                                    const isSelected = currentCatProfile.zones?.includes(fullZoneName);
-                                                    return (
-                                                        <TouchableOpacity
-                                                            key={muni}
-                                                            style={[styles.tag, isSelected && styles.tagSelected]}
-                                                            onPress={() => toggleZone(fullZoneName)}
-                                                        >
-                                                            <Text style={[styles.tagText, isSelected && styles.tagTextSelected]}>{muni}</Text>
-                                                        </TouchableOpacity>
-                                                    );
-                                                })}
-                                            </View>
-                                        </View>
-                                    ))}
-                                </View>
-                            ) : (
-                                // MODO VISUALIZACIÓN: Mostrar solo las seleccionadas
-                                <View style={styles.tagsContainer}>
-                                    {(currentCatProfile.zones || []).map((zone, index) => (
-                                        <View key={index} style={[styles.tag, styles.tagSelected]}>
-                                            <Text style={[styles.tagText, styles.tagTextSelected]}>{zone}</Text>
-                                        </View>
-                                    ))}
-                                    {(!currentCatProfile.zones || currentCatProfile.zones.length === 0) && (
-                                        <Text style={{ color: '#999', fontStyle: 'italic', fontSize: 12 }}>No hay zonas seleccionadas.</Text>
-                                    )}
-                                </View>
-                            )}
-
-                            {/* PRESENTACIÓN */}
-                            <Text style={styles.label}>Presentación / Bio</Text>
-                            {isEditing ? (
-                                <TextInput
-                                    style={styles.bioInput}
-                                    multiline
-                                    placeholder={`Describe tu experiencia en ${selectedCategory.name}...`}
-                                    value={currentCatProfile.bio}
-                                    onChangeText={(text) => updateCurrentProfile({ bio: text })}
-                                />
-                            ) : (
-                                <Text style={styles.bioText}>
-                                    {currentCatProfile.bio || 'Sin descripción.'}
-                                </Text>
-                            )}
-
-                            {/* PRESENTATION GALLERY */}
-                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 20, marginBottom: 10 }}>
-                                <Text style={styles.label}>Galería de Presentación ({selectedCategory.name})</Text>
-                                {isEditing && (
-                                    <TouchableOpacity onPress={pickImage}>
-                                        <Text style={{ color: '#2563EB', fontWeight: 'bold' }}>+ Agregar Foto</Text>
-                                    </TouchableOpacity>
-                                )}
-                            </View>
-                            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 20 }}>
-                                {(currentCatProfile.gallery || []).map((img, i) => (
-                                    <View key={i} style={{ position: 'relative', marginRight: 10 }}>
-                                        <TouchableOpacity onPress={() => onViewImage && onViewImage(img)}>
-                                            <Image source={{ uri: img }} style={styles.galleryImage} />
-                                        </TouchableOpacity>
-                                        {isEditing && (
-                                            <TouchableOpacity
-                                                style={styles.deleteImageButton}
-                                                onPress={() => removeImage(i)}
-                                            >
-                                                <Feather name="x" size={12} color="white" />
-                                            </TouchableOpacity>
-                                        )}
-                                    </View>
-                                ))}
-                                {(!currentCatProfile.gallery || currentCatProfile.gallery.length === 0) && (
-                                    <Text style={{ color: '#999', fontStyle: 'italic' }}>No hay fotos en este portafolio.</Text>
-                                )}
-                            </ScrollView>
-
-                            {/* TRABAJOS REALIZADOS (COMPLETED JOBS) */}
-                            {/* Mostrar fotos de trabajos finalizados en ésta categoría */}
-                            <Text style={styles.label}>Trabajos Realizados</Text>
-                            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 20 }}>
-                                {jobsList
-                                    .filter(j =>
-                                        ['Finalizada', 'Cerrado'].includes(j.status) &&
-                                        j.category === selectedCategory.name && // Filter by current cat
-                                        (j.workPhotos?.length > 0 || j.images?.length > 0)
-                                    )
-                                    .flatMap(j => j.workPhotos?.length > 0 ? j.workPhotos : (j.images || [])) // Flatten all images
-                                    .map((img, i) => (
-                                        <TouchableOpacity key={i} style={{ marginRight: 10 }} onPress={() => onViewImage && onViewImage(img)}>
-                                            <Image source={{ uri: img }} style={styles.galleryImage} />
-                                        </TouchableOpacity>
-                                    ))}
-
-                                {jobsList.filter(j => ['Finalizada', 'Cerrado'].includes(j.status) && j.category === selectedCategory.name && (j.workPhotos?.length > 0 || j.images?.length > 0)).length === 0 && (
-                                    <Text style={{ color: '#999', fontStyle: 'italic', fontSize: 13 }}>No hay fotos de trabajos realizados en esta categoría.</Text>
-                                )}
-                            </ScrollView>
-
-                            {/* OPINIONES */}
-                            <Text style={styles.label}>Opiniones de Clientes</Text>
-                            {isLoadingReviews ? (
-                                <ActivityIndicator size="small" color="#2563EB" style={{ marginVertical: 20 }} />
-                            ) : catReviews.length === 0 ? (
-                                <Text style={{ color: '#999', marginBottom: 20 }}>Aún no hay opiniones.</Text>
-                            ) : (
-                                catReviews.map((review, idx) => (
-                                    <View key={review._id || idx} style={styles.reviewCard}>
-                                        <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                                            <Text style={{ fontWeight: 'bold' }}>{review.reviewer?.name || 'Cliente'}</Text>
-                                            <Text style={{ fontSize: 10, color: '#9CA3AF' }}>{new Date(review.createdAt).toLocaleDateString()}</Text>
-                                        </View>
-                                        {renderStars(review.rating)}
-                                        <Text style={{ marginTop: 5, color: '#4B5563', fontSize: 13, fontStyle: 'italic' }}>
-                                            "{review.comment || 'Sin comentarios'}"
-                                        </Text>
-                                    </View>
-                                ))
+                            {!isEditing && (
+                                <TouchableOpacity style={styles.editPersonalButton} onPress={startEditingPersonal}>
+                                    <Text style={styles.editPersonalButtonText}>Editar Datos Personales</Text>
+                                </TouchableOpacity>
                             )}
                         </>
                     )}
                 </View>
-                {
-                    isOwner && (
-                        <TouchableOpacity
-                            style={{ alignSelf: 'center', padding: 15, backgroundColor: '#EF4444', borderRadius: 12, marginTop: 20, width: '80%', alignItems: 'center' }}
-                            onPress={onLogout}
-                        >
-                            <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 14 }}>Cerrar Sesión</Text>
-                        </TouchableOpacity>
-                    )
-                }
-            </ScrollView >
 
-            {/* FIXED FOOTER BUTTONS */}
-            {isEditing && (
-                <View style={{
-                    position: 'absolute',
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    backgroundColor: 'white',
-                    borderTopWidth: 1,
-                    borderTopColor: '#E5E7EB',
-                    paddingHorizontal: 20,
-                    paddingVertical: 16,
-                    flexDirection: 'row',
-                    justifyContent: 'space-between',
-                    elevation: 10,
-                    shadowColor: '#000',
-                    shadowOffset: { width: 0, height: -2 },
-                    shadowOpacity: 0.1,
-                    shadowRadius: 4,
-                }}>
-                    <TouchableOpacity
-                        style={[styles.actionButton, { backgroundColor: '#EF4444', marginRight: 10 }]}
-                        onPress={() => setIsEditing(false)}
-                    >
-                        <Text style={styles.actionButtonText}>Cancelar</Text>
+                {/* PROFESSIONAL SECTION (HIDDEN WHILE EDITING PERSONAL) */}
+                {!isEditingPersonal && (
+                    <View style={styles.sectionContainer}>
+
+                        {/* HEADER DE SECCIÓN */}
+                        <View style={styles.sectionHeader}>
+                            <Text style={styles.sectionTitle}>Tu Perfil Profesional</Text>
+                            {!isEditing && (
+                                <TouchableOpacity onPress={() => setIsEditing(true)}>
+                                    <Text style={{ color: '#2563EB', fontWeight: 'bold' }}>Gestionar / Editar</Text>
+                                </TouchableOpacity>
+                            )}
+                        </View>
+
+                        {/* CATEGORY SELECTOR */}
+                        <View style={{ marginBottom: 20 }}>
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryList}>
+                                {sortedCategories.map((cat) => {
+                                    const catKey = cat.fullName || cat.name;
+                                    const isActive = !!profileData.profiles?.[catKey] && profileData.profiles[catKey].isActive !== false;
+                                    const isSelected = selectedCategory.id === cat.id;
+
+                                    // View Mode: Show only active (unless none active)
+                                    if (!isEditing && !isActive && sortedCategories.some(c => !!profileData.profiles?.[(c.fullName || c.name)]?.isActive)) return null;
+
+                                    return (
+                                        <TouchableOpacity
+                                            key={cat.id}
+                                            style={[
+                                                styles.categoryCard,
+                                                isSelected && styles.categoryCardSelected,
+                                                isActive && !isSelected && { borderColor: '#BBF7D0', backgroundColor: '#F0FDF4' }
+                                            ]}
+                                            onPress={() => setSelectedCategory(cat)}
+                                        >
+                                            <View style={styles.categoryIcon}>
+                                                {typeof cat.icon === 'function' ? (
+                                                    <cat.icon size={24} color={isSelected ? '#2563EB' : (isActive ? '#16A34A' : '#6B7280')} />
+                                                ) : (
+                                                    <Feather
+                                                        name={cat.icon || ICON_MAP[cat.name] || 'grid'}
+                                                        size={24}
+                                                        color={isSelected ? '#2563EB' : (isActive ? '#16A34A' : '#6B7280')}
+                                                    />
+                                                )}
+                                            </View>
+                                            <Text style={[styles.categoryName, isSelected && styles.categoryNameSelected]}>{cat.name}</Text>
+                                        </TouchableOpacity>
+                                    );
+                                })}
+                            </ScrollView>
+                        </View>
+
+                        {/* CONTENT FOR SELECTED CATEGORY */}
+                        {isEditing ? (
+                            // --- EDITING MODE ---
+                            <View style={styles.activationContainer}>
+                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <Text style={[styles.sectionTitle, { fontSize: 18 }]}>{selectedCategory.name}</Text>
+                                    <TouchableOpacity
+                                        onPress={toggleCategoryActivation}
+                                        style={{ backgroundColor: isCategoryActive ? '#FEF2F2' : '#F0FDF4', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 }}
+                                    >
+                                        <Text style={{ color: isCategoryActive ? '#EF4444' : '#16A34A', fontSize: 12, fontWeight: 'bold' }}>
+                                            {isCategoryActive ? 'Pausar Categoría' : 'Activar Categoría'}
+                                        </Text>
+                                    </TouchableOpacity>
+                                </View>
+
+                                {/* Step 1: Subcategories */}
+                                <Text style={styles.stepTitle}>1. Especialidades</Text>
+                                <View style={styles.chipsContainer}>
+                                    {(allSubcategories[categoryKey] || []).map((sub, i) => {
+                                        const subName = typeof sub === 'object' ? sub.name : sub;
+                                        const isSelected = currentCatProfile.subcategories?.includes(subName);
+                                        return (
+                                            <TouchableOpacity
+                                                key={i}
+                                                style={[styles.chip, isSelected && styles.chipSelected]}
+                                                onPress={() => toggleSubcategory(subName)}
+                                            >
+                                                <Text style={[styles.chipText, isSelected && styles.chipTextSelected]}>{subName}</Text>
+                                            </TouchableOpacity>
+                                        );
+                                    })}
+                                </View>
+
+                                {/* Step 2: Location (Improved) */}
+                                <Text style={styles.stepTitle}>2. Zonas de Cobertura</Text>
+                                <View style={{ borderWidth: 1, borderColor: '#F3F4F6', borderRadius: 10, overflow: 'hidden' }}>
+                                    {Object.keys(allZones).map((state) => {
+                                        const municipalities = allZones[state];
+                                        const isExpanded = expandedStates[state];
+                                        const selectedInState = getSelectedMunicipalitiesInState(state);
+                                        const hasSelection = selectedInState.length > 0;
+
+                                        return (
+                                            <View key={state}>
+                                                <TouchableOpacity
+                                                    style={[styles.stateItem, { paddingHorizontal: 12, backgroundColor: hasSelection ? '#F8FAFC' : 'white' }]}
+                                                    onPress={() => toggleStateExpansion(state)}
+                                                >
+                                                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                                        <Feather name={isExpanded ? "chevron-down" : "chevron-right"} size={18} color="#6B7280" />
+                                                        <Text style={[styles.stateName, hasSelection && { color: '#2563EB', fontWeight: 'bold' }]}>
+                                                            {state}
+                                                            {hasSelection && <Text style={{ fontWeight: 'normal', color: '#6B7280' }}> ({selectedInState.length})</Text>}
+                                                        </Text>
+                                                    </View>
+                                                </TouchableOpacity>
+
+                                                {isExpanded && (
+                                                    <View style={styles.municipalityList}>
+                                                        <View style={styles.chipsContainer}>
+                                                            {municipalities.map(muni => {
+                                                                const fullZone = `${muni}, ${state}`;
+                                                                const isSelected = currentCatProfile.zones?.includes(fullZone);
+                                                                return (
+                                                                    <TouchableOpacity
+                                                                        key={muni}
+                                                                        style={[styles.chip, isSelected && styles.chipSelected, { transform: [{ scale: 0.95 }] }]}
+                                                                        onPress={() => toggleMunicipality(muni, state)}
+                                                                    >
+                                                                        <Text style={[styles.chipText, isSelected && styles.chipTextSelected, { fontSize: 12 }]}>{muni}</Text>
+                                                                    </TouchableOpacity>
+                                                                );
+                                                            })}
+                                                        </View>
+                                                    </View>
+                                                )}
+                                            </View>
+                                        );
+                                    })}
+                                </View>
+
+                                {/* Step 3: Bio */}
+                                <Text style={styles.stepTitle}>3. Presentación</Text>
+                                <TextInput
+                                    style={styles.bioInput}
+                                    multiline
+                                    placeholder="Cuéntale a los clientes sobre tu experiencia..."
+                                    value={currentCatProfile.bio}
+                                    onChangeText={(t) => updateCurrentProfile({ bio: t })}
+                                />
+
+                                {/* Step 4: Gallery */}
+                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 15 }}>
+                                    <Text style={styles.stepTitle}>4. Fotos de Presentación</Text>
+                                    <TouchableOpacity onPress={pickImage}>
+                                        <Text style={{ color: '#2563EB', fontWeight: 'bold', fontSize: 13 }}>+ Agregar Foto</Text>
+                                    </TouchableOpacity>
+                                </View>
+                                <ScrollView horizontal style={{ marginBottom: 10 }}>
+                                    {(currentCatProfile.gallery || []).map((img, i) => (
+                                        <View key={i} style={{ position: 'relative', marginRight: 10 }}>
+                                            <Image source={{ uri: img }} style={styles.galleryImage} />
+                                            <TouchableOpacity style={styles.deleteImageButton} onPress={() => removeImage(i)}>
+                                                <Feather name="x" size={12} color="white" />
+                                            </TouchableOpacity>
+                                        </View>
+                                    ))}
+                                </ScrollView>
+
+                                {/* Action Buttons */}
+                                <View style={styles.rowButtons}>
+                                    <TouchableOpacity style={styles.btnCancel} onPress={() => setIsEditing(false)}>
+                                        <Text style={styles.btnTextCancel}>Descartar Cambios</Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity style={styles.btnSave} onPress={handleSaveProfessional}>
+                                        <Text style={styles.btnTextSave}>Guardar Perfil</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            </View>
+                        ) : (
+                            // --- VIEW MODE ---
+                            <View>
+                                {isCategoryActive ? (
+                                    <>
+                                        {/* Stats */}
+                                        <View style={styles.statsGrid}>
+                                            <View style={styles.statBox}>
+                                                <Text style={styles.statNumber}>{categoryStats.jobs}</Text>
+                                                <Text style={styles.statLabelSmall}>Trabajos</Text>
+                                            </View>
+                                            <View style={styles.statBox}>
+                                                <Text style={styles.statNumber}>{categoryStats.rating}</Text>
+                                                <Text style={styles.statLabelSmall}>Valoración</Text>
+                                            </View>
+                                            <View style={styles.statBox}>
+                                                <Text style={styles.statNumber}>{categoryStats.success}</Text>
+                                                <Text style={styles.statLabelSmall}>Éxito</Text>
+                                            </View>
+                                        </View>
+
+                                        {/* Info Sections */}
+                                        <View style={styles.infoSection}>
+                                            <Text style={styles.infoLabel}>Bio</Text>
+                                            <Text style={styles.infoText}>{currentCatProfile.bio || 'Sin información.'}</Text>
+                                        </View>
+
+                                        <View style={styles.infoSection}>
+                                            <Text style={styles.infoLabel}>Cobertura</Text>
+                                            <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+                                                {(currentCatProfile.zones || []).map((zone, i) => (
+                                                    <View key={i} style={styles.zoneTag}>
+                                                        <Text style={styles.zoneTagText}>{zone}</Text>
+                                                    </View>
+                                                ))}
+                                                {(!currentCatProfile.zones?.length) && <Text style={{ color: '#9CA3AF' }}>Sin zonas definidas</Text>}
+                                            </View>
+                                        </View>
+
+                                        <View style={styles.infoSection}>
+                                            <Text style={styles.infoLabel}>Especialidades</Text>
+                                            <View style={styles.chipsContainer}>
+                                                {(currentCatProfile.subcategories || []).map((sub, i) => (
+                                                    <View key={i} style={styles.chip}>
+                                                        <Text style={styles.chipText}>{sub}</Text>
+                                                    </View>
+                                                ))}
+                                            </View>
+                                        </View>
+
+                                        {/* Portfolio (View Only) */}
+                                        <Text style={styles.infoLabel}>Portafolio</Text>
+                                        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 20 }}>
+                                            {(currentCatProfile.gallery || []).map((img, i) => (
+                                                <TouchableOpacity key={i} onPress={() => onViewImage && onViewImage(img)}>
+                                                    <Image source={{ uri: img }} style={styles.galleryImage} />
+                                                </TouchableOpacity>
+                                            ))}
+                                            {(!currentCatProfile.gallery?.length) && <Text style={{ color: '#9CA3AF' }}>Sin fotos.</Text>}
+                                        </ScrollView>
+
+                                        {/* Reviews */}
+                                        <Text style={styles.infoLabel}>Reseñas Recientes</Text>
+                                        {catReviews.length > 0 ? catReviews.slice(0, 3).map((r, i) => (
+                                            <View key={i} style={styles.reviewCard}>
+                                                <Text style={{ fontWeight: 'bold' }}>{r.reviewer?.name || 'Cliente'}</Text>
+                                                <Text>{r.comment}</Text>
+                                            </View>
+                                        )) : <Text style={{ color: '#9CA3AF' }}>No hay reseñas aún.</Text>}
+
+                                    </>
+                                ) : (
+                                    <View style={styles.emptyState}>
+                                        <Feather name="briefcase" size={40} color="#CBD5E1" />
+                                        <Text style={styles.emptyStateText}>Perfil inactivo en {selectedCategory.name}</Text>
+                                        <Text style={styles.emptyStateSubtext}>Actívalo para empezar a recibir trabajos en esta categoría.</Text>
+                                        <TouchableOpacity
+                                            style={[styles.btnSave, { marginTop: 15, width: '100%' }]}
+                                            onPress={() => setIsEditing(true)}
+                                        >
+                                            <Text style={styles.btnTextSave}>Comenzar Activación</Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                )}
+                            </View>
+                        )}
+                    </View>
+                )}
+
+                {/* SETTINGS LINKS & SWITCH MODE */}
+                <View style={[styles.sectionContainer, { marginTop: 10 }]}>
+                    <Text style={styles.sectionTitle}>Ajustes de Cuenta</Text>
+
+                    <TouchableOpacity style={styles.settingRow} onPress={startEditingPersonal}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            <View style={[styles.iconBox, { backgroundColor: '#F3F4F6' }]}>
+                                <Feather name="user" size={20} color="#4B5563" />
+                            </View>
+                            <Text style={styles.settingText}>Editar Mis Datos Personales</Text>
+                        </View>
+                        <Feather name="chevron-right" size={20} color="#9CA3AF" />
                     </TouchableOpacity>
+
+                    <TouchableOpacity style={styles.settingRow}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            <View style={[styles.iconBox, { backgroundColor: '#E0E7FF' }]}>
+                                <Feather name="bell" size={20} color="#4F46E5" />
+                            </View>
+                            <Text style={styles.settingText}>Notificaciones</Text>
+                        </View>
+                        <Feather name="chevron-right" size={20} color="#9CA3AF" />
+                    </TouchableOpacity>
+
                     <TouchableOpacity
-                        style={[styles.actionButton, { backgroundColor: '#10B981', marginLeft: 10 }]}
-                        onPress={handleSave}
+                        style={styles.switchModeButton}
+                        onPress={() => onSwitchMode && onSwitchMode('client')}
                     >
-                        <Text style={styles.actionButtonText}>Guardar</Text>
+                        <Feather name="user" size={18} color="white" style={{ marginRight: 8 }} />
+                        <Text style={styles.switchModeButtonText}>Cambiar a Cliente</Text>
                     </TouchableOpacity>
                 </View>
-            )}
-        </View >
+            </ScrollView>
+        </View>
     );
 }
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#FFFFFF' },
-    scrollContent: { paddingBottom: 20 },
+    scrollContent: { paddingBottom: 100 },
+
+    // Header
+    header: {
+        backgroundColor: '#2563EB',
+        paddingHorizontal: 24,
+        paddingTop: 10,
+        paddingBottom: 22,
+        borderBottomLeftRadius: 32,
+        borderBottomRightRadius: 32,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between'
+    },
+    headerTitle: { fontSize: 24, fontWeight: 'bold', color: 'white' },
+    logoutIconButton: {
+        width: 48,
+        height: 48,
+        borderRadius: 24,
+        backgroundColor: 'rgba(255,255,255,0.2)',
+        justifyContent: 'center',
+        alignItems: 'center'
+    },
+
+    // Personal Info Card
     profileCard: {
         backgroundColor: 'white',
-        paddingHorizontal: 24,
-        paddingVertical: 32,
+        marginHorizontal: 4,
+        marginTop: 10,
+        padding: 20,
+        borderRadius: 24,
         alignItems: 'center',
+        shadowColor: '#2563EB',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 10,
+        elevation: 5,
+        marginBottom: 20
     },
     avatarContainer: {
-        position: 'relative',
         marginBottom: 10,
     },
     avatar: {
-        width: 120,
-        height: 120,
-        borderRadius: 60,
-        borderWidth: 4,
+        width: 100,
+        height: 100,
+        borderRadius: 50,
+        borderWidth: 3,
         borderColor: 'white',
+        backgroundColor: '#F3F4F6'
     },
     editBadge: {
         position: 'absolute',
         bottom: 0,
         right: 0,
         backgroundColor: '#2563EB',
-        padding: 8,
-        borderRadius: 20,
+        padding: 6,
+        borderRadius: 15,
         borderWidth: 2,
         borderColor: 'white',
     },
     userName: {
-        fontSize: 22,
+        fontSize: 20,
         fontWeight: 'bold',
         color: '#1F2937',
-        marginBottom: 4,
+        marginBottom: 2,
+        textAlign: 'center'
     },
     userEmail: {
         fontSize: 14,
         color: '#6B7280',
-        marginBottom: 10,
+        marginBottom: 8,
+        textAlign: 'center'
     },
     ratingContainer: {
         flexDirection: 'row',
@@ -941,173 +951,317 @@ const styles = StyleSheet.create({
         paddingHorizontal: 10,
         paddingVertical: 4,
         borderRadius: 12,
-        marginBottom: 16,
+        marginBottom: 12,
     },
     ratingText: {
         color: '#D97706',
         fontWeight: '600',
-        fontSize: 14,
+        fontSize: 13,
     },
-    editButton: {
+    editPersonalButton: {
+        backgroundColor: '#F3F4F6',
+        paddingHorizontal: 16,
         paddingVertical: 8,
-        paddingHorizontal: 24,
         borderRadius: 20,
-        borderWidth: 1,
-        borderColor: '#2563EB',
     },
-    editButtonText: {
-        color: '#2563EB',
+    editPersonalButtonText: {
+        color: '#4B5563',
         fontWeight: '600',
+        fontSize: 13
     },
-    input: {
+
+    // Forms
+    formContainer: {
+        width: '100%',
+        marginTop: 10
+    },
+    inputGroup: {
+        marginBottom: 15
+    },
+    inputLabel: {
+        fontSize: 13,
+        fontWeight: '600',
+        color: '#374151',
+        marginBottom: 6
+    },
+    textInput: {
         backgroundColor: '#F9FAFB',
         borderWidth: 1,
         borderColor: '#E5E7EB',
-        borderRadius: 14,
-        padding: 16,
-        fontSize: 17,
-        color: '#111827',
-        minHeight: 56,
-        marginTop: 8
+        borderRadius: 10,
+        padding: 12,
+        fontSize: 15,
+        color: '#111827'
     },
-    actionButton: {
+    rowButtons: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginTop: 10,
+        gap: 10
+    },
+    btnCancel: {
         flex: 1,
         padding: 12,
         borderRadius: 10,
-        alignItems: 'center',
-        marginHorizontal: 5,
+        backgroundColor: '#F3F4F6',
+        alignItems: 'center'
     },
-    actionButtonText: {
-        color: 'white',
-        fontWeight: 'bold',
+    btnSave: {
+        flex: 1,
+        padding: 12,
+        borderRadius: 10,
+        backgroundColor: '#2563EB',
+        alignItems: 'center'
     },
+    btnTextCancel: { color: '#4B5563', fontWeight: 'bold' },
+    btnTextSave: { color: 'white', fontWeight: 'bold' },
 
-    categoryBar: { backgroundColor: 'white', paddingVertical: 10, borderBottomWidth: 1, borderColor: '#E5E7EB' },
-
-    catButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingVertical: 10,
+    // Sections
+    sectionContainer: {
         paddingHorizontal: 16,
-        borderRadius: 20,
+        marginBottom: 20
+    },
+    sectionHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 15
+    },
+    sectionTitle: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: '#111827'
+    },
+
+    // Category Selector (Professional Mode)
+    categoryList: {
+        paddingBottom: 10
+    },
+    categoryCard: {
+        width: 100,
+        height: 100,
         backgroundColor: 'white',
+        borderRadius: 24,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginHorizontal: 4,
+        marginTop: 8,
+        marginBottom: 8,
+        borderWidth: 1,
+        borderColor: '#EFF6FF',
+        shadowColor: '#2563EB',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 10,
+        elevation: 5
+    },
+    categoryCardSelected: {
+        backgroundColor: '#EFF6FF',
+        borderColor: '#2563EB',
+        borderWidth: 2
+    },
+    categoryIcon: {
+        marginBottom: 8
+    },
+    categoryName: {
+        fontSize: 12,
+        fontWeight: '600',
+        color: '#4B5563',
+        textAlign: 'center'
+    },
+    categoryNameSelected: {
+        color: '#2563EB',
+        fontWeight: 'bold'
+    },
+
+    // Activation Flow
+    activationContainer: {
+        backgroundColor: 'white',
+        borderRadius: 16,
+        padding: 20,
         borderWidth: 1,
         borderColor: '#E5E7EB',
-        marginBottom: 8,
-        ...Platform.select({
-            web: { boxShadow: '0px 1px 2px rgba(0,0,0,0.05)' },
-            default: { elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2 }
-        })
+        marginTop: 10
     },
-    catButtonSelected: {
-        backgroundColor: '#2563EB',
-        borderColor: '#2563EB',
-    },
-    catButtonText: {
-        fontSize: 14,
+    stepTitle: {
+        fontSize: 15,
         fontWeight: 'bold',
-        color: '#374151',
+        color: '#1F2937',
+        marginBottom: 10,
+        marginTop: 15
     },
 
-    catTab: {
+    // Subcategories & Chips
+    chipsContainer: {
         flexDirection: 'row',
-        alignItems: 'center',
-        paddingVertical: 8,
-        paddingHorizontal: 16,
+        flexWrap: 'wrap',
+        gap: 8
+    },
+    chip: {
+        paddingVertical: 6,
+        paddingHorizontal: 12,
         borderRadius: 20,
-        marginBottom: 8,
         backgroundColor: '#F3F4F6',
         borderWidth: 1,
-        borderColor: 'transparent'
+        borderColor: '#E5E7EB'
     },
-    catTabSelected: {
-        backgroundColor: '#2563EB',
-        borderColor: '#2563EB'
-    },
-    catTabActive: {
+    chipSelected: {
         backgroundColor: '#DBEAFE',
         borderColor: '#BFDBFE'
     },
-    catTabText: {
+    chipText: {
         fontSize: 13,
-        fontWeight: '600',
-        color: '#6B7280'
+        color: '#4B5563'
     },
-    activeDot: {
-        width: 6,
-        height: 6,
-        borderRadius: 3,
-        backgroundColor: '#10B981',
-        marginLeft: 6
+    chipTextSelected: {
+        color: '#2563EB',
+        fontWeight: '600'
     },
 
-    content: { flex: 1 },
-    section: { backgroundColor: 'white', paddingHorizontal: 24, paddingVertical: 20, marginBottom: 20 },
-    sectionTitle: { fontSize: 24, fontWeight: 'bold', color: '#111827' },
-
-    toggleButton: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20, borderWidth: 1 },
-    btnPrimary: { backgroundColor: '#2563EB', borderColor: '#2563EB' },
-    btnDestructive: { backgroundColor: 'white', borderColor: '#EF4444' },
-    toggleButtonText: { fontSize: 14, fontWeight: 'bold' },
-
-    emptyState: { alignItems: 'center', padding: 30 },
-    emptyStateText: { marginTop: 10, fontSize: 16, fontWeight: 'bold', color: '#374151', textAlign: 'center' },
-    emptyStateSubtext: { marginTop: 5, color: '#6B7280', textAlign: 'center' },
-
-    statsCard: {
+    // Location Selector
+    stateItem: {
         flexDirection: 'row',
-        justifyContent: 'space-around',
-        paddingVertical: 20,
-        backgroundColor: '#FFFFFF',
-        borderRadius: 16,
-        marginBottom: 20,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.05,
-        shadowRadius: 5,
-        elevation: 2,
-        borderWidth: 1,
-        borderColor: '#F1F5F9'
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingVertical: 12,
+        borderBottomWidth: 1,
+        borderBottomColor: '#F3F4F6',
     },
-    statItem: { alignItems: 'center', flex: 1 },
-    statValue: { fontSize: 22, fontWeight: 'bold', color: '#2563EB' },
-    statLabel: { fontSize: 13, color: '#64748B', marginTop: 4 },
-    statDivider: { width: 1, backgroundColor: '#E2E8F0', height: '80%' },
+    stateName: {
+        fontSize: 15,
+        fontWeight: '500',
+        color: '#374151'
+    },
+    municipalityList: {
+        paddingLeft: 10,
+        paddingTop: 5,
+        paddingBottom: 10
+    },
 
-    label: { fontSize: 18, fontWeight: 'bold', color: '#1F2937', marginTop: 24, marginBottom: 12 },
-    tagsContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-    tag: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 25, backgroundColor: '#F3F4F6', borderWidth: 1, borderColor: '#E5E7EB' },
-    tagSelected: { backgroundColor: '#EFF6FF', borderColor: '#2563EB' },
-    tagText: { color: '#4B5563', fontSize: 15 },
-    tagTextSelected: { color: '#2563EB', fontWeight: 'bold' },
-
-    bioInput: {
+    // Empty State
+    emptyState: {
+        alignItems: 'center',
+        padding: 30,
         backgroundColor: '#F9FAFB',
+        borderRadius: 16,
+        borderStyle: 'dashed',
         borderWidth: 1,
-        borderColor: '#E5E7EB',
-        borderRadius: 14,
-        padding: 16,
-        height: 120,
-        textAlignVertical: 'top',
-        color: '#111827',
-        fontSize: 17,
-        marginTop: 8
-    },
-    bioText: { color: '#4B5563', fontSize: 17, lineHeight: 26 },
-
-    galleryImage: { width: 120, height: 90, borderRadius: 8 },
-    deleteImageButton: {
-        position: 'absolute',
-        top: 5,
-        right: 5,
-        backgroundColor: 'rgba(0,0,0,0.6)',
-        borderRadius: 10,
-        width: 20,
-        height: 20,
-        justifyContent: 'center',
-        alignItems: 'center'
+        borderColor: '#D1D5DB'
     },
 
+    // Info Display (View Mode)
+    infoSection: {
+        marginBottom: 20
+    },
+    infoLabel: {
+        fontSize: 15,
+        fontWeight: 'bold',
+        color: '#1F2937',
+        marginBottom: 8
+    },
+    infoText: {
+        fontSize: 15,
+        color: '#4B5563',
+        lineHeight: 22
+    },
+    zoneTag: {
+        backgroundColor: '#EEF2FF',
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 6,
+        marginRight: 6,
+        marginBottom: 6
+    },
+    zoneTagText: {
+        fontSize: 12,
+        color: '#4F46E5'
+    },
+
+    // Stats
+    statsGrid: {
+        flexDirection: 'row',
+        marginBottom: 20
+    },
+    statBox: {
+        flex: 1,
+        backgroundColor: 'white',
+        padding: 12,
+        borderRadius: 24,
+        alignItems: 'center',
+        marginHorizontal: 4,
+        marginTop: 8,
+        marginBottom: 8,
+        borderWidth: 1,
+        borderColor: '#EFF6FF',
+        shadowColor: '#2563EB',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 10,
+        elevation: 5
+    },
+    statNumber: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: '#0F172A'
+    },
+    statLabelSmall: {
+        fontSize: 11,
+        color: '#64748B',
+        marginTop: 2
+    },
+
+    galleryImage: { width: 100, height: 100, borderRadius: 8, marginRight: 8 },
     reviewCard: { backgroundColor: '#F9FAFB', padding: 12, borderRadius: 10, marginBottom: 10 },
-    logoutButton: { alignSelf: 'center', padding: 15 },
+
+    // Settings & Switch Mode
+    settingRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        backgroundColor: 'white',
+        padding: 16,
+        borderRadius: 24,
+        marginBottom: 8,
+        borderWidth: 1,
+        borderColor: '#EFF6FF',
+        shadowColor: '#2563EB',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.05,
+        shadowRadius: 10,
+        elevation: 3,
+    },
+    iconBox: {
+        width: 36,
+        height: 36,
+        borderRadius: 10,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: 12,
+    },
+    settingText: {
+        fontSize: 16,
+        color: '#374151',
+    },
+    switchModeButton: {
+        backgroundColor: '#EA580C',
+        paddingVertical: 14,
+        paddingHorizontal: 30,
+        borderRadius: 24,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        alignSelf: 'center',
+        marginTop: 20,
+        marginBottom: 20,
+        shadowColor: '#EA580C',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.2,
+        shadowRadius: 8,
+        elevation: 4
+    },
+    switchModeButtonText: {
+        color: 'white',
+        fontWeight: 'bold',
+        fontSize: 16
+    }
 });

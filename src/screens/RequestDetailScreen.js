@@ -277,198 +277,200 @@ export default function RequestDetailScreen({ route, navigation }) {
   return (
     <View style={{ flex: 1, backgroundColor: '#F8F9FA' }}>
       {/* HEADER */}
-      <View style={styles.header}>
-        {isEditing ? (
-          <View>
-            <View style={styles.headerTopRow}>
-              <Text style={styles.headerLabel}>EDITANDO</Text>
-              <TouchableOpacity onPress={handleSave} style={styles.saveButton}>
-                <Text style={styles.saveButtonText}>{loading ? "Guardando..." : "Guardar"}</Text>
-              </TouchableOpacity>
-            </View>
-            <TextInput
-              value={data.title}
-              onChangeText={t => setData({ ...data, title: t })}
-              style={styles.headerTitleInput}
-              placeholder="Título"
-              placeholderTextColor="rgba(255,255,255,0.7)"
-            />
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Feather name="map-pin" size={14} color="white" />
-              <TextInput
-                value={data.location}
-                onChangeText={t => setData({ ...data, location: t })}
-                style={styles.headerLocationInput}
-                placeholder="Ubicación"
-                placeholderTextColor="rgba(255,255,255,0.7)"
-              />
-            </View>
-          </View>
-        ) : (
-          <View>
-            <View style={styles.headerTopRow}>
-              <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-                <Feather name="arrow-left" size={26} color="white" />
-              </TouchableOpacity>
-              <View style={{ flex: 1, marginRight: 10 }}>
-                <Text style={styles.headerCategory}>
-                  {(typeof data.category === 'object' ? data.category.name : data.category)} • {(typeof data.subcategory === 'object' ? data.subcategory.name : (data.subcategory || 'General'))}
-                </Text>
-                <Text style={styles.headerTitle} numberOfLines={1}>{data.title}</Text>
-              </View>
-              <TouchableOpacity onPress={() => setIsEditing(true)} style={styles.editButton}>
-                <Text style={styles.editButtonText}>Editar</Text>
-              </TouchableOpacity>
-            </View>
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <View style={[styles.statusBadge, { backgroundColor: statusColors.bg }]}>
-                <Text style={[styles.statusText, { color: statusColors.text }]}>{statusLabel}</Text>
-              </View>
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginRight: 8 }}>
-                <Feather name="map-pin" size={12} color="white" />
-                <Text style={styles.headerInfoText}>{data.location || 'Sin ubicación'}</Text>
-              </View>
-            </View>
-          </View>
-        )}
-      </View>
+
 
       <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
-        {/* INFO CARD */}
-        <View style={styles.card}>
-          {isEditing ? (
-            <View>
-              {categoriesLoading ? (
-                <ActivityIndicator size="small" color="#EA580C" style={{ marginBottom: 10 }} />
+        {/* Caja Unificada (Header + Info) */}
+        <View style={{ backgroundColor: 'white', borderBottomLeftRadius: 36, borderBottomRightRadius: 36, elevation: 6, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 10, marginBottom: 30 }}>
+          {/* Header Part */}
+          <View style={styles.header}>
+            {isEditing ? (
+              <View>
+                <View style={[styles.headerTopRow, { marginBottom: 15 }]}>
+                  <Text style={styles.headerLabel}>EDITANDO</Text>
+                  <TouchableOpacity onPress={handleSave} style={styles.saveButton}>
+                    <Text style={styles.saveButtonText}>{loading ? "Guardando..." : "Guardar"}</Text>
+                  </TouchableOpacity>
+                </View>
+                <TextInput
+                  value={data.title}
+                  onChangeText={t => setData({ ...data, title: t })}
+                  style={styles.headerTitleInput}
+                  placeholder="Título"
+                  placeholderTextColor="rgba(255,255,255,0.7)"
+                />
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Feather name="map-pin" size={14} color="white" />
+                  <TextInput
+                    value={data.location}
+                    onChangeText={t => setData({ ...data, location: t })}
+                    style={styles.headerLocationInput}
+                    placeholder="Ubicación"
+                    placeholderTextColor="rgba(255,255,255,0.7)"
+                  />
+                </View>
+              </View>
+            ) : (
+              <View>
+                <View style={styles.headerTopRow}>
+                  <View style={{ flex: 1, marginRight: 10 }}>
+                    <Text style={styles.headerCategory}>
+                      {(typeof data.category === 'object' ? data.category.name : data.category)} • {(typeof data.subcategory === 'object' ? data.subcategory.name : (data.subcategory || 'General'))}
+                    </Text>
+                    <Text style={styles.headerTitle} numberOfLines={1}>{data.title}</Text>
+                  </View>
+                  <TouchableOpacity onPress={() => setIsEditing(true)} style={styles.editButton}>
+                    <Text style={styles.editButtonText}>Editar</Text>
+                  </TouchableOpacity>
+                </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12 }}>
+                  <View style={[styles.statusBadge, { backgroundColor: '#FFFFFF' }]}>
+                    <Text style={[styles.statusText, { color: statusColors.text }]}>{statusLabel}</Text>
+                  </View>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginRight: 8 }}>
+                    <Feather name="map-pin" size={12} color="rgba(255,255,255,0.8)" />
+                    <Text style={[styles.headerInfoText, { color: 'rgba(255,255,255,0.8)' }]}>{data.location || 'Sin ubicación'}</Text>
+                  </View>
+                </View>
+              </View>
+            )}
+          </View>
+
+          {/* Info Part */}
+          <View style={{ padding: 24 }}>
+            {isEditing ? (
+              <View>
+                {categoriesLoading ? (
+                  <ActivityIndicator size="small" color="#EA580C" style={{ marginBottom: 10 }} />
+                ) : (
+                  <>
+                    <CustomDropdown
+                      label="Categoría"
+                      value={typeof data.category === 'object' ? data.category.name : data.category}
+                      options={categories.map(c => c.name)}
+                      onSelect={(val) => setData({ ...data, category: val, subcategory: null })}
+                      placeholder="Selecciona categoría"
+                    />
+                    <CustomDropdown
+                      label="Subcategoría"
+                      value={data.subcategory}
+                      options={getSubcategories()}
+                      onSelect={(val) => setData({ ...data, subcategory: val })}
+                      placeholder="Selecciona subcategoría"
+                    />
+                  </>
+                )}
+                <Text style={styles.inputLabel}>Descripción</Text>
+                <TextInput
+                  value={data.description}
+                  onChangeText={t => setData({ ...data, description: t })}
+                  multiline
+                  style={styles.textArea}
+                  placeholder="Descripción del problema..."
+                />
+              </View>
+            ) : (
+              <View>
+                <Text style={styles.description}>{data.description}</Text>
+              </View>
+            )}
+
+            {/* PHOTOS SECTION */}
+            <View style={{ marginTop: 20 }}>
+              <View style={styles.sectionHeaderRow}>
+                <Text style={styles.sectionTitle}>FOTOS ADJUNTAS</Text>
+                {isEditing && (
+                  <TouchableOpacity onPress={handleAddImage} style={styles.addButton}>
+                    <Feather name="plus-circle" size={16} color="#EA580C" />
+                    <Text style={styles.addButtonText}>Agregar</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              {(data.images && data.images.length > 0) || isEditing ? (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                  {data.images && data.images.map((img, i) => (
+                    <View key={i} style={{ position: 'relative', marginRight: 10 }}>
+                      <Image source={{ uri: img }} style={styles.imageThumb} />
+                      {isEditing && (
+                        <TouchableOpacity
+                          style={styles.deleteImageButton}
+                          onPress={() => {
+                            const newImages = [...data.images];
+                            newImages.splice(i, 1);
+                            setData({ ...data, images: newImages });
+                          }}
+                        >
+                          <Feather name="x" size={14} color="#EF4444" />
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  ))}
+                  {data.images && data.images.length === 0 && isEditing && (
+                    <Text style={{ color: '#999', fontStyle: 'italic', fontSize: 12 }}>No hay fotos. Agrega una.</Text>
+                  )}
+                </ScrollView>
               ) : (
-                <>
-                  <CustomDropdown
-                    label="Categoría"
-                    value={typeof data.category === 'object' ? data.category.name : data.category}
-                    options={categories.map(c => c.name)}
-                    onSelect={(val) => setData({ ...data, category: val, subcategory: null })}
-                    placeholder="Selecciona categoría"
-                  />
-                  <CustomDropdown
-                    label="Subcategoría"
-                    value={data.subcategory}
-                    options={getSubcategories()}
-                    onSelect={(val) => setData({ ...data, subcategory: val })}
-                    placeholder="Selecciona subcategoría"
-                  />
-                </>
+                <Text style={{ color: '#999', fontStyle: 'italic', fontSize: 12 }}>Sin fotos adjuntas.</Text>
               )}
-              <Text style={styles.inputLabel}>Descripción</Text>
-              <TextInput
-                value={data.description}
-                onChangeText={t => setData({ ...data, description: t })}
-                multiline
-                style={styles.textArea}
-                placeholder="Descripción del problema..."
-              />
             </View>
-          ) : (
-            <View>
-              <Text style={styles.description}>{data.description}</Text>
+          </View>
+
+          {/* OFFERS SECTION (Only in View Mode) */}
+          {!isEditing && (
+            <View style={{ marginHorizontal: 20, marginBottom: 20 }}>
+              {/* VALIDATION ACTION */}
+              {(statusLabel === 'VALIDANDO' || data.calculatedClientStatus === 'VALIDANDO') && (
+                <TouchableOpacity onPress={handleValidate} style={{ backgroundColor: '#EA580C', padding: 15, borderRadius: 12, alignItems: 'center', marginBottom: 20, elevation: 3 }}>
+                  <Feather name="check-circle" size={24} color="white" style={{ marginBottom: 4 }} />
+                  <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 16 }}>Validar Trabajo Realizado</Text>
+                  <Text style={{ color: 'rgba(255,255,255,0.9)', fontSize: 12, marginTop: 2 }}>El profesional ha marcado el trabajo como listo</Text>
+                </TouchableOpacity>
+              )}
+
+              <Text style={styles.bigSectionTitle}>Ofertas Recibidas ({offers.length})</Text>
+              {offers.length === 0 ? (
+                <View style={styles.emptyOffers}>
+                  <Feather name="inbox" size={32} color="#CBD5E1" />
+                  <Text style={{ color: '#94A3B8', marginTop: 8 }}>Aún no has recibido ofertas.</Text>
+                </View>
+              ) : (
+                offers.map((offer, index) => (
+                  <View key={index} style={styles.offerCard}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      <View>
+                        <Text style={styles.offerProName}>{offer.proName || 'Profesional'}</Text>
+                        <Text style={styles.offerPrice}>${offer.amount}</Text>
+                      </View>
+                      <View style={{ alignItems: 'flex-end' }}>
+                        <View style={[styles.offerStatus, { backgroundColor: offer.status === 'accepted' ? '#DCFCE7' : '#F3F4F6' }]}>
+                          <Text style={{ fontSize: 10, fontWeight: 'bold', color: offer.status === 'accepted' ? '#166534' : '#64748B' }}>
+                            {offer.status === 'accepted' ? 'ACEPTADA' : 'PENDIENTE'}
+                          </Text>
+                        </View>
+                        <TouchableOpacity onPress={() => handleDeleteOffer(offer._id)} style={{ marginTop: 8, padding: 4 }}>
+                          <Feather name="trash-2" size={16} color="#EF4444" />
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                    <Text style={styles.offerDesc}>{offer.description}</Text>
+                    <TouchableOpacity style={styles.chatButton} onPress={() => {
+                      Alert.alert("Chat", "Ve a la sección de Chats para hablar con este profesional.");
+                    }}>
+                      <Feather name="message-circle" size={16} color="#2563EB" />
+                      <Text style={{ marginLeft: 6, color: '#2563EB', fontWeight: 'bold', fontSize: 12 }}>Contactar</Text>
+                    </TouchableOpacity>
+                  </View>
+                ))
+              )}
             </View>
           )}
 
-          {/* PHOTOS SECTION */}
-          <View style={{ marginTop: 20 }}>
-            <View style={styles.sectionHeaderRow}>
-              <Text style={styles.sectionTitle}>FOTOS ADJUNTAS</Text>
-              {isEditing && (
-                <TouchableOpacity onPress={handleAddImage} style={styles.addButton}>
-                  <Feather name="plus-circle" size={16} color="#EA580C" />
-                  <Text style={styles.addButtonText}>Agregar</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-
-            {(data.images && data.images.length > 0) || isEditing ? (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                {data.images && data.images.map((img, i) => (
-                  <View key={i} style={{ position: 'relative', marginRight: 10 }}>
-                    <Image source={{ uri: img }} style={styles.imageThumb} />
-                    {isEditing && (
-                      <TouchableOpacity
-                        style={styles.deleteImageButton}
-                        onPress={() => {
-                          const newImages = [...data.images];
-                          newImages.splice(i, 1);
-                          setData({ ...data, images: newImages });
-                        }}
-                      >
-                        <Feather name="x" size={14} color="#EF4444" />
-                      </TouchableOpacity>
-                    )}
-                  </View>
-                ))}
-                {data.images && data.images.length === 0 && isEditing && (
-                  <Text style={{ color: '#999', fontStyle: 'italic', fontSize: 12 }}>No hay fotos. Agrega una.</Text>
-                )}
-              </ScrollView>
-            ) : (
-              <Text style={{ color: '#999', fontStyle: 'italic', fontSize: 12 }}>Sin fotos adjuntas.</Text>
-            )}
-          </View>
-        </View>
-
-        {/* OFFERS SECTION (Only in View Mode) */}
-        {!isEditing && (
-          <View style={{ marginHorizontal: 20, marginBottom: 20 }}>
-            {/* VALIDATION ACTION */}
-            {(statusLabel === 'VALIDANDO' || data.calculatedClientStatus === 'VALIDANDO') && (
-              <TouchableOpacity onPress={handleValidate} style={{ backgroundColor: '#EA580C', padding: 15, borderRadius: 12, alignItems: 'center', marginBottom: 20, elevation: 3 }}>
-                <Feather name="check-circle" size={24} color="white" style={{ marginBottom: 4 }} />
-                <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 16 }}>Validar Trabajo Realizado</Text>
-                <Text style={{ color: 'rgba(255,255,255,0.9)', fontSize: 12, marginTop: 2 }}>El profesional ha marcado el trabajo como listo</Text>
-              </TouchableOpacity>
-            )}
-
-            <Text style={styles.bigSectionTitle}>Ofertas Recibidas ({offers.length})</Text>
-            {offers.length === 0 ? (
-              <View style={styles.emptyOffers}>
-                <Feather name="inbox" size={32} color="#CBD5E1" />
-                <Text style={{ color: '#94A3B8', marginTop: 8 }}>Aún no has recibido ofertas.</Text>
-              </View>
-            ) : (
-              offers.map((offer, index) => (
-                <View key={index} style={styles.offerCard}>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <View>
-                      <Text style={styles.offerProName}>{offer.proName || 'Profesional'}</Text>
-                      <Text style={styles.offerPrice}>${offer.amount}</Text>
-                    </View>
-                    <View style={{ alignItems: 'flex-end' }}>
-                      <View style={[styles.offerStatus, { backgroundColor: offer.status === 'accepted' ? '#DCFCE7' : '#F3F4F6' }]}>
-                        <Text style={{ fontSize: 10, fontWeight: 'bold', color: offer.status === 'accepted' ? '#166534' : '#64748B' }}>
-                          {offer.status === 'accepted' ? 'ACEPTADA' : 'PENDIENTE'}
-                        </Text>
-                      </View>
-                      <TouchableOpacity onPress={() => handleDeleteOffer(offer._id)} style={{ marginTop: 8, padding: 4 }}>
-                        <Feather name="trash-2" size={16} color="#EF4444" />
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                  <Text style={styles.offerDesc}>{offer.description}</Text>
-                  <TouchableOpacity style={styles.chatButton} onPress={() => {
-                    Alert.alert("Chat", "Ve a la sección de Chats para hablar con este profesional.");
-                  }}>
-                    <Feather name="message-circle" size={16} color="#2563EB" />
-                    <Text style={{ marginLeft: 6, color: '#2563EB', fontWeight: 'bold', fontSize: 12 }}>Contactar</Text>
-                  </TouchableOpacity>
-                </View>
-              ))
-            )}
-          </View>
-        )}
-
-        {/* DELETE BUTTON */}
-        <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>
-          <Feather name="trash-2" size={18} color="#EF4444" />
-          <Text style={{ color: '#EF4444', fontWeight: 'bold', marginLeft: 8 }}>Eliminar Solicitud</Text>
-        </TouchableOpacity>
+          {/* DELETE BUTTON */}
+          <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>
+            <Feather name="trash-2" size={18} color="#EF4444" />
+            <Text style={{ color: '#EF4444', fontWeight: 'bold', marginLeft: 8 }}>Eliminar Solicitud</Text>
+          </TouchableOpacity>
 
       </ScrollView>
     </View>
@@ -480,17 +482,16 @@ const styles = StyleSheet.create({
     backgroundColor: '#EA580C',
     paddingHorizontal: 20,
     paddingTop: 24,
-    paddingBottom: 24,
-    borderBottomLeftRadius: 32,
-    borderBottomRightRadius: 32,
-    elevation: 0,
-    marginBottom: 20
+    paddingBottom: 32,
+    borderBottomLeftRadius: 36,
+    borderBottomRightRadius: 36,
+    elevation: 0
   },
-  headerTopRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
+  headerTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   backButton: { marginRight: 12, padding: 4 },
   headerLabel: { fontSize: 11, color: 'rgba(255,255,255,0.8)', fontWeight: 'bold', letterSpacing: 1 },
   headerCategory: { fontSize: 12, color: 'rgba(255,255,255,0.9)', fontWeight: 'bold', textTransform: 'uppercase', marginBottom: 4 },
-  headerTitle: { fontSize: 24, fontWeight: 'bold', color: 'white', lineHeight: 28 },
+  headerTitle: { fontSize: 28, fontWeight: 'bold', color: 'white', lineHeight: 32, marginTop: 4 },
   headerTitleInput: { fontSize: 24, fontWeight: 'bold', color: 'white', borderBottomWidth: 1, borderColor: 'white', paddingVertical: 4, marginBottom: 15 },
   headerLocationInput: { flex: 1, marginLeft: 8, borderBottomWidth: 1, borderColor: 'white', paddingVertical: 4, fontSize: 14, color: 'white' },
 
@@ -503,19 +504,19 @@ const styles = StyleSheet.create({
   statusText: { color: '#EA580C', fontSize: 11, fontWeight: 'bold' },
   headerInfoText: { color: 'white', fontSize: 13, marginLeft: 4 },
 
-  card: { backgroundColor: 'white', padding: 24, borderRadius: 24, marginBottom: 24, borderWidth: 1, borderColor: '#E5E7EB', marginHorizontal: 20 },
+  card: { backgroundColor: 'white', padding: 24, borderRadius: 24, marginBottom: 24, borderWidth: 1, borderColor: '#E5E7EB' },
   description: { color: '#111827', fontSize: 16, lineHeight: 26 },
-  textArea: { color: '#111827', fontSize: 16, lineHeight: 26, minHeight: 100, textAlignVertical: 'top', borderBottomWidth: 1, borderColor: '#E5E7EB', paddingTop: 12 },
+  textArea: { color: '#374151', fontSize: 15, lineHeight: 24, minHeight: 80, textAlignVertical: 'top' },
 
   sectionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-  sectionTitle: { fontSize: 13, fontWeight: 'bold', color: '#6B7280', letterSpacing: 1 },
+  sectionTitle: { fontSize: 11, fontWeight: '800', color: '#94A3B8', letterSpacing: 1, textTransform: 'uppercase' },
   addButton: { flexDirection: 'row', alignItems: 'center', minHeight: 40, paddingHorizontal: 8 },
-  addButtonText: { fontSize: 14, color: '#EA580C', marginLeft: 6, fontWeight: 'bold' },
+  addButtonText: { fontSize: 12, color: '#EA580C', marginLeft: 6, fontWeight: 'bold' },
 
-  imageThumb: { width: 110, height: 110, borderRadius: 16, borderWidth: 1, borderColor: '#E5E7EB' },
+  imageThumb: { width: 140, height: 140, borderRadius: 20, borderWidth: 1, borderColor: '#F1F5F9' },
   deleteImageButton: { position: 'absolute', top: -10, right: -10, backgroundColor: 'white', borderRadius: 14, width: 28, height: 28, alignItems: 'center', justifyContent: 'center', elevation: 4, borderWidth: 1, borderColor: '#E5E7EB' },
 
-  inputLabel: { fontSize: 14, fontWeight: 'bold', color: '#111827', marginBottom: 8, marginTop: 12 },
+  inputLabel: { fontSize: 12, fontWeight: 'bold', color: '#6B7280', marginBottom: 6, marginTop: 12 },
   pickerContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -536,10 +537,10 @@ const styles = StyleSheet.create({
   modalOption: { paddingVertical: 16, borderBottomWidth: 1, borderColor: '#F3F4F6', minHeight: 56, justifyContent: 'center' },
   modalOptionText: { fontSize: 16, color: '#4B5563' },
 
-  bigSectionTitle: { fontSize: 20, fontWeight: 'bold', color: '#111827', marginBottom: 20 },
+  bigSectionTitle: { fontSize: 20, fontWeight: 'bold', color: '#111827', marginBottom: 20, marginTop: 10 },
   emptyOffers: { alignItems: 'center', padding: 32, backgroundColor: 'white', borderRadius: 24, borderStyle: 'dashed', borderWidth: 1, borderColor: '#CBD5E1' },
 
-  offerCard: { backgroundColor: 'white', padding: 20, borderRadius: 20, marginBottom: 16, borderWidth: 1, borderColor: '#E5E7EB' },
+  offerCard: { backgroundColor: 'white', borderRadius: 24, padding: 16, marginBottom: 16, elevation: 5, shadowColor: '#EA580C', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 10, borderWidth: 1, borderColor: '#FFF7ED' },
   offerProName: { fontSize: 18, fontWeight: 'bold', color: '#111827' },
   offerPrice: { fontSize: 20, fontWeight: 'bold', color: '#059669', marginVertical: 6 },
   offerDesc: { color: '#4B5563', fontSize: 15, marginBottom: 12, lineHeight: 22 },
@@ -560,7 +561,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: 16,
-    marginHorizontal: 20,
     marginBottom: 40,
     backgroundColor: '#FEF2F2',
     borderRadius: 16,

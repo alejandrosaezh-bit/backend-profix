@@ -5,6 +5,8 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  KeyboardAvoidingView,
+  Modal,
   Platform,
   ScrollView,
   StyleSheet,
@@ -153,41 +155,244 @@ export default function ClientProfileScreen({ user, isOwner, onBack, onLogout, o
   return (
     <View style={styles.container}>
       {/* Header Cliente */}
-      <View style={{ backgroundColor: '#EA580C', paddingHorizontal: 16, paddingTop: Platform.OS === 'ios' ? 50 : 20, paddingBottom: 20, borderBottomLeftRadius: 24, borderBottomRightRadius: 24, flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
-        <TouchableOpacity onPress={onBack} style={{ marginRight: 16 }}>
-          <Feather name="arrow-left" size={24} color="white" />
+      <View style={{ backgroundColor: '#EA580C', paddingVertical: 18, borderBottomLeftRadius: 32, borderBottomRightRadius: 32, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 24 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <Text style={{ fontSize: 24, fontWeight: 'bold', color: 'white' }}>Mi Perfil</Text>
+          <View style={{ backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, marginLeft: 10 }}>
+            <Text style={{ fontSize: 10, color: 'white', fontWeight: 'bold' }}>V32.0</Text>
+          </View>
+        </View>
+        <TouchableOpacity onPress={onLogout} style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: 'rgba(255,255,255,0.2)', justifyContent: 'center', alignItems: 'center' }}>
+          <Feather name="log-out" size={20} color="white" />
         </TouchableOpacity>
-        <Text style={{ fontSize: 20, fontWeight: 'bold', color: 'white' }}>Mi Perfil</Text>
       </View>
 
-      <ScrollView contentContainerStyle={[styles.scrollContent, isEditing && { paddingBottom: 100 }]}>
+      <ScrollView contentContainerStyle={styles.scrollContent}>
 
-        {/* PROFILE CARD */}
+        {/* HUGE MAIN CARD */}
         <View style={styles.profileCard}>
           <View style={styles.avatarContainer}>
             <Image source={{ uri: editedUser.avatar || 'https://placehold.co/150' }} style={styles.avatar} />
-            {isEditing && (
-              <TouchableOpacity style={styles.editBadge} onPress={pickImage}>
-                <Feather name="camera" size={20} color="white" />
-              </TouchableOpacity>
+            <TouchableOpacity style={styles.editBadge} onPress={() => setIsEditing(true)}>
+              <Feather name="edit-2" size={16} color="white" />
+            </TouchableOpacity>
+          </View>
+
+          <View style={{ alignItems: 'center', marginTop: 10, width: '100%', marginBottom: 20 }}>
+            <Text style={styles.userName}>{editedUser.name}</Text>
+            <Text style={styles.userEmail}>{editedUser.email}</Text>
+          </View>
+
+          {/* ESTADÍSTICAS CLIENTE REDISEÑADO */}
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', width: '100%', paddingVertical: 15, borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#F3F4F6', marginBottom: 25 }}>
+            <View style={styles.statBox}>
+              <View style={[styles.statIconContainer, { backgroundColor: '#DBEAFE' }]}>
+                <Feather name="clipboard" size={20} color="#2563EB" />
+              </View>
+              <Text style={styles.statNumber}>{allMyRequests.length}</Text>
+              <Text style={styles.statLabel}>Solicitudes</Text>
+            </View>
+            <View style={styles.statDividerVertical} />
+            <View style={styles.statBox}>
+              <View style={[styles.statIconContainer, { backgroundColor: '#DCFCE7' }]}>
+                <Feather name="check-circle" size={20} color="#16A34A" />
+              </View>
+              <Text style={styles.statNumber}>{completedRequests.length}</Text>
+              <Text style={styles.statLabel}>Completadas</Text>
+            </View>
+            <View style={styles.statDividerVertical} />
+            <View style={styles.statBox}>
+              <View style={[styles.statIconContainer, { backgroundColor: '#FEF3C7' }]}>
+                <Feather name="pie-chart" size={20} color="#D97706" />
+              </View>
+              <Text style={styles.statNumber}>
+                {allMyRequests.length > 0 ? Math.round((hiredRequests.length / allMyRequests.length) * 100) : 0}%
+              </Text>
+              <Text style={styles.statLabel}>Éxito</Text>
+            </View>
+          </View>
+
+          {/* SOLICITUDES ACTIVAS */}
+          <View style={{ width: '100%', marginBottom: 25 }}>
+            <Text style={[styles.sectionTitle, { paddingHorizontal: 0, fontSize: 18, marginBottom: 10 }]}>Solicitudes Activas ({activeRequests.length})</Text>
+            {activeRequests.length === 0 ? (
+              <Text style={{ color: '#999', fontStyle: 'italic' }}>No tienes solicitudes pendientes.</Text>
+            ) : (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 5 }}>
+                {activeRequests.map((item) => (
+                  <View key={item.id} style={[styles.activityCard, { elevation: 2, shadowOpacity: 0.05, borderColor: '#F1F5F9' }]}>
+                    <Image source={{ uri: (item.images && item.images[0]) || 'https://placehold.co/150' }} style={styles.activityImage} />
+                    <View style={styles.activityInfo}>
+                      <Text style={styles.activityTitle} numberOfLines={1}>{item.title}</Text>
+                      <Text style={styles.activityDate}>{item.date}</Text>
+                      <View style={[styles.statusBadge, { backgroundColor: item.status === 'Abierto' ? '#DBEAFE' : '#DCFCE7' }]}>
+                        <Text style={[styles.statusText, { color: item.status === 'Abierto' ? '#2563EB' : '#16A34A' }]}>{item.status}</Text>
+                      </View>
+                    </View>
+                  </View>
+                ))}
+              </ScrollView>
             )}
           </View>
 
-          {!isEditing ? (
-            <View style={{ alignItems: 'center', marginTop: 10 }}>
-              <Text style={styles.userName}>{editedUser.name}</Text>
-              <Text style={styles.userEmail}>{editedUser.email}</Text>
-              <View style={styles.ratingContainer}>
-                <Feather name="star" size={16} color="#FBBF24" style={{ marginRight: 4 }} />
-                <Text style={styles.ratingText}>{user.rating || '5.0'} (Valoración de Profesionales)</Text>
+          {/* TRABAJOS CONTRATADOS */}
+          <View style={{ width: '100%', marginBottom: 25 }}>
+            <Text style={[styles.sectionTitle, { paddingHorizontal: 0, fontSize: 18, marginBottom: 10 }]}>Trabajos Contratados ({hiredRequests.length})</Text>
+            {hiredRequests.length === 0 ? (
+              <Text style={{ color: '#999', fontStyle: 'italic' }}>No has contratado a nadie aún.</Text>
+            ) : (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 5 }}>
+                {hiredRequests.map((item) => (
+                  <View key={item.id} style={[styles.activityCard, { elevation: 2, shadowOpacity: 0.05, borderColor: '#F1F5F9' }]}>
+                    <Image source={{ uri: (item.images && item.images[0]) || 'https://placehold.co/150' }} style={styles.activityImage} />
+                    <View style={styles.activityInfo}>
+                      <Text style={styles.activityTitle} numberOfLines={1}>{item.title}</Text>
+                      <Text style={styles.activityDate}>{item.date}</Text>
+                      <View style={styles.statusBadge}>
+                        <Text style={styles.statusText}>{item.status}</Text>
+                      </View>
+                    </View>
+                  </View>
+                ))}
+              </ScrollView>
+            )}
+          </View>
+
+          {/* OPINIONES / REFERENCIAS REALES */}
+          <View style={{ width: '100%', marginBottom: 10 }}>
+            <Text style={[styles.sectionTitle, { paddingHorizontal: 0, fontSize: 18, marginBottom: 10 }]}>Referencias Recibidas</Text>
+            {isLoadingReviews ? (
+              <ActivityIndicator size="small" color="#EA580C" style={{ marginVertical: 20 }} />
+            ) : reviews.length === 0 ? (
+              <Text style={{ color: '#999', fontStyle: 'italic' }}>Aún no hay opiniones de profesionales.</Text>
+            ) : (
+              <View style={{ marginTop: 5 }}>
+                {reviews.map((review, idx) => (
+                  <View key={review._id || idx} style={[styles.reviewCard, { elevation: 0, borderWidth: 1, borderColor: '#F1F5F9', shadowOpacity: 0 }]}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <Image
+                          source={{ uri: review.reviewer?.avatar || 'https://placehold.co/100' }}
+                          style={{ width: 30, height: 30, borderRadius: 15, marginRight: 8 }}
+                        />
+                        <View>
+                          <Text style={{ fontWeight: 'bold', fontSize: 13 }}>{review.reviewer?.name || 'Profesional'}</Text>
+                          <View style={{ flexDirection: 'row' }}>
+                            {[...Array(5)].map((_, i) => (
+                              <FontAwesome5 key={i} name="star" solid={i < review.rating} size={10} color="#FBBF24" />
+                            ))}
+                          </View>
+                        </View>
+                      </View>
+                      <Text style={{ fontSize: 10, color: '#9CA3AF' }}>{new Date(review.createdAt).toLocaleDateString()}</Text>
+                    </View>
+                    <Text style={{ marginTop: 8, color: '#4B5563', fontSize: 13, fontStyle: 'italic', paddingLeft: 38 }}>
+                      "{review.comment || 'Sin comentarios'}"
+                    </Text>
+                    {review.job && (
+                      <Text style={{ marginTop: 4, fontSize: 10, color: '#6B7280', paddingLeft: 38 }}>
+                        Trabajo: {review.job.title || 'Servicio'}
+                      </Text>
+                    )}
+                  </View>
+                ))}
               </View>
-              <TouchableOpacity style={styles.editButton} onPress={() => setIsEditing(true)}>
-                <Text style={styles.editButtonText}>Editar Perfil</Text>
+            )}
+          </View>
+        </View>
+
+        {/* SETTINGS LINKS */}
+        <View style={[styles.section, { marginTop: 24 }]}>
+          <Text style={styles.sectionTitle}>Ajustes de Cuenta</Text>
+
+          <TouchableOpacity style={styles.settingRow} onPress={() => setIsEditing(true)}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <View style={[styles.iconBox, { backgroundColor: '#F3F4F6' }]}>
+                <Feather name="user" size={20} color="#4B5563" />
+              </View>
+              <Text style={styles.settingText}>Editar Mis Datos Personales</Text>
+            </View>
+            <Feather name="chevron-right" size={20} color="#9CA3AF" />
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.settingRow}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <View style={[styles.iconBox, { backgroundColor: '#F0FDF4' }]}>
+                <Feather name="star" size={20} color="#16A34A" />
+              </View>
+              <Text style={styles.settingText}>Mis Suscripciones</Text>
+            </View>
+            <Feather name="chevron-right" size={20} color="#9CA3AF" />
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.settingRow}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <View style={[styles.iconBox, { backgroundColor: '#E0E7FF' }]}>
+                <Feather name="bell" size={20} color="#4F46E5" />
+              </View>
+              <Text style={styles.settingText}>Notificaciones</Text>
+            </View>
+            <Feather name="chevron-right" size={20} color="#9CA3AF" />
+          </TouchableOpacity>
+
+          <TouchableOpacity style={{
+            backgroundColor: '#2563EB',
+            paddingVertical: 14,
+            paddingHorizontal: 30,
+            borderRadius: 24,
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            alignSelf: 'center',
+            marginTop: 20,
+            marginBottom: 20,
+            shadowColor: '#2563EB',
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.2,
+            shadowRadius: 8,
+            elevation: 4
+          }}
+            onPress={() => onSwitchMode && onSwitchMode('pro')}
+          >
+            <Feather name="briefcase" size={18} color="white" style={{ marginRight: 8 }} />
+            <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 16 }}>Cambiar a Profesional</Text>
+          </TouchableOpacity>
+        </View>
+
+      </ScrollView>
+
+      {/* MODAL DE EDICIÓN DE PERFIL */}
+      <Modal
+        visible={isEditing}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setIsEditing(false)}
+      >
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <View style={styles.modalContent}>
+
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <Text style={styles.modalTitle}>Editar Datos Personales</Text>
+              <TouchableOpacity onPress={() => setIsEditing(false)}>
+                <Feather name="x" size={24} color="#6B7280" />
               </TouchableOpacity>
             </View>
-          ) : (
-            <View style={{ width: '100%', marginTop: 20 }}>
-              <Text style={styles.label}>Nombre Completo</Text>
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <View style={{ alignItems: 'center', marginBottom: 20 }}>
+                <TouchableOpacity onPress={pickImage} style={{ position: 'relative' }}>
+                  <Image source={{ uri: editedUser.avatar || 'https://placehold.co/150' }} style={{ width: 100, height: 100, borderRadius: 50, borderWidth: 2, borderColor: '#FFF7ED' }} />
+                  <View style={{ position: 'absolute', bottom: 0, right: 0, backgroundColor: '#EA580C', padding: 6, borderRadius: 15, borderWidth: 2, borderColor: 'white' }}>
+                    <Feather name="camera" size={16} color="white" />
+                  </View>
+                </TouchableOpacity>
+                <Text style={{ fontSize: 12, color: '#6B7280', marginTop: 8 }}>Toca la foto para cambiarla</Text>
+              </View>
+
+              <Text style={[styles.label, { marginTop: 0 }]}>Nombre Completo</Text>
               <TextInput
                 style={styles.input}
                 value={editedUser.name}
@@ -211,197 +416,32 @@ export default function ClientProfileScreen({ user, isOwner, onBack, onLogout, o
                 placeholder="+56 9 1234 5678"
               />
 
-            </View>
-          )}
-        </View>
-
-        {/* ESTADÍSTICAS CLIENTE */}
-        <View style={{
-          flexDirection: 'row',
-          backgroundColor: '#F9FAFB',
-          borderRadius: 16,
-          padding: 20,
-          marginVertical: 10,
-          justifyContent: 'space-between',
-          borderWidth: 1.5,
-          borderColor: '#9CA3AF'
-        }}>
-          <View style={{ flex: 1, alignItems: 'center' }}>
-            <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#111827' }}>{allMyRequests.length}</Text>
-            <Text style={{ fontSize: 11, color: '#6B7280', textAlign: 'center', marginTop: 4 }}>Trabajos{'\n'}Solicitados</Text>
-          </View>
-          <View style={{ width: 1, height: '80%', backgroundColor: '#D1D5DB', alignSelf: 'center' }} />
-          <View style={{ flex: 1, alignItems: 'center' }}>
-            <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#111827' }}>
-              {completedRequests.length}
-            </Text>
-            <Text style={{ fontSize: 11, color: '#6B7280', textAlign: 'center', marginTop: 4 }}>Trabajos{'\n'}Completados</Text>
-          </View>
-          <View style={{ width: 1, height: '80%', backgroundColor: '#D1D5DB', alignSelf: 'center' }} />
-          <View style={{ flex: 1, alignItems: 'center' }}>
-            <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#111827' }}>
-              {allMyRequests.length > 0 ? Math.round((hiredRequests.length / allMyRequests.length) * 100) : 0}%
-            </Text>
-            <Text style={{ fontSize: 11, color: '#6B7280', textAlign: 'center', marginTop: 4 }}>Porcentaje{'\n'}Contratación</Text>
-          </View>
-        </View>
-
-        {/* SOLICITUDES ACTIVAS */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Solicitudes Activas ({activeRequests.length})</Text>
-          {activeRequests.length === 0 ? (
-            <Text style={{ color: '#999', fontStyle: 'italic' }}>No tienes solicitudes pendientes.</Text>
-          ) : (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 10 }}>
-              {activeRequests.map((item) => (
-                <View key={item.id} style={styles.activityCard}>
-                  <Image source={{ uri: (item.images && item.images[0]) || 'https://placehold.co/150' }} style={styles.activityImage} />
-                  <View style={styles.activityInfo}>
-                    <Text style={styles.activityTitle} numberOfLines={1}>{item.title}</Text>
-                    <Text style={styles.activityDate}>{item.date}</Text>
-                    <View style={[styles.statusBadge, { backgroundColor: item.status === 'Abierto' ? '#DBEAFE' : '#DCFCE7' }]}>
-                      <Text style={[styles.statusText, { color: item.status === 'Abierto' ? '#2563EB' : '#16A34A' }]}>{item.status}</Text>
-                    </View>
-                  </View>
-                </View>
-              ))}
-            </ScrollView>
-          )}
-        </View>
-
-        {/* TRABAJOS CONTRATADOS */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Trabajos Contratados ({hiredRequests.length})</Text>
-          {hiredRequests.length === 0 ? (
-            <Text style={{ color: '#999', fontStyle: 'italic' }}>No has contratado a nadie aún.</Text>
-          ) : (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 10 }}>
-              {hiredRequests.map((item) => (
-                <View key={item.id} style={styles.activityCard}>
-                  <Image source={{ uri: (item.images && item.images[0]) || 'https://placehold.co/150' }} style={styles.activityImage} />
-                  <View style={styles.activityInfo}>
-                    <Text style={styles.activityTitle} numberOfLines={1}>{item.title}</Text>
-                    <Text style={styles.activityDate}>{item.date}</Text>
-                    <View style={styles.statusBadge}>
-                      <Text style={styles.statusText}>{item.status}</Text>
-                    </View>
-                  </View>
-                </View>
-              ))}
-            </ScrollView>
-          )}
-        </View>
-
-        {/* OPINIONES / REFERENCIAS REALES */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Referencias Recibidas</Text>
-          {isLoadingReviews ? (
-            <ActivityIndicator size="small" color="#EA580C" style={{ marginVertical: 20 }} />
-          ) : reviews.length === 0 ? (
-            <Text style={{ color: '#999', fontStyle: 'italic' }}>Aún no hay opiniones de profesionales.</Text>
-          ) : (
-            <View style={{ marginTop: 10 }}>
-              {reviews.map((review, idx) => (
-                <View key={review._id || idx} style={styles.reviewCard}>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                      <Image
-                        source={{ uri: review.reviewer?.avatar || 'https://placehold.co/100' }}
-                        style={{ width: 30, height: 30, borderRadius: 15, marginRight: 8 }}
-                      />
-                      <View>
-                        <Text style={{ fontWeight: 'bold', fontSize: 13 }}>{review.reviewer?.name || 'Profesional'}</Text>
-                        <View style={{ flexDirection: 'row' }}>
-                          {[...Array(5)].map((_, i) => (
-                            <FontAwesome5 key={i} name="star" solid={i < review.rating} size={10} color="#FBBF24" />
-                          ))}
-                        </View>
-                      </View>
-                    </View>
-                    <Text style={{ fontSize: 10, color: '#9CA3AF' }}>{new Date(review.createdAt).toLocaleDateString()}</Text>
-                  </View>
-                  <Text style={{ marginTop: 8, color: '#4B5563', fontSize: 13, fontStyle: 'italic', paddingLeft: 38 }}>
-                    "{review.comment || 'Sin comentarios'}"
-                  </Text>
-                  {review.job && (
-                    <Text style={{ marginTop: 4, fontSize: 10, color: '#6B7280', paddingLeft: 38 }}>
-                      Trabajo: {review.job.title || 'Servicio'}
-                    </Text>
-                  )}
-                </View>
-              ))}
-            </View>
-          )}
-        </View>
-
-        {/* SETTINGS LINKS */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Ajustes</Text>
-          <TouchableOpacity style={styles.settingRow}>
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <View style={[styles.iconBox, { backgroundColor: '#F0FDF4' }]}>
-                <Feather name="star" size={20} color="#16A34A" />
+              <Text style={[styles.label, { color: '#9CA3AF' }]}>Cédula de Identidad</Text>
+              <View style={[styles.input, { backgroundColor: '#F8F9FA', borderColor: '#E5E7EB', marginBottom: 20, flexDirection: 'row', alignItems: 'center' }]}>
+                <Text style={{ color: '#9CA3AF', fontSize: 17, flex: 1 }}>{editedUser.cedula || 'No registrada'}</Text>
+                <Feather name="lock" size={18} color="#9CA3AF" />
               </View>
-              <Text style={styles.settingText}>Mi Suscripción</Text>
+            </ScrollView>
+
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 20 }}>
+              <TouchableOpacity
+                style={[styles.actionButton, { backgroundColor: '#F1F5F9', flex: 1, marginRight: 10, elevation: 0 }]}
+                onPress={() => setIsEditing(false)}
+              >
+                <Text style={[styles.actionButtonText, { color: '#4B5563' }]}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.actionButton, { backgroundColor: '#EA580C', flex: 1, marginLeft: 10, elevation: 0 }]}
+                onPress={handleSave}
+              >
+                <Text style={styles.actionButtonText}>Guardar</Text>
+              </TouchableOpacity>
             </View>
-            <Feather name="chevron-right" size={20} color="#9CA3AF" />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.settingRow}>
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <View style={[styles.iconBox, { backgroundColor: '#E0E7FF' }]}>
-                <Feather name="bell" size={20} color="#4F46E5" />
-              </View>
-              <Text style={styles.settingText}>Notificaciones</Text>
-            </View>
-            <Feather name="chevron-right" size={20} color="#9CA3AF" />
-          </TouchableOpacity>
-        </View>
 
-        <TouchableOpacity
-          onPress={onLogout}
-          style={{ alignSelf: 'center', padding: 15, backgroundColor: '#EF4444', borderRadius: 12, marginTop: 20, width: '80%', alignItems: 'center' }}
-        >
-          <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 14 }}>Cerrar Sesión</Text>
-        </TouchableOpacity>
-
-      </ScrollView>
-
-      {/* FIXED FOOTER BUTTONS */}
-      {
-        isEditing && (
-          <View style={{
-            position: 'absolute',
-            bottom: 0,
-            left: 0,
-            right: 0,
-            backgroundColor: 'white',
-            borderTopWidth: 1,
-            borderTopColor: '#E5E7EB',
-            paddingHorizontal: 20,
-            paddingVertical: 16,
-            flexDirection: 'row',
-            justifyContent: 'space-between',
-            elevation: 10,
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: -2 },
-            shadowOpacity: 0.1,
-            shadowRadius: 4,
-          }}>
-            <TouchableOpacity
-              style={[styles.actionButton, { backgroundColor: '#EF4444', marginRight: 10 }]}
-              onPress={() => setIsEditing(false)}
-            >
-              <Text style={styles.actionButtonText}>Cancelar</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.actionButton, { backgroundColor: '#10B981', marginLeft: 10 }]}
-              onPress={handleSave}
-            >
-              <Text style={styles.actionButtonText}>Guardar</Text>
-            </TouchableOpacity>
           </View>
-        )
-      }
+        </KeyboardAvoidingView>
+      </Modal>
+
     </View >
   );
 }
@@ -409,20 +449,23 @@ export default function ClientProfileScreen({ user, isOwner, onBack, onLogout, o
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F8F9FA',
   },
   scrollContent: {
-    paddingHorizontal: 24,
-    paddingTop: 20,
     paddingBottom: 20,
   },
   reviewCard: {
     backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 10,
+    borderRadius: 24,
+    padding: 16,
+    marginBottom: 8,
     borderWidth: 1,
-    borderColor: '#F3F4F6'
+    borderColor: '#FFF7ED',
+    elevation: 5,
+    shadowColor: '#EA580C',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
   },
   logoutButton: {
     alignItems: 'center',
@@ -437,36 +480,47 @@ const styles = StyleSheet.create({
   },
   profileCard: {
     backgroundColor: 'white',
-    paddingVertical: 32,
+    marginHorizontal: 4,
+    marginTop: 8,
+    padding: 20,
+    borderRadius: 24,
     alignItems: 'center',
-    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#FFF7ED',
+    elevation: 5,
+    shadowColor: '#EA580C',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    marginBottom: 0
   },
   avatarContainer: {
     position: 'relative',
     marginBottom: 10,
   },
   avatar: {
-    width: 120, // Larger photo as requested
-    height: 120,
-    borderRadius: 60,
+    width: 100,
+    height: 100,
+    borderRadius: 50,
     borderWidth: 4,
     borderColor: 'white',
+    backgroundColor: '#F3F4F6'
   },
   editBadge: {
     position: 'absolute',
     bottom: 0,
     right: 0,
     backgroundColor: '#EA580C',
-    padding: 8,
-    borderRadius: 20,
+    padding: 6,
+    borderRadius: 15,
     borderWidth: 2,
     borderColor: 'white',
   },
   userName: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: 'bold',
     color: '#1F2937',
-    marginBottom: 4,
+    marginBottom: 2,
   },
   userEmail: {
     fontSize: 14,
@@ -529,29 +583,28 @@ const styles = StyleSheet.create({
   },
   section: {
     marginBottom: 32,
+    paddingHorizontal: 4,
   },
   sectionTitle: {
     fontSize: 24,
     fontWeight: 'bold',
     color: '#111827',
     marginBottom: 16,
+    paddingHorizontal: 16,
   },
   activityCard: {
     backgroundColor: 'white',
-    borderRadius: 16,
+    borderRadius: 24,
     marginRight: 16,
     width: 200,
     overflow: 'hidden',
-    ...Platform.select({
-      web: { boxShadow: '0px 1px 4px rgba(0,0,0,0.05)' },
-      default: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.05,
-        shadowRadius: 4,
-      }
-    }),
-    elevation: 2,
+    borderWidth: 1,
+    borderColor: '#FFF7ED',
+    elevation: 5,
+    shadowColor: '#EA580C',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
   },
   activityImage: {
     width: '100%',
@@ -589,18 +642,15 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     backgroundColor: 'white',
     padding: 16,
-    borderRadius: 12,
-    marginBottom: 10,
-    ...Platform.select({
-      web: { boxShadow: '0px 1px 2px rgba(0,0,0,0.05)' },
-      default: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.05,
-        shadowRadius: 2,
-      }
-    }),
-    elevation: 1,
+    borderRadius: 24,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#FFF7ED',
+    elevation: 5,
+    shadowColor: '#EA580C',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
   },
   iconBox: {
     width: 36,
@@ -613,5 +663,79 @@ const styles = StyleSheet.create({
   settingText: {
     fontSize: 16,
     color: '#374151',
+  },
+  // New Styles
+  miniAvatar: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: 'white'
+  },
+  statsContainer: {
+    flexDirection: 'row',
+    backgroundColor: 'white',
+    borderRadius: 24,
+    padding: 20,
+    marginTop: 8,
+    marginBottom: 0,
+    marginHorizontal: 4,
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: '#FFF7ED',
+    elevation: 5,
+    shadowColor: '#EA580C',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+  },
+  statBox: {
+    flex: 1,
+    alignItems: 'center'
+  },
+  statIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8
+  },
+  statNumber: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#111827'
+  },
+  statLabel: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 2
+  },
+  statDividerVertical: {
+    width: 1,
+    height: '60%',
+    backgroundColor: '#E5E7EB',
+    alignSelf: 'center'
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'flex-end'
+  },
+  modalContent: {
+    backgroundColor: 'white',
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    padding: 24,
+    width: '100%',
+    height: '92%',
+    maxHeight: '100%'
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#111827'
   }
 });
