@@ -1,0 +1,52 @@
+[
+  {
+    "_id": "699771b0f9625947632b96da",
+    "title": "Encuentra el experto que necesitas ahora",
+    "subtitle": "Conecta al instante con profesionales en tu zona: mecánicos, fontaneros, médicos y más.",
+    "buttonText": "Buscar profesional",
+    "isActive": true,
+    "__v": 0,
+    "createdAt": "2026-02-19T20:25:20.712Z",
+    "updatedAt": "2026-02-19T20:54:52.624Z"
+  },
+  {
+    "_id": "699771b0f9625947632b96db",
+    "title": "Soluciona tu problema o urgencia",
+    "subtitle": "Publica tu necesidad y recibe propuestas rápidas de especialistas calificados cerca de ti.",
+    "buttonText": "Buscar profesional",
+    "isActive": true,
+    "__v": 0,
+    "createdAt": "2026-02-19T20:25:20.715Z",
+    "updatedAt": "2026-02-19T20:54:57.086Z"
+  },
+  {
+    "_id": "699771b0f9625947632b96dc",
+    "title": "Cualquier servicio, en un solo lugar",
+    "subtitle": "Desde reparaciones urgentes hasta cuidados personales. Elige al profesional que mejor se adapte a ti.",
+    "buttonText": "Buscar profesional",
+    "isActive": true,
+    "__v": 0,
+    "createdAt": "2026-02-19T20:25:20.716Z",
+    "updatedAt": "2026-02-19T20:25:20.716Z"
+  },
+  {
+    "_id": "699771b0f9625947632b96dd",
+    "title": "¿Qué servicio buscas hoy?",
+    "subtitle": "Olvídate de buscar por horas. Dinos qué necesitas y los expertos vendrán a ti.",
+    "buttonText": "Buscar profesional",
+    "isActive": true,
+    "__v": 0,
+    "createdAt": "2026-02-19T20:25:20.716Z",
+    "updatedAt": "2026-02-19T20:55:06.814Z"
+  },
+  {
+    "_id": "699771b0f9625947632b96de",
+    "title": "Tu red de profesionales cercanos",
+    "subtitle": "Acceso directo a expertos locales listos para trabajar en tu proyecto o urgencia.",
+    "buttonText": "Buscar profesional",
+    "isActive": true,
+    "__v": 0,
+    "createdAt": "2026-02-19T20:25:20.716Z",
+    "updatedAt": "2026-02-19T20:55:12.376Z"
+  }
+]

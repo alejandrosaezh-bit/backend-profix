@@ -8,7 +8,7 @@ const PROD_URL = 'https://profix-backend-h56b.onrender.com/api';
 // Configuración de IP dinámica (Desarrollo Local)
 // Si necesitas trabajar con el backend localmente, cambia USE_LOCAL a true
 const LOCAL_IP = '192.168.1.172'; // IMPORTANTE: Verifica tu IP con `ipconfig` en Windows
-const USE_LOCAL = false; // Cambiamos a false para producción
+const USE_LOCAL = false; // Cambiamos a false para producción (APK)
 
 export const API_URL = !USE_LOCAL
     ? PROD_URL
@@ -145,7 +145,10 @@ export const api = {
     getMe: async () => {
         const headers = await getHeaders();
         const res = await fetchWithTimeout(`${API_URL}/auth/me`, { headers });
-        if (!res.ok) throw new Error('Error fetching profile');
+        if (!res.ok) {
+            if (res.status === 401) throw new Error('Unauthorized');
+            throw new Error('Error fetching profile');
+        }
         return res.json();
     },
 
@@ -535,11 +538,12 @@ export const api = {
         });
         if (!res.ok) {
             const errorText = await res.text();
-            console.error("updateProfile error response:", errorText);
+            console.warn("updateProfile error response:", errorText);
             try {
                 const errorJson = JSON.parse(errorText);
                 throw new Error(errorJson.message || 'Error updating profile');
             } catch (e) {
+                if (e.message && e.message !== 'Unexpected token o in JSON at position 1' && e.name !== 'SyntaxError') throw e;
                 throw new Error(errorText || 'Error updating profile');
             }
         }

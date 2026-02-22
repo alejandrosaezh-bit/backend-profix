@@ -1,0 +1,83 @@
+[
+  {
+    "_id": "6988cf4fa3edc207b4cf5ea7",
+    "job": "6988a1cdcac07e36460870bd",
+    "user": "69417ba1a3824e1ba2607445",
+    "__v": 0,
+    "hasUnread": false,
+    "status": "viewed",
+    "updatedAt": "2026-02-21T18:40:52.716Z"
+  },
+  {
+    "_id": "6988da2da3edc207b4cf6052",
+    "job": "6988a1cdcac07e36460870bd",
+    "user": "695528e792fcfa981d053ff6",
+    "__v": 0,
+    "hasUnread": false,
+    "status": "viewed",
+    "updatedAt": "2026-02-08T19:00:06.182Z"
+  },
+  {
+    "_id": "698e36eea3edc207b4cfe3d1",
+    "job": "698e2db89268ce082bb4ca84",
+    "user": "69417ba1a3824e1ba2607445",
+    "__v": 0,
+    "hasUnread": false,
+    "status": "viewed",
+    "updatedAt": "2026-02-21T21:16:02.093Z"
+  },
+  {
+    "_id": "69979d0588a3680f6fca29ee",
+    "job": "69977bf9a70f06d02317a385",
+    "user": "69417ba1a3824e1ba2607445",
+    "__v": 0,
+    "hasUnread": false,
+    "status": "viewed",
+    "updatedAt": "2026-02-21T21:19:58.855Z"
+  },
+  {
+    "_id": "6999e07988a3680f6fcc26a3",
+    "job": "698e2da99268ce082bb4ca82",
+    "user": "69417ba1a3824e1ba2607445",
+    "__v": 0,
+    "hasUnread": false,
+    "status": "viewed",
+    "updatedAt": "2026-02-21T16:42:30.093Z"
+  },
+  {
+    "_id": "6999fc0588a3680f6fcc270b",
+    "job": "698c8744b402b267d197e7b2",
+    "user": "69417ba1a3824e1ba2607445",
+    "__v": 0,
+    "hasUnread": false,
+    "status": "viewed",
+    "updatedAt": "2026-02-21T18:40:03.360Z"
+  },
+  {
+    "_id": "699a6ee888a3680f6fcc2917",
+    "user": "69417ba1a3824e1ba2607445",
+    "job": "699a47d060ecccd63914744c",
+    "__v": 0,
+    "hasUnread": false,
+    "status": "viewed",
+    "updatedAt": "2026-02-22T19:25:02.342Z"
+  },
+  {
+    "_id": "699a6f7988a3680f6fcc2918",
+    "job": "699a47ab60ecccd639147437",
+    "user": "69417ba1a3824e1ba2607445",
+    "__v": 0,
+    "hasUnread": false,
+    "status": "contacted",
+    "updatedAt": "2026-02-22T19:42:13.094Z"
+  },
+  {
+    "_id": "699b587988a3680f6fcc32dd",
+    "job": "699b18fe27a11536a6939ab4",
+    "user": "69417ba1a3824e1ba2607445",
+    "__v": 0,
+    "hasUnread": false,
+    "status": "contacted",
+    "updatedAt": "2026-02-22T20:20:31.568Z"
+  }
+]
