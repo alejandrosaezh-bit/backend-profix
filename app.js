@@ -906,8 +906,9 @@ function MainApp() {
     const loadChats = async (explicitMode = null) => {
         if (!isLoggedIn) return;
         try {
-            // Updated: Fetch ALL chats regardless of role to show full history
-            const chats = await api.getChats({});
+            const targetMode = explicitMode || userMode;
+            // Fetch chats filtered by the current role strictly as requested
+            const chats = await api.getChats({ role: targetMode });
             if (Array.isArray(chats)) {
                 setAllChats(chats);
             }

@@ -483,7 +483,7 @@ export default function ProfessionalProfileScreen({
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                     <Text style={styles.headerTitle}>Perfil Profesional</Text>
                     <View style={{ backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, marginLeft: 10 }}>
-                        <Text style={{ fontSize: 10, color: 'white', fontWeight: 'bold' }}>V32.0</Text>
+                        <Text style={{ fontSize: 10, color: 'white', fontWeight: 'bold' }}>V33.0</Text>
                     </View>
                 </View>
                 <TouchableOpacity onPress={onLogout} style={styles.logoutIconButton}>

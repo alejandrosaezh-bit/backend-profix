@@ -159,7 +159,7 @@ export default function ClientProfileScreen({ user, isOwner, onBack, onLogout, o
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           <Text style={{ fontSize: 24, fontWeight: 'bold', color: 'white' }}>Mi Perfil</Text>
           <View style={{ backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, marginLeft: 10 }}>
-            <Text style={{ fontSize: 10, color: 'white', fontWeight: 'bold' }}>V32.0</Text>
+            <Text style={{ fontSize: 10, color: 'white', fontWeight: 'bold' }}>V33.0</Text>
           </View>
         </View>
         <TouchableOpacity onPress={onLogout} style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: 'rgba(255,255,255,0.2)', justifyContent: 'center', alignItems: 'center' }}>

@@ -56,11 +56,19 @@ export default function ChatListScreen({ currentUser, requests, chats = [], onSe
                 if (visitedIds.has(chat._id)) return;
                 visitedIds.add(chat._id);
 
-                // Archived Status
-                let isArchived = false;
-                const status = relatedRequest?.status || chat.job?.status;
-                const archivedStatuses = ['canceled', 'closed', 'ELIMINADA', 'Cerrada', 'TERMINADO', 'FINALIZADA', 'rejected', 'lost', 'rated', 'completed'];
-                if (archivedStatuses.includes(status)) isArchived = true;
+                // --- ROLE & ARCHIVE FILTERING ---
+                const backendRole = chat.chatRole;
+                // Si el backend nos da el rol, lo respetamos estrictamente. 
+                // Esto soluciona que se mezclen chats de pro en vista cliente.
+                if (backendRole && backendRole !== (isPro ? 'pro' : 'client')) return;
+
+                // Archived Status (Preferir backend, fallback a cálculo local)
+                let isArchived = chat.isArchived ?? false;
+                if (chat.isArchived === undefined) {
+                    const status = relatedRequest?.status || chat.job?.status;
+                    const archivedStatuses = ['canceled', 'closed', 'ELIMINADA', 'Cerrada', 'TERMINADO', 'FINALIZADA', 'rejected', 'lost', 'rated', 'completed'];
+                    if (archivedStatuses.includes(status)) isArchived = true;
+                }
 
                 // El backend ahora nos manda unreadCount directamente
                 // Y el array messages solo tiene el último mensaje

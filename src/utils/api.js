@@ -2,22 +2,20 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 
 // Configuración de API
-// URL de Producción (Render)
 const PROD_URL = 'https://profix-backend-h56b.onrender.com/api';
-
-// Configuración de IP dinámica (Desarrollo Local)
-// Si necesitas trabajar con el backend localmente, cambia USE_LOCAL a true
 const LOCAL_IP = '192.168.1.172'; // IMPORTANTE: Verifica tu IP con `ipconfig` en Windows
-const USE_LOCAL = false; // Cambiamos a false para producción (APK)
 
-export const API_URL = !USE_LOCAL
-    ? PROD_URL
-    : Platform.select({
+// Automatización de entorno: Detecta si estamos en modo de desarrollo (Expo Go/Dev Client) o en un build real (APK)
+const isDev = __DEV__;
+
+export const API_URL = isDev
+    ? Platform.select({
         android: `http://${LOCAL_IP}:5000/api`,
         ios: `http://${LOCAL_IP}:5000/api`,
         web: (typeof window !== 'undefined' && window.location) ? `http://${window.location.hostname}:5000/api` : `http://${LOCAL_IP}:5000/api`,
         default: `http://${LOCAL_IP}:5000/api`
-    });
+    })
+    : PROD_URL;
 
 console.log(`[API] Using API_URL: ${API_URL}`);
 
