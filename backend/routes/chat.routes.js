@@ -11,12 +11,14 @@ const https = require('https'); // For Expo Push
 // @route   GET /api/chats
 router.get('/', protect, async (req, res) => {
     try {
-        // 1. Obtener los chats con proyección optimizada (solo el último mensaje)
+        const role = (req.query.role || '').toLowerCase(); // 'client' or 'pro'
+        const archivedQuery = req.query.archived; // undefined, 'true', or 'false'
+
+        // 1. Obtener los chats. Traemos el PRIMER mensaje para determinar quién inició.
         let chats = await Chat.find({ participants: req.user._id })
-            .select('_id job participants lastMessage lastMessageDate')
             .populate('participants', 'name avatar email role')
-            .populate('job', 'title client')
-            .slice('messages', -1) // Traer solo el ÚLTIMO mensaje en el array messages
+            .populate('job', 'title client status offers')
+            .slice('messages', 1)
             .sort({ lastMessageDate: -1 })
             .lean();
 
@@ -33,33 +35,56 @@ router.get('/', protect, async (req, res) => {
             unreadMap[u._id.toString()] = u.count;
         });
 
-        // 3. Regla: todo chat debe estar vinculado a una Solicitud y formatear
-        const role = (req.query.role || '').toLowerCase();
-
+        // 3. Procesar según las reglas del usuario
+        const meId = req.user._id.toString();
         let processedChats = chats.filter(c => !!c.job).map(c => {
+            // REGLA: Iniciador (el que escribió primero) es el Profesional. El receptor es el Cliente.
+            const firstMsg = c.messages && c.messages[0];
+
+            let chatRole = 'client';
+            if (firstMsg) {
+                const initiatorId = firstMsg.sender ? firstMsg.sender.toString() : '';
+                chatRole = (initiatorId === meId) ? 'pro' : 'client';
+            } else {
+                // Fallback: si soy el dueño del job, soy cliente
+                const jobClientId = c.job && c.job.client ? (c.job.client._id || c.job.client).toString() : '';
+                chatRole = (jobClientId === meId) ? 'client' : 'pro';
+            }
+
+            // REGLA: Archivado = Solicitud u Oferta NO ACTIVA
+            const jobStatus = (c.job.status || '').toLowerCase();
+            const inactiveStatuses = ['canceled', 'completed', 'rated', 'culminada', 'terminado', 'finalizada', 'eliminada', 'cerrada'];
+
+            let isArchived = inactiveStatuses.includes(jobStatus);
+
+            // Caso Pro: si mi oferta fue rechazada o perdí, también es archivado para MÍ
+            if (chatRole === 'pro' && c.job.offers) {
+                const myOffer = c.job.offers.find(o => {
+                    const oProId = (o.proId && o.proId._id) ? o.proId._id : o.proId;
+                    return String(oProId) === meId;
+                });
+                if (myOffer && ['rejected', 'lost'].includes(myOffer.status)) {
+                    isArchived = true;
+                }
+            }
+
             return {
                 ...c,
+                chatRole,
+                isArchived,
                 unreadCount: unreadMap[c._id.toString()] || 0
             };
         });
 
-        // --- FILTRO POR ROL (Estricto) ---
-        if (role === 'client') {
-            processedChats = processedChats.filter(c => {
-                const clientId = c.job && c.job.client ? (c.job.client._id || c.job.client) : null;
-                return clientId && String(clientId) === String(req.user._id);
-            });
-        } else if (role === 'pro') {
-            processedChats = processedChats.filter(c => {
-                const clientId = c.job && c.job.client ? (c.job.client._id || c.job.client) : null;
-                const meId = String(req.user._id);
-                // Si soy el cliente del trabajo, no es mi chat de pro
-                if (clientId && String(clientId) === meId) return false;
-                // Si participo como cliente, tampoco
-                const me = (c.participants || []).find(p => String(p._id) === meId);
-                if (me && me.role && String(me.role).toLowerCase() === 'client') return false;
-                return true;
-            });
+        // 4. Filtrado estricto final
+        if (role === 'client' || role === 'pro') {
+            processedChats = processedChats.filter(c => c.chatRole === role);
+        }
+
+        // 5. Filtrado por archivado (Opcional: si no viene el param, mandamos todo)
+        if (archivedQuery !== undefined) {
+            const wantArchived = archivedQuery === 'true';
+            processedChats = processedChats.filter(c => c.isArchived === wantArchived);
         }
 
         res.json(processedChats);
