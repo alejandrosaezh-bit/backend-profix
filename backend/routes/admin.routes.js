@@ -58,10 +58,10 @@ router.get('/chats/job/:jobId', async (req, res) => {
 });
 
 // Obtener todos los usuarios con filtros
-// Query params: role, search (nombre)
+// Query params: role, search (nombre), limit
 router.get('/users', async (req, res) => {
     try {
-        const { role, search } = req.query;
+        const { role, search, limit = 500 } = req.query;
         let query = {};
 
         if (role) query.role = role;
@@ -69,10 +69,13 @@ router.get('/users', async (req, res) => {
             query.name = { $regex: search, $options: 'i' };
         }
 
-        // Excluir campos pesados para listado ágil
+        // Excluir campos pesados para listado ágil y limitar resultados para velocidad
+        // Excluimos 'profiles' completo para que la respuesta sea mínima y rápida
+        const limitNum = parseInt(limit) || 500;
         const users = await User.find(query)
-            .select('-avatar -documents -password -profiles.gallery')
-            .sort({ createdAt: -1 });
+            .select('-avatar -documents -password -profiles')
+            .sort({ createdAt: -1 })
+            .limit(limitNum);
 
         res.json(users);
     } catch (error) {
@@ -126,7 +129,8 @@ router.put('/users/:id/rating', async (req, res) => {
 // Obtener detalles completos de un usuario
 router.get('/users/:id', async (req, res) => {
     try {
-        const user = await User.findById(req.params.id); // No excluir password, para saber si tiene o no, aunque por seguridad no se deberia enviar, pero aqui el admin puede sobreescribirlo
+        const user = await User.findById(req.params.id)
+            .select('-password -avatar -documents -profiles.gallery');
         if (user) {
             res.json(user);
         } else {
@@ -231,7 +235,8 @@ const calculateAdminJobStatuses = (job) => {
 // Query params: status (active, archived, etc), search (titulo)
 router.get('/jobs', async (req, res) => {
     try {
-        const { status, search } = req.query;
+        console.log(`[GET /admin/jobs] STARTING request`);
+        const { status, search, limit = 100 } = req.query;
         let query = {};
 
         if (status) query.status = status;
@@ -239,16 +244,35 @@ router.get('/jobs', async (req, res) => {
             query.title = { $regex: search, $options: 'i' };
         }
 
+        const limitNum = parseInt(limit) || 100;
+        console.log(`[GET /admin/jobs] Executing Job.find... limit: ${limitNum}`);
         const jobs = await Job.find(query)
+            .select('-images -workPhotos -clientManagement -projectHistory')
             .populate('client', 'name email')
             .populate('category', 'name')
             .populate('offers.proId', 'name email')
             .sort({ createdAt: -1 })
+            .limit(limitNum)
+            .maxTimeMS(10000) // Timeout Mongo query
             .lean();
 
-        // Agregar resumen de interacciones para cada trabajo
-        const jobsWithInteractions = await Promise.all(jobs.map(async (job) => {
-            const interactions = await JobInteraction.find({ job: job._id });
+        console.log(`[GET /admin/jobs] Job.find finished, got ${jobs.length} jobs.`);
+
+        const jobIds = jobs.map(j => j._id);
+        console.log(`[GET /admin/jobs] Fetching interactions for ${jobIds.length} jobs...`);
+        const allInteractions = await JobInteraction.find({ job: { $in: jobIds } }).maxTimeMS(5000).lean();
+
+        console.log(`[GET /admin/jobs] Fetched ${allInteractions.length} interactions.`);
+        const interactionsByJob = {};
+        allInteractions.forEach(i => {
+            const jId = i.job.toString();
+            if (!interactionsByJob[jId]) interactionsByJob[jId] = [];
+            interactionsByJob[jId].push(i);
+        });
+
+        console.log(`[GET /admin/jobs] Assembling final data...`);
+        const jobsWithInteractions = jobs.map(job => {
+            const interactions = interactionsByJob[job._id.toString()] || [];
 
             const jobWithSummary = {
                 ...job,
@@ -260,7 +284,6 @@ router.get('/jobs', async (req, res) => {
                 }
             };
 
-            // Calculate Statuses
             try {
                 const { clientStatus, proStatus } = calculateAdminJobStatuses(jobWithSummary);
                 jobWithSummary.calculatedClientStatus = clientStatus;
@@ -272,10 +295,12 @@ router.get('/jobs', async (req, res) => {
             }
 
             return jobWithSummary;
-        }));
+        });
 
+        console.log(`[GET /admin/jobs] Done. Sending payload. (Size approx: ${JSON.stringify(jobsWithInteractions).length} bytes)`);
         res.json(jobsWithInteractions);
     } catch (error) {
+        console.error("Error in GET /admin/jobs:", error);
         res.status(500).json({ message: error.message });
     }
 });
