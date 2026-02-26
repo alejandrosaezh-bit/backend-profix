@@ -205,7 +205,16 @@ router.post('/', protect, async (req, res) => {
             subcategory,
             location,
             budget,
-            images
+            images,
+            projectHistory: [{
+                eventType: 'job_created',
+                actor: req.user._id,
+                actorRole: 'client',
+                timestamp: new Date(),
+                title: 'Solicitud Creada',
+                description: `El cliente ha publicado la solicitud: ${title}`,
+                isPrivate: false
+            }]
         });
 
         const createdJob = await job.save();
@@ -249,10 +258,23 @@ router.put('/:id', protect, async (req, res) => {
             return res.status(401).json({ message: 'No autorizado' });
         }
 
+        if (category) {
+            const mongoose = require('mongoose');
+            if (mongoose.Types.ObjectId.isValid(category) && new mongoose.Types.ObjectId(category).toString() === category) {
+                job.category = category;
+            } else {
+                // It's a name, find the ID
+                const categoryObj = await Category.findOne({ name: category });
+                if (categoryObj) {
+                    job.category = categoryObj._id;
+                } else {
+                    return res.status(400).json({ message: `Categoría '${category}' no encontrada.` });
+                }
+            }
+        }
         job.title = title || job.title;
         job.description = description || job.description;
-        job.category = category || job.category;
-        job.subcategory = subcategory !== undefined ? subcategory : job.subcategory; // Permitir borrar / null
+        job.subcategory = subcategory !== undefined ? subcategory : job.subcategory;
         job.location = location || job.location;
         job.budget = budget || job.budget;
         job.images = images || job.images;
@@ -263,55 +285,6 @@ router.put('/:id', protect, async (req, res) => {
         res.json(updatedJob);
     } catch (error) {
         console.error("Error updating job:", error);
-        res.status(500).json({ message: error.message });
-    }
-});
-
-// @desc    Actualizar solicitud de servicio (Job)
-// @route   PUT /api/jobs/:id
-// @access  Private (Solo el creador)
-router.put('/:id', protect, async (req, res) => {
-    try {
-        const { title, description, category, subcategory, location, images } = req.body;
-        const job = await Job.findById(req.params.id);
-
-        if (!job) {
-            return res.status(404).json({ message: 'Trabajo no encontrado' });
-        }
-
-        if (job.client.toString() !== req.user._id.toString()) {
-            return res.status(403).json({ message: 'No autorizado para editar esta solicitud' });
-        }
-
-        job.title = title || job.title;
-        job.description = description || job.description;
-
-        // Handle Category update (Name or ID)
-        if (category) {
-            const mongoose = require('mongoose');
-            if (mongoose.Types.ObjectId.isValid(category) && new mongoose.Types.ObjectId(category).toString() === category) {
-                job.category = category;
-            } else {
-                // It's likely a name
-                const categoryObj = await Category.findOne({ name: category });
-                if (categoryObj) {
-                    job.category = categoryObj._id;
-                } else {
-                    // If category not found by name, keep old or error? 
-                    // Let's warn but maybe keep old to avoid crash, or error out.
-                    // Better to error so user knows.
-                    return res.status(400).json({ message: `Categoría '${category}' no encontrada.` });
-                }
-            }
-        }
-
-        job.subcategory = subcategory || job.subcategory;
-        job.location = location || job.location;
-        if (images) job.images = images;
-
-        const updatedJob = await job.save();
-        res.json(updatedJob);
-    } catch (error) {
         res.status(500).json({ message: error.message });
     }
 });
@@ -368,6 +341,18 @@ router.post('/:id/offers', protect, async (req, res) => {
         };
 
         job.offers.push(offer);
+
+        // TIMELINE EVENT: Offer Sent
+        job.projectHistory.push({
+            eventType: 'offer_sent',
+            actor: req.user._id,
+            actorRole: 'pro',
+            timestamp: new Date(),
+            title: 'Presupuesto Enviado',
+            description: `El profesional ha enviado una oferta por ${offer.currency || '$'}${offer.amount}.`,
+            isPrivate: false
+        });
+
         await job.save();
 
         // Actualizar Interacción
@@ -490,6 +475,7 @@ router.put('/:id/offers', protect, async (req, res) => {
         offer.updatedAt = Date.now();
         offer.status = 'pending'; // Reset status so the client sees it as a new/fresh proposal
         offer.rejectionReason = undefined;
+        offer.seenByClient = false;
 
         job.offers[offerIndex] = offer;
         await job.save();
@@ -591,6 +577,32 @@ router.put('/:id/assign', protect, async (req, res) => {
         }
 
         res.json(job);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
+// @desc    Marcar ofertas como leídas por el cliente
+// @route   PUT /api/jobs/:id/offers/read
+router.put('/:id/offers/read', protect, async (req, res) => {
+    try {
+        const job = await Job.findById(req.params.id);
+        if (!job) return res.status(404).json({ message: 'Trabajo no encontrado' });
+
+        if (job.client.toString() !== req.user._id.toString()) {
+            return res.status(403).json({ message: 'No autorizado' });
+        }
+
+        if (job.offers && job.offers.length > 0) {
+            job.offers.forEach(offer => {
+                if (offer.status === 'pending') {
+                    offer.seenByClient = true;
+                }
+            });
+        }
+
+        await job.save();
+        res.json({ message: 'Ofertas marcadas como leídas' });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -761,6 +773,42 @@ router.get('/interactions', protect, async (req, res) => {
     }
 });
 
+// @desc    Marcar TODAS las interacciones del profesional como leídas
+// @route   PUT /api/jobs/interactions/read-all
+// @access  Private
+router.put('/interactions/read-all', protect, async (req, res) => {
+    try {
+        const { marketJobIds } = req.body;
+
+        // 1. Marcar como leídas las interacciones que ya existen
+        await JobInteraction.updateMany(
+            { user: req.user._id, hasUnread: true },
+            { hasUnread: false }
+        );
+
+        // 2. Para los trabajos "NUEVOS" del mercado que el usuario ya vió en la lista,
+        // creamos una interacción con estado 'viewed' para que dejen de aparecer como 'new'.
+        if (Array.isArray(marketJobIds) && marketJobIds.length > 0) {
+            const operations = marketJobIds.map(jobId => ({
+                updateOne: {
+                    filter: { job: jobId, user: req.user._id },
+                    update: { $setOnInsert: { status: 'viewed', hasUnread: false, updatedAt: Date.now() } },
+                    upsert: true
+                }
+            }));
+
+            if (operations.length > 0) {
+                await JobInteraction.bulkWrite(operations);
+            }
+        }
+
+        res.json({ success: true });
+    } catch (error) {
+        console.error("Error in read-all interactions:", error);
+        res.status(500).json({ message: error.message });
+    }
+});
+
 // @desc    Actualizar estado de interacción de un profesional con un trabajo
 // @route   POST /api/jobs/:id/interaction
 // @access  Private
@@ -827,12 +875,12 @@ router.get('/', async (req, res) => {
 
         // IMPLEMENT PAGINATION & OPTIMIZATION
         const limit = parseInt(req.query.limit) || 50; // Default to 50 jobs
-        const page = parseInt(req.query.page) || 1;
+        const page = Math.max(1, parseInt(req.query.page) || 1);
         const skip = (page - 1) * limit;
 
         let jobs = await Job.find(query)
-            .select('-images -workPhotos -clientManagement -projectHistory') // Exclude heavy history
-            .populate('client', 'name avatar')
+            .select('-images -workPhotos -clientManagement -projectHistory') // Restored avatar
+            .populate('client', 'name avatar') // Restored avatar
             .populate('category', 'name color icon')
             //.populate('projectHistory.actor', 'name avatar email role') // Removed for list view
             .sort({ createdAt: -1 })
@@ -941,23 +989,40 @@ router.get('/', async (req, res) => {
 // @access  Private
 router.get('/me', protect, async (req, res) => {
     try {
-        let jobs = await Job.find({ client: req.user._id })
+        const role = (req.query.role || '').toLowerCase();
+        console.log(`[GET /me] User: ${req.user ? req.user.name : 'Unknown'} | Role query: ${role}`);
+
+        if (!req.user || !req.user._id) {
+            return res.status(401).json({ message: 'Usuario no autenticado o no encontrado en DB.' });
+        }
+
+        const clientJobs = await Job.find({ client: req.user._id })
             .select('-images -workPhotos -clientManagement')
-            .populate('client', 'name avatar') // Ensure client is populated for ID checks
+            .populate('client', 'name avatar email')
             .populate('category', 'name color icon')
             .populate('offers.proId', 'name email avatar rating reviewsCount')
-            .populate('professional', 'name avatar email rating reviewsCount')
+            .populate('professional', 'name email avatar rating reviewsCount')
             .populate('projectHistory.actor', 'name avatar email role')
             .sort({ createdAt: -1 })
             .lean();
 
+        console.log(`[GET /me] User ${req.user ? req.user.name : 'Unknown'} [${req.user ? req.user._id : 'Unknown'}] has ${clientJobs.length} client jobs.`);
+
+        // Debug sample job IDs for the user
+        if (clientJobs.length > 0) {
+            console.log(`[GET /me] Sample Client Job ID: ${clientJobs[0]._id}`);
+        }
+
+        let jobs = clientJobs;
+
+        // If only client jobs are needed, return immediately
+        if (role === 'client') {
+            console.log(`[GET /me] Returning ${jobs.length} client jobs only.`);
+            return res.json(jobs);
+        }
+
         if (jobs.length > 0) {
-            console.log("[GET /me] First Job Fetched:", {
-                id: jobs[0]._id,
-                catType: typeof jobs[0].category,
-                catVal: jobs[0].category,
-                sub: jobs[0].subcategory
-            });
+            console.log("[GET /me] First Job Fetched ID:", jobs[0]._id);
         }
 
 
@@ -967,14 +1032,44 @@ router.get('/me', protect, async (req, res) => {
         // 2. The user is a PROFESSIONAL interacting via Chat (even if not officially assigned yet)
 
         // Find all chats where this user is a participant
-        // Find all chats where this user is a participant
-        // Find all chats where this user is a participant
-        const allUserChats = await Chat.find({ participants: req.user._id })
-            .select('_id job participants lastMessage lastMessageDate messages._id messages.read messages.sender messages.content messages.media messages.mediaType messages.createdAt') // OPTIMIZATION: Updated projection
-            .populate('participants', 'name email avatar role')
-            .populate('job', '_id client')
-            .sort({ lastMessageDate: -1 })
-            .lean();
+        // OPTIMIZATION: Use aggregate to count unread messages WITHOUT loading the huge messages array
+        const mongoose = require('mongoose');
+        const userObjectId = new mongoose.Types.ObjectId(req.user._id);
+
+        const allUserChatsRaw = await Chat.aggregate([
+            { $match: { participants: userObjectId } },
+            {
+                $project: {
+                    _id: 1,
+                    job: 1,
+                    participants: 1,
+                    lastMessage: 1,
+                    lastMessageDate: 1,
+                    // Count messages where sender != me and read == false
+                    unreadCount: {
+                        $size: {
+                            $filter: {
+                                input: { $ifNull: ["$messages", []] },
+                                as: "msg",
+                                cond: {
+                                    $and: [
+                                        { $ne: ["$$msg.sender", userObjectId] },
+                                        { $eq: ["$$msg.read", false] }
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            { $sort: { lastMessageDate: -1 } }
+        ]);
+
+        // Manually populate since aggregate doesn't do it easily
+        const allUserChats = await Chat.populate(allUserChatsRaw, [
+            { path: 'participants', select: 'name email role avatar' }, // Restored avatar
+            { path: 'job', select: '_id client' }
+        ]);
 
         console.log(`[GET /me] Found ${allUserChats.length} chats for user ${req.user.name}`);
 
@@ -1027,11 +1122,11 @@ router.get('/me', protect, async (req, res) => {
             console.log(`[GET /me DEBUG] Fetching ${uniqueJobIdsToFetch.length} extra jobs:`, uniqueJobIdsToFetch);
             try {
                 const fetchedJobs = await Job.find({ _id: { $in: uniqueJobIdsToFetch } })
-                    .select('-images -workPhotos -clientManagement')
+                    .select('-images -workPhotos -clientManagement') // Restored avatar
                     .populate('category', 'name color icon')
-                    .populate('client', 'name avatar email')
-                    .populate('offers.proId', 'name email avatar rating reviewsCount')
-                    .populate('professional', 'name avatar email rating reviewsCount')
+                    .populate('client', 'name email avatar') // Restored avatar
+                    .populate('offers.proId', 'name email avatar rating reviewsCount') // Restored avatar
+                    .populate('professional', 'name email avatar rating reviewsCount') // Restored avatar
                     .lean();
 
                 console.log(`[GET /me DEBUG] Successfully fetched ${fetchedJobs.length} extra jobs`);
@@ -1049,6 +1144,7 @@ router.get('/me', protect, async (req, res) => {
         const extraJobs = Object.values(extraJobsMap);
         console.log(`[GET /me] Adding ${extraJobs.length} virtual jobs (Pro Mode)`);
         jobs = [...jobs, ...extraJobs];
+        console.log(`[GET /me] Combined jobs count: ${jobs.length} (Client: ${clientJobs.length}, Extra: ${extraJobs.length})`);
 
         // Sort combined list by date
         jobs.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
@@ -1126,11 +1222,7 @@ router.get('/me', protect, async (req, res) => {
                 const finalProId = proParticipant ? (proParticipant._id || proParticipant) : ((req.user._id.toString() !== jobClientIdStr) ? req.user._id : null);
                 const finalProName = proParticipant ? proParticipant.name : ((req.user._id.toString() !== jobClientIdStr) ? req.user.name : 'Usuario');
 
-                // OPTIMIZATION: Calc unread count without loading full messages if possible,
-                // or use the lightweight messages array we fetched.
-                const unreadCount = (chat.messages || []).filter(m =>
-                    m.sender && m.sender.toString() !== req.user._id.toString() && !m.read
-                ).length;
+                const unreadCount = chat.unreadCount || 0;
 
                 return {
                     id: chat._id,
@@ -1187,7 +1279,6 @@ router.get('/me', protect, async (req, res) => {
         });
 
         // Optional backend-side filter for dual role separation
-        const role = (req.query.role || '').toLowerCase();
         let finalJobs = formattedJobs;
         if (role === 'pro') {
             finalJobs = formattedJobs.filter(job => {
@@ -1202,6 +1293,7 @@ router.get('/me', protect, async (req, res) => {
         }
 
 
+        console.log(`[GET /me] Returning ${finalJobs.length} jobs total to frontend.`);
         res.json(finalJobs);
     } catch (error) {
         try {
@@ -1221,7 +1313,7 @@ router.get('/me', protect, async (req, res) => {
 router.get('/:id', async (req, res) => {
     try {
         const job = await Job.findById(req.params.id)
-            .select('-workPhotos -clientManagement -projectHistory') // Exclude heavy/private fields
+            .select('-workPhotos -clientManagement') // Exclude heavy/private fields
             .populate('client', 'name phone avatar email')
             .populate('category', 'name')
             .populate('offers.proId', 'name avatar rating reviewsCount')
