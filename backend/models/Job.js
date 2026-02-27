@@ -61,6 +61,7 @@ const jobSchema = mongoose.Schema({
         taxRate: Number,
         status: { type: String, enum: ['pending', 'accepted', 'rejected'], default: 'pending' },
         rejectionReason: String,
+        seenByClient: { type: Boolean, default: false },
         createdAt: { type: Date, default: Date.now }
     }],
     conversations: [{
@@ -86,7 +87,7 @@ const jobSchema = mongoose.Schema({
     projectHistory: [{
         eventType: {
             type: String,
-            enum: ['offer_accepted', 'work_started', 'photo_uploaded', 'note_added', 'date_negotiated', 'job_finished', 'pro_started'],
+            enum: ['job_created', 'offer_sent', 'offer_accepted', 'work_started', 'photo_uploaded', 'note_added', 'date_negotiated', 'job_finished', 'pro_started'],
             required: true
         },
         actor: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },

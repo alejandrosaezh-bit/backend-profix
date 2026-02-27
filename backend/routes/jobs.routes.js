@@ -1036,6 +1036,7 @@ router.get('/me', protect, async (req, res) => {
         const mongoose = require('mongoose');
         const userObjectId = new mongoose.Types.ObjectId(req.user._id);
 
+        console.log(`[GET /me] Searching for user chats...`);
         const allUserChatsRaw = await Chat.aggregate([
             { $match: { participants: userObjectId } },
             {
@@ -1063,8 +1064,9 @@ router.get('/me', protect, async (req, res) => {
                 }
             },
             { $sort: { lastMessageDate: -1 } }
-        ]);
+        ]); // Removed invalid .maxTimeMS(5000)
 
+        console.log(`[GET /me] Aggregated chats, now populating...`);
         // Manually populate since aggregate doesn't do it easily
         const allUserChats = await Chat.populate(allUserChatsRaw, [
             { path: 'participants', select: 'name email role avatar' }, // Restored avatar
@@ -1127,7 +1129,7 @@ router.get('/me', protect, async (req, res) => {
                     .populate('client', 'name email avatar') // Restored avatar
                     .populate('offers.proId', 'name email avatar rating reviewsCount') // Restored avatar
                     .populate('professional', 'name email avatar rating reviewsCount') // Restored avatar
-                    .lean();
+                    .lean(); // Removed .maxTimeMS(5000)
 
                 console.log(`[GET /me DEBUG] Successfully fetched ${fetchedJobs.length} extra jobs`);
 
@@ -1187,7 +1189,8 @@ router.get('/me', protect, async (req, res) => {
         const allJobIds = Array.from(validJobIds);
         let interactionsByJob = {};
         try {
-            const allInteractions = await JobInteraction.find({ job: { $in: allJobIds } }).lean();
+            console.log(`[GET /me] Fetching interactions for ${allJobIds.length} valid jobs...`);
+            const allInteractions = await JobInteraction.find({ job: { $in: allJobIds } }).lean(); // Removed maxTimeMS(5000)
             allInteractions.forEach(i => {
                 const jId = i.job.toString();
                 if (!interactionsByJob[jId]) interactionsByJob[jId] = [];

@@ -1,0 +1,147 @@
+[2026-02-26T16:12:11.309Z] GET /jobs/me Error: TypeError: Cannot read properties of null (reading 'name')
+    at E:\PROFIX APP\ProFix\backend\routes\jobs.routes.js:993:49
+    at Layer.handle [as handle_request] (E:\PROFIX APP\ProFix\backend\node_modules\express\lib\router\layer.js:95:5)
+    at next (E:\PROFIX APP\ProFix\backend\node_modules\express\lib\router\route.js:149:13)
+    at protect (E:\PROFIX APP\ProFix\backend\middleware\authMiddleware.js:18:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+[2026-02-27T04:41:00.819Z] GET /jobs/me Error: TypeError: Chat.aggregate(...).maxTimeMS is not a function
+    at E:\PROFIX APP\ProFix\backend\routes\jobs.routes.js:1067:12
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+[2026-02-27T04:41:19.098Z] GET /jobs/me Error: TypeError: Chat.aggregate(...).maxTimeMS is not a function
+    at E:\PROFIX APP\ProFix\backend\routes\jobs.routes.js:1067:12
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+[2026-02-27T04:41:30.861Z] GET /jobs/me Error: TypeError: Chat.aggregate(...).maxTimeMS is not a function
+    at E:\PROFIX APP\ProFix\backend\routes\jobs.routes.js:1067:12
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+[2026-02-27T04:41:50.071Z] GET /jobs/me Error: TypeError: Chat.aggregate(...).maxTimeMS is not a function
+    at E:\PROFIX APP\ProFix\backend\routes\jobs.routes.js:1067:12
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+[2026-02-27T04:42:00.044Z] GET /jobs/me Error: TypeError: Chat.aggregate(...).maxTimeMS is not a function
+    at E:\PROFIX APP\ProFix\backend\routes\jobs.routes.js:1067:12
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+[2026-02-27T04:42:17.846Z] GET /jobs/me Error: TypeError: Chat.aggregate(...).maxTimeMS is not a function
+    at E:\PROFIX APP\ProFix\backend\routes\jobs.routes.js:1067:12
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+[2026-02-27T04:42:23.895Z] GET /jobs/me Error: TypeError: Chat.aggregate(...).maxTimeMS is not a function
+    at E:\PROFIX APP\ProFix\backend\routes\jobs.routes.js:1067:12
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+[2026-02-27T04:42:41.558Z] GET /jobs/me Error: TypeError: Chat.aggregate(...).maxTimeMS is not a function
+    at E:\PROFIX APP\ProFix\backend\routes\jobs.routes.js:1067:12
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+[2026-02-27T04:43:16.608Z] GET /jobs/me Error: TypeError: Chat.aggregate(...).maxTimeMS is not a function
+    at E:\PROFIX APP\ProFix\backend\routes\jobs.routes.js:1067:12
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+[2026-02-27T04:43:31.101Z] GET /jobs/me Error: TypeError: Chat.aggregate(...).maxTimeMS is not a function
+    at E:\PROFIX APP\ProFix\backend\routes\jobs.routes.js:1067:12
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+[2026-02-27T04:43:48.592Z] GET /jobs/me Error: TypeError: Chat.aggregate(...).maxTimeMS is not a function
+    at E:\PROFIX APP\ProFix\backend\routes\jobs.routes.js:1067:12
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+[2026-02-27T04:43:54.199Z] GET /jobs/me Error: TypeError: Chat.aggregate(...).maxTimeMS is not a function
+    at E:\PROFIX APP\ProFix\backend\routes\jobs.routes.js:1067:12
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+[2026-02-27T04:44:11.971Z] GET /jobs/me Error: TypeError: Chat.aggregate(...).maxTimeMS is not a function
+    at E:\PROFIX APP\ProFix\backend\routes\jobs.routes.js:1067:12
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+[2026-02-27T04:44:12.446Z] GET /jobs/me Error: TypeError: Chat.aggregate(...).maxTimeMS is not a function
+    at E:\PROFIX APP\ProFix\backend\routes\jobs.routes.js:1067:12
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+[2026-02-27T04:44:58.488Z] GET /jobs/me Error: TypeError: Chat.aggregate(...).maxTimeMS is not a function
+    at E:\PROFIX APP\ProFix\backend\routes\jobs.routes.js:1067:12
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+[2026-02-27T04:44:59.114Z] GET /jobs/me Error: TypeError: Chat.aggregate(...).maxTimeMS is not a function
+    at E:\PROFIX APP\ProFix\backend\routes\jobs.routes.js:1067:12
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+[2026-02-27T04:45:15.543Z] GET /jobs/me Error: TypeError: Chat.aggregate(...).maxTimeMS is not a function
+    at E:\PROFIX APP\ProFix\backend\routes\jobs.routes.js:1067:12
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+[2026-02-27T04:45:42.789Z] GET /jobs/me Error: TypeError: Chat.aggregate(...).maxTimeMS is not a function
+    at E:\PROFIX APP\ProFix\backend\routes\jobs.routes.js:1067:12
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+[2026-02-27T04:46:28.711Z] GET /jobs/me Error: TypeError: Chat.aggregate(...).maxTimeMS is not a function
+    at E:\PROFIX APP\ProFix\backend\routes\jobs.routes.js:1067:12
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+[2026-02-27T04:46:51.628Z] GET /jobs/me Error: TypeError: Chat.aggregate(...).maxTimeMS is not a function
+    at E:\PROFIX APP\ProFix\backend\routes\jobs.routes.js:1067:12
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+[2026-02-27T04:47:12.079Z] GET /jobs/me Error: TypeError: Chat.aggregate(...).maxTimeMS is not a function
+    at E:\PROFIX APP\ProFix\backend\routes\jobs.routes.js:1067:12
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+[2026-02-27T04:47:28.665Z] GET /jobs/me Error: TypeError: Chat.aggregate(...).maxTimeMS is not a function
+    at E:\PROFIX APP\ProFix\backend\routes\jobs.routes.js:1067:12
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+[2026-02-27T04:47:49.843Z] GET /jobs/me Error: TypeError: Chat.aggregate(...).maxTimeMS is not a function
+    at E:\PROFIX APP\ProFix\backend\routes\jobs.routes.js:1067:12
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+[2026-02-27T04:48:03.377Z] GET /jobs/me Error: TypeError: Chat.aggregate(...).maxTimeMS is not a function
+    at E:\PROFIX APP\ProFix\backend\routes\jobs.routes.js:1067:12
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+[2026-02-27T04:48:03.817Z] GET /jobs/me Error: TypeError: Chat.aggregate(...).maxTimeMS is not a function
+    at E:\PROFIX APP\ProFix\backend\routes\jobs.routes.js:1067:12
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+[2026-02-27T04:48:18.793Z] GET /jobs/me Error: TypeError: Chat.aggregate(...).maxTimeMS is not a function
+    at E:\PROFIX APP\ProFix\backend\routes\jobs.routes.js:1067:12
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+[2026-02-27T04:48:21.398Z] GET /jobs/me Error: TypeError: Chat.aggregate(...).maxTimeMS is not a function
+    at E:\PROFIX APP\ProFix\backend\routes\jobs.routes.js:1067:12
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+[2026-02-27T04:48:31.819Z] GET /jobs/me Error: TypeError: Chat.aggregate(...).maxTimeMS is not a function
+    at E:\PROFIX APP\ProFix\backend\routes\jobs.routes.js:1067:12
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+[2026-02-27T04:49:27.104Z] GET /jobs/me Error: TypeError: Chat.aggregate(...).maxTimeMS is not a function
+    at E:\PROFIX APP\ProFix\backend\routes\jobs.routes.js:1067:12
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+[2026-02-27T04:49:27.836Z] GET /jobs/me Error: TypeError: Chat.aggregate(...).maxTimeMS is not a function
+    at E:\PROFIX APP\ProFix\backend\routes\jobs.routes.js:1067:12
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+[2026-02-27T04:50:19.904Z] GET /jobs/me Error: TypeError: Chat.aggregate(...).maxTimeMS is not a function
+    at E:\PROFIX APP\ProFix\backend\routes\jobs.routes.js:1067:12
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+[2026-02-27T04:50:20.254Z] GET /jobs/me Error: TypeError: Chat.aggregate(...).maxTimeMS is not a function
+    at E:\PROFIX APP\ProFix\backend\routes\jobs.routes.js:1067:12
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+[2026-02-27T04:50:20.510Z] GET /jobs/me Error: TypeError: Chat.aggregate(...).maxTimeMS is not a function
+    at E:\PROFIX APP\ProFix\backend\routes\jobs.routes.js:1067:12
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+[2026-02-27T04:50:58.435Z] GET /jobs/me Error: TypeError: Chat.aggregate(...).maxTimeMS is not a function
+    at E:\PROFIX APP\ProFix\backend\routes\jobs.routes.js:1067:12
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+[2026-02-27T04:52:01.482Z] GET /jobs/me Error: TypeError: Chat.aggregate(...).maxTimeMS is not a function
+    at E:\PROFIX APP\ProFix\backend\routes\jobs.routes.js:1067:12
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+[2026-02-27T04:52:19.847Z] GET /jobs/me Error: TypeError: Chat.aggregate(...).maxTimeMS is not a function
+    at E:\PROFIX APP\ProFix\backend\routes\jobs.routes.js:1067:12
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+[2026-02-27T04:52:46.187Z] GET /jobs/me Error: TypeError: Chat.aggregate(...).maxTimeMS is not a function
+    at E:\PROFIX APP\ProFix\backend\routes\jobs.routes.js:1067:12
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+[2026-02-27T04:53:31.319Z] GET /jobs/me Error: TypeError: Chat.aggregate(...).maxTimeMS is not a function
+    at E:\PROFIX APP\ProFix\backend\routes\jobs.routes.js:1067:12
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+[2026-02-27T04:54:16.342Z] GET /jobs/me Error: TypeError: Chat.aggregate(...).maxTimeMS is not a function
+    at E:\PROFIX APP\ProFix\backend\routes\jobs.routes.js:1067:12
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+[2026-02-27T04:54:27.961Z] GET /jobs/me Error: TypeError: Chat.aggregate(...).maxTimeMS is not a function
+    at E:\PROFIX APP\ProFix\backend\routes\jobs.routes.js:1067:12
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+[2026-02-27T04:55:02.610Z] GET /jobs/me Error: TypeError: Chat.aggregate(...).maxTimeMS is not a function
+    at E:\PROFIX APP\ProFix\backend\routes\jobs.routes.js:1067:12
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+[2026-02-27T04:55:15.401Z] GET /jobs/me Error: TypeError: Chat.aggregate(...).maxTimeMS is not a function
+    at E:\PROFIX APP\ProFix\backend\routes\jobs.routes.js:1067:12
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+[2026-02-27T04:55:20.282Z] GET /jobs/me Error: TypeError: Chat.aggregate(...).maxTimeMS is not a function
+    at E:\PROFIX APP\ProFix\backend\routes\jobs.routes.js:1067:12
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+[2026-02-27T04:55:32.130Z] GET /jobs/me Error: TypeError: Chat.aggregate(...).maxTimeMS is not a function
+    at E:\PROFIX APP\ProFix\backend\routes\jobs.routes.js:1067:12
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+[2026-02-27T04:55:33.369Z] GET /jobs/me Error: TypeError: Chat.aggregate(...).maxTimeMS is not a function
+    at E:\PROFIX APP\ProFix\backend\routes\jobs.routes.js:1067:12
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+[2026-02-27T04:55:43.510Z] GET /jobs/me Error: TypeError: Chat.aggregate(...).maxTimeMS is not a function
+    at E:\PROFIX APP\ProFix\backend\routes\jobs.routes.js:1067:12
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+[2026-02-27T04:55:47.922Z] GET /jobs/me Error: TypeError: Chat.aggregate(...).maxTimeMS is not a function
+    at E:\PROFIX APP\ProFix\backend\routes\jobs.routes.js:1067:12
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)

@@ -14,11 +14,13 @@ router.get('/', protect, async (req, res) => {
         const role = (req.query.role || '').toLowerCase(); // 'client' or 'pro'
         const archivedQuery = req.query.archived; // undefined, 'true', or 'false'
 
-        // 1. Obtener los chats. Traemos el PRIMER mensaje para determinar quién inició.
-        let chats = await Chat.find({ participants: req.user._id })
-            .populate('participants', 'name avatar email role')
+        // 1. Obtener los chats.
+        // OPTIMIZACIÓN: Excluimos el array de mensajes que puede ser enorme. 
+        // Usaremos slice para traer solo el primer y último mensaje si es necesario, 
+        // o mejor, usaremos los campos desnormalizados lastMessage/lastMessageDate.
+        let chats = await Chat.find({ participants: req.user._id }, { messages: { $slice: 1 } })
+            .populate('participants', 'name email role avatar')
             .populate('job', 'title client status offers')
-            .slice('messages', 1)
             .sort({ lastMessageDate: -1 })
             .lean();
 

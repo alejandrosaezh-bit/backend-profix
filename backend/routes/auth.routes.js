@@ -151,9 +151,9 @@ router.put('/profile', protect, async (req, res) => {
                     { $set: updateFields },
                     { new: true, lean: true }
                 );
-                
+
                 if (!updatedUser) return res.status(404).json({ message: 'Usuario no encontrado' });
-                
+
                 return res.json({
                     ...serializeUser(updatedUser),
                     token: generateToken(updatedUser._id),
