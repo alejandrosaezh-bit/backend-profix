@@ -57,8 +57,22 @@ const Header = ({ userMode, toggleMode, isLoggedIn, onLoginPress, currentUser, o
                             backgroundColor: userMode === 'client' ? '#EA580C' : '#FFF7ED',
                             justifyContent: 'center',
                             alignItems: 'center',
+                            position: 'relative'
                         }}>
                             <Feather name="user" size={16} color={userMode === 'client' ? 'white' : '#EA580C'} />
+                            {userMode === 'pro' && (clientCounts?.chats > 0 || clientCounts?.updates > 0) && (
+                                <View style={{
+                                    position: 'absolute',
+                                    top: -2,
+                                    right: -2,
+                                    width: 10,
+                                    height: 10,
+                                    borderRadius: 5,
+                                    backgroundColor: '#EF4444',
+                                    borderWidth: 1.5,
+                                    borderColor: 'white'
+                                }} />
+                            )}
                         </View>
 
                         {/* Flecha Central */}
@@ -78,8 +92,22 @@ const Header = ({ userMode, toggleMode, isLoggedIn, onLoginPress, currentUser, o
                             backgroundColor: userMode === 'pro' ? '#2563EB' : '#EFF6FF',
                             justifyContent: 'center',
                             alignItems: 'center',
+                            position: 'relative'
                         }}>
                             <MaterialCommunityIcons name="hammer" size={16} color={userMode === 'pro' ? 'white' : '#2563EB'} />
+                            {userMode === 'client' && (proCounts?.chats > 0 || proCounts?.updates > 0) && (
+                                <View style={{
+                                    position: 'absolute',
+                                    top: -2,
+                                    right: -2,
+                                    width: 10,
+                                    height: 10,
+                                    borderRadius: 5,
+                                    backgroundColor: '#EF4444',
+                                    borderWidth: 1.5,
+                                    borderColor: 'white'
+                                }} />
+                            )}
                         </View>
                     </TouchableOpacity>
                 ) : (

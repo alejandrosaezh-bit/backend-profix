@@ -1,13 +1,26 @@
 import { Feather } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { useState } from 'react';
-import { Image, Platform, Text, TextInput, TouchableOpacity, View } from 'react-native';
-
-import { showAlert } from '../utils/helpers';
+import { ActivityIndicator, Image, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import RatingForm from './RatingForm';
 
-const ProjectTimeline = ({ job, userMode, currentUser, onConfirmStart, onAddTimelineEvent, onFinish, onRate, onTogglePortfolio, onViewImage }) => {
+
+
+
+const ProjectTimeline = ({ job, userMode, currentUser, onConfirmStart, onAddTimelineEvent, onFinish, onRate, onTogglePortfolio, onViewImage, showSection = 'all', customTitle = null }) => {
+    const areIdsEqual = (id1, id2) => {
+        if (!id1 || !id2) return false;
+        const s1 = (typeof id1 === 'object' && id1 !== null) ? (id1._id || id1.id || id1.toString()) : String(id1);
+        const s2 = (typeof id2 === 'object' && id2 !== null) ? (id2._id || id2.id || id2.toString()) : String(id2);
+        return s1 === s2;
+    };
+
+    const [loading, setLoading] = useState(false);
+
+    // ... rest of state
     const [note, setNote] = useState('');
     const [isPrivate, setIsPrivate] = useState(false);
+    const [showNoteModal, setShowNoteModal] = useState(false);
     const [showDatePicker, setShowDatePicker] = useState(false);
     const [date, setDate] = useState(new Date());
 
@@ -25,8 +38,91 @@ const ProjectTimeline = ({ job, userMode, currentUser, onConfirmStart, onAddTime
         await onRate(reviewData);
     };
 
-    // Inject Creation Event locally for display
-    if (job.createdAt) {
+    // Determine current stage for the stepper
+    // 0: Antes, 1: Durante, 2: Después, 3: Valoración
+    let currentStage = 0;
+
+    const isITheWinner = userMode === 'pro' && ((job.professional && areIdsEqual(job.professional._id || job.professional, currentUser?._id)) ||
+        (job.offers?.some(o => areIdsEqual(o.proId?._id || o.proId, currentUser?._id) && o.status === 'accepted')));
+
+    // For client, isAccepted means a professional is already working on it
+    const isAccepted = userMode === 'pro' ? isITheWinner : (!!job.professional || job.offers?.some(o => o.status === 'accepted'));
+    const isFinished = ['completed', 'finished', 'rated', 'TERMINADO', 'Culminada'].includes(job.status) || job.clientFinished;
+
+    if (isFinished) {
+        currentStage = 3;
+    } else if (job.proFinished || job.trackingStatus === 'finished') {
+        currentStage = 2;
+    } else if (job.trackingStatus === 'started') {
+        currentStage = 1;
+    }
+
+    const stageNames = ['Antes', 'Durante', 'Después', 'Valoración'];
+
+    const handlePickMedia = async (type) => {
+        let result;
+        const options = {
+            mediaTypes: type === 'video' ? ImagePicker.MediaTypeOptions.Videos : ImagePicker.MediaTypeOptions.Images,
+            quality: 0.5,
+            base64: true,
+            allowsMultipleSelection: type !== 'camera',
+        };
+
+        if (type === 'camera') {
+            result = await ImagePicker.launchCameraAsync(options);
+        } else {
+            result = await ImagePicker.launchImageLibraryAsync(options);
+        }
+
+        if (!result.canceled) {
+            setLoading(true);
+            try {
+                const photoType = currentStage === 0 ? 'Foto "Antes"' : (currentStage === 1 ? 'Foto "Durante"' : 'Foto "Después"');
+
+                // Process each asset
+                for (const asset of result.assets) {
+                    await onAddTimelineEvent({
+                        eventType: 'photo_uploaded',
+                        title: photoType,
+                        description: `Evidencia visual de la etapa: ${stageNames[currentStage]}`,
+                        mediaUrl: asset.base64 ? `data:image/jpeg;base64,${asset.base64}` : asset.uri,
+                        isPrivate
+                    });
+                }
+            } finally {
+                setLoading(false);
+            }
+        }
+    };
+
+    const handleAddNote = async () => {
+        if (!note.trim()) return;
+        setLoading(true);
+        try {
+            await onAddTimelineEvent({
+                eventType: 'note_added',
+                title: 'Nota Agregada',
+                description: note,
+                isPrivate
+            });
+            setNote('');
+            setShowNoteModal(false);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleMainAction = () => {
+        if (currentStage === 0) {
+            onConfirmStart();
+        } else if (currentStage === 1) {
+            onFinish();
+        }
+    };
+
+    // Inject Creation Event locally for display (only if not already in history)
+    const hasCreationEvent = job.projectHistory?.some(e => e.eventType === 'job_created');
+    if (job.createdAt && !hasCreationEvent) {
         events.push({
             eventType: 'job_created',
             title: 'Solicitud Creada',
@@ -37,9 +133,57 @@ const ProjectTimeline = ({ job, userMode, currentUser, onConfirmStart, onAddTime
         });
     }
 
+    // --- INJECT BUDGET EVENTS FROM OFFERS ---
+    if (job.offers && Array.isArray(job.offers)) {
+        job.offers.forEach(offer => {
+            const actor = { _id: offer.proId, name: offer.proName || 'Profesional' };
+
+            // Offer Sent
+            if (offer.createdAt) {
+                const hasSentEvent = job.projectHistory?.some(e => e.eventType === 'offer_sent' && e.actor?._id === offer.proId);
+                if (!hasSentEvent) {
+                    events.push({
+                        eventType: 'offer_sent',
+                        title: 'Presupuesto Enviado',
+                        description: `El profesional ${offer.proName || 'Profesional'} envió una propuesta por ${job.currency || offer.currency || '$'} ${offer.amount || offer.price || '0'}`,
+                        timestamp: offer.createdAt,
+                        actor: actor,
+                        isPrivate: false
+                    });
+                }
+            }
+
+            // Offer Accepted
+            if (offer.status === 'accepted' && offer.acceptedAt) {
+                const hasAcceptedEvent = job.projectHistory?.some(e => e.eventType === 'offer_accepted');
+                if (!hasAcceptedEvent) {
+                    events.push({
+                        eventType: 'offer_accepted',
+                        title: 'Presupuesto Aceptado',
+                        description: 'El cliente ha aceptado la propuesta del profesional.',
+                        timestamp: offer.acceptedAt,
+                        actor: job.client || { name: 'Cliente' },
+                        isPrivate: false
+                    });
+                }
+            }
+
+            // Offer Rejected
+            if (offer.status === 'rejected' && offer.rejectedAt) {
+                events.push({
+                    eventType: 'offer_rejected',
+                    title: 'Presupuesto Rechazado',
+                    description: `La propuesta fue rechazada. Motivo: ${offer.rejectionReason || 'No especificado'}`,
+                    timestamp: offer.rejectedAt,
+                    actor: job.client || { name: 'Cliente' },
+                    isPrivate: false
+                });
+            }
+        });
+    }
+
     // --- INJECT LEGACY DATA (From Removed "Gestionar Trabajo") ---
     if (job.clientManagement) {
-        // Photos (Make PUBLIC so Pro can see "Antes" evidence)
         if (job.clientManagement.beforePhotos) {
             job.clientManagement.beforePhotos.forEach(p => {
                 events.push({
@@ -49,20 +193,7 @@ const ProjectTimeline = ({ job, userMode, currentUser, onConfirmStart, onAddTime
                     mediaUrl: p.url,
                     timestamp: p.uploadedAt,
                     actor: job.client || { _id: 'system', name: 'Cliente' },
-                    isPrivate: false // Migrating to Public for visibility
-                });
-            });
-        }
-        // Notes (Keep Private)
-        if (job.clientManagement.privateNotes) {
-            job.clientManagement.privateNotes.forEach(n => {
-                events.push({
-                    eventType: 'note_added',
-                    title: 'Nota Privada (Importada)',
-                    description: n.text,
-                    timestamp: n.date,
-                    actor: job.client || { _id: 'system', name: 'Cliente' },
-                    isPrivate: true
+                    isPrivate: false
                 });
             });
         }
@@ -73,367 +204,519 @@ const ProjectTimeline = ({ job, userMode, currentUser, onConfirmStart, onAddTime
 
     const visibleEvents = events.filter(e => {
         if (!e.isPrivate) return true;
-        // Show all if completed, finished, rated, or canceled
-        const isFinished = ['completed', 'finished', 'rated', 'canceled', 'TERMINADO', 'Culminada'].includes(job.status);
-        if (isFinished) return true;
-        if (job.trackingStatus === 'finished') return true;
-
-        // Check actor ID (handling populated object or string ID)
+        // Si es privado, SOLO el autor puede verlo, siempre.
         const actorId = e.actor?._id || e.actor;
         return actorId?.toString() === currentUser?._id?.toString();
     });
 
-    const handleDateChange = (event, selectedDate) => {
-        const currentDate = selectedDate || date;
-        setShowDatePicker(Platform.OS === 'ios');
-        setDate(currentDate);
-
-        if (event.type === 'set' && Platform.OS !== 'ios') {
-            confirmDate(currentDate);
-        }
-    };
-
-    const confirmDate = (selectedDate) => {
-        onAddTimelineEvent({
-            eventType: 'start_date_proposed',
-            title: userMode === 'pro' ? 'Fecha Propuesta por Profesional' : 'Fecha de Inicio Definida',
-            description: userMode === 'pro'
-                ? `El profesional propone iniciar el trabajo el: ${selectedDate.toLocaleDateString()} a las ${selectedDate.toLocaleTimeString()}`
-                : `El cliente indica que el trabajo comenzará el: ${selectedDate.toLocaleDateString()} a las ${selectedDate.toLocaleTimeString()}`,
-            timestamp: new Date(),
-            isPrivate: false
-        });
-        showAlert("Fecha Guardada", "Se ha registrado la fecha de inicio esperada en el historial.");
-        setShowDatePicker(false);
-    };
-
-    const handleAddNote = () => {
-        if (!note.trim()) return;
-        onAddTimelineEvent({
-            eventType: 'note_added',
-            title: 'Nota Agregada',
-            description: note,
-            isPrivate: isPrivate
-        });
-        setNote('');
-    };
-
     return (
-        <View style={{ backgroundColor: 'white', borderRadius: 20, padding: 20, marginTop: 20, elevation: 2 }}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 }}>
-                <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#1F2937' }}>Historial Legal & Avance</Text>
-                <View style={{ backgroundColor: '#DBEAFE', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 }}>
-                    <Text style={{ fontSize: 10, color: '#1E40AF', fontWeight: 'bold' }}>AUDITABLE</Text>
-                </View>
-            </View>
-
-            {/* --- ACTION PANEL REFACTORED --- */}
-            <View style={{ backgroundColor: '#F8FAFC', borderRadius: 16, marginBottom: 25, borderWidth: 1, borderColor: '#E2E8F0', overflow: 'hidden' }}>
-                <View style={{ backgroundColor: '#F1F5F9', paddingHorizontal: 15, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#E2E8F0', flexDirection: 'row', justifyContent: 'space-between' }}>
-                    <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#475569', textTransform: 'uppercase' }}>
-                        {job.trackingStatus === 'contracted' ? '1. Inicio' :
-                            (job.trackingStatus === 'started' && !job.proFinished ? '2. Avance' : '3. Cierre')}
-                    </Text>
-                    {/* Privacy Toggle for both */}
-                    <TouchableOpacity onPress={() => setIsPrivate(!isPrivate)} style={{ flexDirection: 'row', alignItems: 'center' }}>
-                        <Feather name={isPrivate ? "lock" : "globe"} size={14} color={isPrivate ? "#EF4444" : "#3B82F6"} style={{ marginRight: 4 }} />
-                        <Text style={{ fontSize: 11, fontWeight: 'bold', color: isPrivate ? "#EF4444" : "#3B82F6" }}>{isPrivate ? 'PRIVADO' : 'PÚBLICO'}</Text>
-                    </TouchableOpacity>
-                </View>
-
-                <View style={{ padding: 15 }}>
-                    {/* FECHAS REPORTADAS (SIEMPRE VISIBLES PARA EL CLIENTE SI EXISTEN) */}
-                    {(job.validatedStartDate || job.validatedEndDate || job.proFinished) && (
-                        <View style={{ backgroundColor: 'white', padding: 12, borderRadius: 10, marginBottom: 15, borderWidth: 1, borderColor: '#F1F5F9' }}>
-                            <Text style={{ fontSize: 11, fontWeight: 'bold', color: '#64748B', marginBottom: 8, textTransform: 'uppercase' }}>Fechas del Proyecto</Text>
-                            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                                <View style={{ flex: 1 }}>
-                                    <Text style={{ fontSize: 10, color: '#94A3B8' }}>INICIO</Text>
-                                    <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#1F2937' }}>
-                                        {job.validatedStartDate ? new Date(job.validatedStartDate).toLocaleDateString() : (job.startDate || 'No definida')}
-                                    </Text>
-                                </View>
-                                {job.proFinished && (
-                                    <View style={{ flex: 1, alignItems: 'flex-end' }}>
-                                        <Text style={{ fontSize: 10, color: '#94A3B8' }}>FIN (REPORTADO)</Text>
-                                        <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#10B981' }}>
-                                            {job.validatedEndDate ? new Date(job.validatedEndDate).toLocaleDateString() : new Date().toLocaleDateString()}
-                                        </Text>
-                                    </View>
-                                )}
+        <View style={{ marginTop: 8 }}>
+            {/* PANEL DE GESTIÓN INTEGRADO (Solo si es el Pro y no ha terminado, o si el cliente tiene permisos) */}
+            {/* PANEL DE GESTIÓN INTEGRADO (Unificado para Pro y Cliente) */}
+            {(showSection === 'all' || showSection === 'management') && (
+                <View style={[styles.managementCard, !isAccepted && { backgroundColor: '#F8FAFC', borderColor: '#E2E8F0' }]}>
+                    {/* Bloqueo Visual */}
+                    {!isAccepted && (
+                        <View style={{
+                            position: 'absolute',
+                            top: 0, left: 0, right: 0, bottom: 0,
+                            backgroundColor: 'rgba(248, 250, 252, 0.4)',
+                            zIndex: 100,
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            borderRadius: 24
+                        }}>
+                            <View style={{ backgroundColor: 'white', padding: 15, borderRadius: 50, elevation: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4 }}>
+                                <Feather name="lock" size={24} color="#94A3B8" />
                             </View>
+                            <Text style={{ color: '#64748B', fontWeight: 'bold', fontSize: 13, marginTop: 12, textAlign: 'center', paddingHorizontal: 40 }}>
+                                {userMode === 'pro'
+                                    ? "Esta sección se activará cuando el cliente acepte tu presupuesto."
+                                    : "Esta sección se activará cuando aceptes un presupuesto."
+                                }
+                            </Text>
                         </View>
                     )}
 
-                    {/* BOTÓN DE FOTOS CONTEXTUAL SEGÚN ETAPA Y USUARIO */}
-                    <View style={{ marginBottom: 15 }}>
-                        {(() => {
-                            let showButton = false;
-                            let buttonText = "";
-                            let buttonColor = "";
-                            let photoType = "";
-
-                            const isBefore = !job.trackingStatus || job.trackingStatus === 'contracted' || job.trackingStatus === 'none';
-                            const isDuring = job.trackingStatus === 'started' && !job.proFinished;
-                            const isAfter = job.proFinished || job.trackingStatus === 'finished' || job.status === 'completed';
-
-                            if (isBefore) {
-                                // ANTES: Ambos pueden o según regla (Pro puede siempre que no haya iniciado)
-                                showButton = true;
-                                buttonText = "TOMAR FOTOS DEL ANTES";
-                                buttonColor = "#EA580C";
-                                photoType = 'Foto "Antes"';
-                            } else if (isDuring) {
-                                // DURANTE: Usuario pidió que solo el cliente tome estas fotos
-                                if (userMode === 'client') {
-                                    showButton = true;
-                                    buttonText = "TOMAR FOTOS DEL DURANTE";
-                                    buttonColor = "#3B82F6";
-                                    photoType = 'Foto "Durante"';
-                                }
-                            } else if (isAfter) {
-                                // DESPUÉS: Cuando el pro marca finalizado
-                                showButton = true;
-                                buttonText = "TOMAR FOTOS DEL DESPUÉS";
-                                buttonColor = "#10B981";
-                                photoType = 'Foto "Después"';
-                            }
-
-                            if (!showButton) return null;
-
-                            return (
-                                <View>
-                                    <Text style={{ fontSize: 12, fontWeight: 'bold', color: '#1F2937', marginBottom: 8 }}>EVIDENCIA VISUAL ({isPrivate ? 'PRIVADA' : 'PÚBLICA'})</Text>
-                                    <TouchableOpacity
-                                        onPress={() => onAddTimelineEvent({ pickImage: true, title: photoType, isPrivate })}
-                                        style={{
-                                            backgroundColor: 'white', padding: 15, borderRadius: 12, alignItems: 'center',
-                                            borderWidth: 2, borderColor: buttonColor, borderStyle: 'dashed',
-                                            flexDirection: 'row', justifyContent: 'center'
-                                        }}
-                                    >
-                                        <Feather name="camera" size={22} color={buttonColor} style={{ marginRight: 10 }} />
-                                        <Text style={{ color: buttonColor, fontWeight: 'bold', fontSize: 15 }}>{buttonText}</Text>
-                                    </TouchableOpacity>
-                                </View>
-                            );
-                        })()}
-                    </View>
-
-                    {/* NOTAS (PARA AMBOS) */}
-                    <View style={{ marginBottom: 15 }}>
-                        <View style={{ flexDirection: 'row', gap: 8 }}>
-                            <TextInput
-                                placeholder="Escribe algo en la bitácora..."
-                                value={note}
-                                onChangeText={setNote}
-                                style={{ flex: 1, backgroundColor: 'white', borderRadius: 10, paddingHorizontal: 12, height: 40, borderWidth: 1, borderColor: '#E2E8F0', fontSize: 13 }}
-                            />
-                            <TouchableOpacity onPress={handleAddNote} style={{ width: 40, height: 40, backgroundColor: '#334155', borderRadius: 10, justifyContent: 'center', alignItems: 'center' }}>
-                                <Feather name="send" size={16} color="white" />
-                            </TouchableOpacity>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                        <View>
+                            <Text style={[styles.managementTitle, !isAccepted && { color: '#94A3B8' }]}>
+                                {userMode === 'pro' ? 'Gestión de Avances' : 'Gestión de Avance'}
+                            </Text>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
+                                <View style={{
+                                    width: 8, height: 8, borderRadius: 4,
+                                    backgroundColor: !isAccepted ? '#CBD5E1' : (job.trackingStatus === 'started' ? '#3B82F6' : (job.trackingStatus === 'finished' ? '#10B981' : (userMode === 'pro' ? '#2563EB' : '#EA580C'))),
+                                    marginRight: 6
+                                }} />
+                                <Text style={[styles.statusLabel, !isAccepted && { color: '#94A3B8' }]}>
+                                    {!isAccepted ? 'No Iniciado' : (job.trackingStatus === 'started' ? 'En Progreso' : (job.trackingStatus === 'finished' ? 'Finalizado' : 'Esperando Inicio'))}
+                                </Text>
+                            </View>
                         </View>
                     </View>
 
-                    <View style={{ height: 1, backgroundColor: '#E2E8F0', marginVertical: 10 }} />
+                    {/* Journey Map Stepper */}
+                    <View style={[styles.journeyContainer, !isAccepted && { opacity: 0.4 }]}>
+                        {stageNames.map((name, index) => {
+                            const isActive = isAccepted && index === currentStage;
+                            const isCompleted = isAccepted && index < currentStage;
+                            const themeColor = userMode === 'pro' ? '#2563EB' : '#EA580C';
+                            const inactiveColor = userMode === 'pro' ? '#DBEAFE' : '#FFEDD5';
+                            const activeTextColor = 'white';
+                            const inactiveTextColor = userMode === 'pro' ? '#1E3A8A' : '#9A3412';
 
-                    {/* ACCIONES DE ESTADO (FLUJO PRINCIPAL) */}
-                    <View>
-                        {/* INICIO (Solo Pro si no iniciado) */}
-                        {job.trackingStatus === 'contracted' && userMode === 'pro' && !job.validatedStartDate && (
-                            <TouchableOpacity
-                                onPress={() => onConfirmStart(true)}
-                                style={{ backgroundColor: '#4F46E5', paddingVertical: 15, borderRadius: 12, alignItems: 'center', elevation: 2 }}
-                            >
-                                <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 15 }}>INICIAR TRABAJO</Text>
-                            </TouchableOpacity>
-                        )}
-
-                        {/* FINALIZAR (Pro) */}
-                        {job.trackingStatus === 'started' && userMode === 'pro' && !job.proFinished && (
-                            <TouchableOpacity
-                                onPress={onFinish}
-                                style={{ backgroundColor: '#10B981', paddingVertical: 15, borderRadius: 12, alignItems: 'center', elevation: 2 }}
-                            >
-                                <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 15 }}>CERRAR / TRABAJO LISTO</Text>
-                            </TouchableOpacity>
-                        )}
-
-                        {/* VALIDAR (Cliente) */}
-                        {job.proFinished && !job.clientFinished && userMode === 'client' && (
-                            <View style={{ alignItems: 'center' }}>
-                                <Text style={{ color: '#92400E', fontSize: 12, textAlign: 'center', marginBottom: 12, fontStyle: 'italic' }}>
-                                    El profesional indica que ha concluido. ¿Validar y cerrar?
-                                </Text>
-                                <TouchableOpacity
-                                    onPress={onFinish}
-                                    style={{ width: '100%', backgroundColor: '#10B981', paddingVertical: 15, borderRadius: 12, alignItems: 'center', elevation: 2 }}
-                                >
-                                    <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 15 }}>CONFIRMAR Y FINALIZAR</Text>
-                                </TouchableOpacity>
-                            </View>
-                        )}
-
-                        {/* CALIFICAR / INFO VALORACIÓN (UNIFICADO) */}
-                        {(() => {
-                            // Professional can rate as soon as they mark as finished.
-                            // Client can rate after they acknowledge/validate the finish.
-                            const isFinished = (
-                                job.status === 'completed' ||
-                                job.status === 'TERMINADO' ||
-                                job.status === 'rated' ||
-                                job.status === 'Culminada' ||
-                                job.proRated ||
-                                job.clientRated ||
-                                (job.proFinished && (userMode === 'pro' || job.clientFinished))
-                            );
-
-                            if (!isFinished) return null;
-
-                            // Robust check for rating existence
-                            const hasMyRating = (userMode === 'pro' && job.proRated) || (userMode === 'client' && job.clientRated);
-                            const ratingEvents = events.filter(e =>
-                                (e.eventType === 'note_added' || e.eventType === 'job_finished') &&
-                                (e.title?.toLowerCase().includes('valoró') || e.description?.toLowerCase().includes('calificación'))
-                            );
-
-                            const myRatingEvent = ratingEvents.find(e => {
-                                const actorId = (e.actor?._id || e.actor)?.toString();
-                                const myId = currentUser?._id?.toString() || currentUser?.id?.toString();
-                                return actorId === myId;
-                            });
-                            const otherRatingEvent = ratingEvents.find(e => {
-                                const actorId = (e.actor?._id || e.actor)?.toString();
-                                const myId = currentUser?._id?.toString() || currentUser?.id?.toString();
-                                return actorId && actorId !== myId;
-                            });
-
-                            const showMyRatingBox = hasMyRating || !!myRatingEvent;
+                            const bgColor = (isActive || isCompleted) ? themeColor : inactiveColor;
+                            const textColor = (isActive || isCompleted) ? activeTextColor : inactiveTextColor;
 
                             return (
-                                <View style={{ width: '100%', gap: 10 }}>
-                                    {/* Muestra valoración del OTRO (si existe) */}
-                                    {otherRatingEvent && (
-                                        <View style={{ padding: 15, backgroundColor: '#F0FDF4', borderRadius: 12, borderWidth: 1, borderColor: '#DCFCE7', marginBottom: 10 }}>
-                                            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
-                                                <Feather name="star" size={14} color="#16A34A" style={{ marginRight: 8 }} />
-                                                <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#166534' }}>
-                                                    {userMode === 'pro' ? 'El cliente dijo:' : 'El profesional dijo:'}
-                                                </Text>
-                                            </View>
-                                            <Text style={{ fontSize: 12, color: '#14532D', fontStyle: 'italic' }}>"{otherRatingEvent.description}"</Text>
-                                        </View>
-                                    )}
-
-                                    {/* Muestra MI valoración o el botón para darla */}
-                                    {showMyRatingBox ? (
-                                        <View style={{ padding: 15, backgroundColor: '#F0F9FF', borderRadius: 12, borderWidth: 1, borderColor: '#BAE6FD' }}>
-                                            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-                                                <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: '#0EA5E9', justifyContent: 'center', alignItems: 'center', marginRight: 8 }}>
-                                                    <Feather name="check" size={12} color="white" />
-                                                </View>
-                                                <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#0369A1' }}>Tu valoración enviada correctamente</Text>
-                                            </View>
-                                            {myRatingEvent && (
-                                                <Text style={{ fontSize: 12, color: '#0C4A6E', fontStyle: 'italic', marginBottom: 8 }}>
-                                                    "{myRatingEvent.description}"
-                                                </Text>
-                                            )}
-
-                                            {/* Photo Instructions (Only show if I've rated) */}
-                                            {events.some(e => e.mediaUrl) && (
-                                                <View style={{ marginTop: 5, borderTopWidth: 1, borderTopColor: '#E0F2FE', paddingTop: 8 }}>
-                                                    <Text style={{ fontSize: 11, fontWeight: 'bold', color: '#1F2937' }}>📸 Crea tu Portafolio:</Text>
-                                                    <Text style={{ fontSize: 11, color: '#4B5563' }}>Presiona la estrella <Feather name="star" size={10} /> en las fotos de abajo para tu perfil.</Text>
-                                                </View>
-                                            )}
-                                        </View>
-                                    ) : (
-                                        <RatingForm
-                                            revieweeName={revieweeName}
-                                            isForPro={userMode === 'client'}
-                                            onSubmit={handleRatingSubmit}
-                                        />
-                                    )}
+                                <View key={index} style={[styles.journeyStep, { zIndex: 10 - index }]}>
+                                    <View style={[styles.journeyBlock, { backgroundColor: bgColor }]}>
+                                        {index > 0 && <View style={styles.leftCutout} />}
+                                        <Text style={[styles.journeyText, { color: textColor }]}>{name}</Text>
+                                        <View style={[styles.rightPoint, { borderLeftColor: bgColor }]} />
+                                    </View>
                                 </View>
                             );
-                        })()}
+                        })}
+                    </View>
+
+                    {/* Instructional Text */}
+                    {isAccepted && (
+                        <View style={styles.instructionBox}>
+                            <Feather name="info" size={14} color="#64748B" style={{ marginRight: 6 }} />
+                            <Text style={styles.instructionText}>
+                                {userMode === 'pro' ? (
+                                    currentStage === 0 ? "Registra el estado inicial del sitio antes de comenzar." :
+                                        currentStage === 1 ? "Sube avances del proceso para dar tranquilidad al cliente." :
+                                            currentStage === 2 ? "Registra el resultado final para cerrar el servicio con éxito." :
+                                                "Trabajo finalizado. ¡Gracias por usar ProFix!"
+                                ) : (
+                                    currentStage === 0 ? "El profesional está preparando el inicio de la labor." :
+                                        currentStage === 1 ? "El trabajo está en curso. Revisa el historial para ver fotos del avance." :
+                                            currentStage === 2 ? "El profesional ha marcado el trabajo como listo para tu revisión." :
+                                                "¡Trabajo finalizado! No olvides calificar el servicio."
+                                )}
+                            </Text>
+                        </View>
+                    )}
+
+                    {/* Actions Grid (Show for pro, and also for client if they want to contribute?) */}
+                    {/* User requested 'igual', so we show controls if accepted, or at least common actions */}
+                    <View style={[styles.actionsGrid, !isAccepted && { opacity: 0.3 }]}>
+                        <TouchableOpacity
+                            style={[styles.actionBtn, { backgroundColor: '#F1F5F9' }]}
+                            onPress={() => handlePickMedia('library')}
+                            disabled={!isAccepted}
+                        >
+                            <Feather name="file-text" size={18} color="#334155" />
+                            <Text style={styles.actionBtnText}>Archivo</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={[styles.actionBtn, { backgroundColor: userMode === 'pro' ? '#DBEAFE' : '#FFEDD5' }]}
+                            onPress={() => handlePickMedia('camera')}
+                            disabled={!isAccepted}
+                        >
+                            <Feather name="camera" size={18} color={userMode === 'pro' ? '#2563EB' : '#EA580C'} />
+                            <Text style={styles.actionBtnText}>Foto</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={[styles.actionBtn, { backgroundColor: '#FEE2E2' }]}
+                            onPress={() => handlePickMedia('video')}
+                            disabled={!isAccepted}
+                        >
+                            <Feather name="video" size={18} color="#EF4444" />
+                            <Text style={styles.actionBtnText}>Vídeo</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={[styles.actionBtn, { backgroundColor: '#F3F4F6' }]}
+                            onPress={() => setShowNoteModal(true)}
+                            disabled={!isAccepted}
+                        >
+                            <Feather name="edit-3" size={18} color="#4B5563" />
+                            <Text style={styles.actionBtnText}>Nota</Text>
+                        </TouchableOpacity>
+                    </View>
+
+
+
+                    {/* Main action btn ONLY for PRO or very specific client action */}
+                    {userMode === 'pro' && currentStage < 2 && isAccepted && (
+                        <TouchableOpacity
+                            onPress={handleMainAction}
+                            style={[
+                                styles.mainActionBtn,
+                                { backgroundColor: currentStage === 0 ? '#2563EB' : '#10B981' }
+                            ]}
+                            disabled={loading}
+                        >
+                            {loading ? <ActivityIndicator color="white" /> : (
+                                <Text style={styles.mainActionText}>
+                                    {currentStage === 0 ? 'Iniciar Obra / Trabajo' : 'Cambiar Estado a: TERMINADO'}
+                                </Text>
+                            )}
+                        </TouchableOpacity>
+                    )}
+
+                    {/* MODAL PARA AGREGAR NOTA */}
+                    <Modal
+                        visible={showNoteModal}
+                        transparent
+                        animationType="slide"
+                        onRequestClose={() => setShowNoteModal(false)}
+                    >
+                        <KeyboardAvoidingView
+                            behavior={Platform.OS === "ios" ? "padding" : "height"}
+                            style={{ flex: 1 }}
+                        >
+                            <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' }}>
+                                <View style={{
+                                    backgroundColor: 'white',
+                                    borderTopLeftRadius: 36,
+                                    borderTopRightRadius: 36,
+                                    padding: 24,
+                                    paddingTop: 12,
+                                    maxHeight: '90%',
+                                    width: '100%'
+                                }}>
+                                    {/* INDICADOR DE MODAL (Drag Handle) */}
+                                    <View style={{ width: 40, height: 5, backgroundColor: '#E2E8F0', borderRadius: 3, alignSelf: 'center', marginBottom: 15 }} />
+
+                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 25 }}>
+                                        <View>
+                                            <Text style={{ fontSize: 22, fontWeight: '900', color: '#1E293B' }}>Agregar Nota</Text>
+                                            <Text style={{ fontSize: 13, color: '#64748B', fontWeight: '500' }}>Registro para el historial</Text>
+                                        </View>
+                                        <TouchableOpacity onPress={() => setShowNoteModal(false)} style={{ backgroundColor: '#F1F5F9', padding: 8, borderRadius: 15 }}>
+                                            <Feather name="x" size={24} color="#64748B" />
+                                        </TouchableOpacity>
+                                    </View>
+
+                                    <ScrollView showsVerticalScrollIndicator={false}>
+                                        <TextInput
+                                            style={{
+                                                backgroundColor: '#F8FAFC',
+                                                borderRadius: 24,
+                                                borderWidth: 1.5,
+                                                borderColor: '#E2E8F0',
+                                                padding: 20,
+                                                fontSize: 16,
+                                                color: '#1E293B',
+                                                minHeight: 180,
+                                                textAlignVertical: 'top',
+                                                marginBottom: 25,
+                                                lineHeight: 24
+                                            }}
+                                            placeholder={userMode === 'pro' ? "Escribe una nota detallada para el historial del proyecto..." : "Escribe una observación para el profesional..."}
+                                            value={note}
+                                            onChangeText={setNote}
+                                            multiline
+                                            autoFocus
+                                        />
+
+                                        <View style={{ marginBottom: 30 }}>
+                                            <Text style={{ fontSize: 11, fontWeight: '800', color: '#64748B', marginBottom: 12, textTransform: 'uppercase', letterSpacing: 1 }}>VISIBILIDAD DE LA NOTA</Text>
+                                            <View style={{ flexDirection: 'row', backgroundColor: '#F1F5F9', borderRadius: 18, padding: 5 }}>
+                                                <TouchableOpacity
+                                                    onPress={() => setIsPrivate(false)}
+                                                    style={{
+                                                        flex: 1,
+                                                        flexDirection: 'row',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center',
+                                                        paddingVertical: 14,
+                                                        borderRadius: 14,
+                                                        backgroundColor: !isPrivate ? (userMode === 'pro' ? '#2563EB' : '#EA580C') : 'transparent',
+                                                        gap: 10,
+                                                        elevation: !isPrivate ? 2 : 0
+                                                    }}
+                                                >
+                                                    <Feather name="eye" size={18} color={!isPrivate ? 'white' : '#64748B'} />
+                                                    <Text style={{ fontWeight: 'bold', color: !isPrivate ? 'white' : '#64748B', fontSize: 15 }}>Público</Text>
+                                                </TouchableOpacity>
+
+                                                <TouchableOpacity
+                                                    onPress={() => setIsPrivate(true)}
+                                                    style={{
+                                                        flex: 1,
+                                                        flexDirection: 'row',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center',
+                                                        paddingVertical: 14,
+                                                        borderRadius: 14,
+                                                        backgroundColor: isPrivate ? '#1E293B' : 'transparent',
+                                                        gap: 10,
+                                                        elevation: isPrivate ? 2 : 0
+                                                    }}
+                                                >
+                                                    <Feather name="lock" size={18} color={isPrivate ? 'white' : '#64748B'} />
+                                                    <Text style={{ fontWeight: 'bold', color: isPrivate ? 'white' : '#64748B', fontSize: 15 }}>Privado</Text>
+                                                </TouchableOpacity>
+                                            </View>
+
+                                            <View style={{ marginTop: 15, backgroundColor: '#F0F9FF', padding: 15, borderRadius: 16, flexDirection: 'row', alignItems: 'flex-start', borderWidth: 1, borderColor: '#E0F2FE' }}>
+                                                <Feather name="info" size={16} color="#0369A1" style={{ marginRight: 10, marginTop: 2 }} />
+                                                <Text style={{ flex: 1, color: '#0369A1', fontSize: 13, lineHeight: 20, fontWeight: '500' }}>
+                                                    {!isPrivate
+                                                        ? "Este mensaje será visible para ambas partes (Cliente y Profesional) en el historial."
+                                                        : "Este mensaje es estrictamente privado y SOLO tú podrás verlo. Ideal para gastos personales, recordatorios o bitácora interna."
+                                                    }
+                                                </Text>
+                                            </View>
+                                        </View>
+
+                                        <TouchableOpacity
+                                            onPress={handleAddNote}
+                                            disabled={loading || !note.trim()}
+                                            style={{
+                                                backgroundColor: userMode === 'pro' ? '#2563EB' : '#EA580C',
+                                                paddingVertical: 18,
+                                                borderRadius: 24,
+                                                alignItems: 'center',
+                                                marginBottom: Platform.OS === 'ios' ? 20 : 0,
+                                                opacity: (!note.trim() || loading) ? 0.6 : 1,
+                                                shadowColor: userMode === 'pro' ? '#2563EB' : '#EA580C',
+                                                shadowOffset: { width: 0, height: 6 },
+                                                shadowOpacity: 0.3,
+                                                shadowRadius: 12,
+                                                elevation: 6
+                                            }}
+                                        >
+                                            {loading ? (
+                                                <ActivityIndicator color="white" />
+                                            ) : (
+                                                <Text style={{ color: 'white', fontWeight: '900', fontSize: 17 }}>Agregar Nota al Historial</Text>
+                                            )}
+                                        </TouchableOpacity>
+                                    </ScrollView>
+                                </View>
+                            </View>
+                        </KeyboardAvoidingView>
+                    </Modal>
+
+                </View>
+            )}
+
+            {/* SECCIÓN DE VALORACIÓN (Always visible, but disabled if not finished) */}
+            {(showSection === 'all' || showSection === 'rating') && (
+                <View style={[styles.managementCard, !isFinished && { opacity: 0.5 }]}>
+                    <Text style={styles.managementTitle}>{customTitle || 'Valoración del Servicio'}</Text>
+                    {!isFinished && (
+                        <View style={{
+                            position: 'absolute',
+                            top: 0, left: 0, right: 0, bottom: 0,
+                            backgroundColor: 'rgba(248, 250, 252, 0.4)',
+                            zIndex: 100,
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            borderRadius: 24
+                        }}>
+                            <View style={{ backgroundColor: 'white', padding: 15, borderRadius: 50, elevation: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4 }}>
+                                <Feather name="lock" size={24} color="#94A3B8" />
+                            </View>
+                            <Text style={{ color: '#64748B', fontWeight: 'bold', fontSize: 13, marginTop: 12, textAlign: 'center', paddingHorizontal: 40 }}>
+                                Esta sección se activará cuando termines un trabajo.
+                            </Text>
+                        </View>
+                    )}
+                    <View style={{ marginTop: 15, pointerEvents: isFinished ? 'auto' : 'none' }}>
+                        <RatingForm
+                            onSubmit={handleRatingSubmit}
+                            revieweeName={revieweeName}
+                            isForPro={userMode === 'client'}
+                        />
                     </View>
                 </View>
-            </View>
-            {/* --- TIMELINE FEED --- */}
-            < View >
-                {
-                    visibleEvents.length === 0 ? (
-                        <Text style={{ textAlign: 'center', color: '#9CA3AF', fontStyle: 'italic', fontSize: 13 }}>No hay eventos registrados aún.</Text>
+            )}
+
+            {/* FEED DE EVENTOS */}
+            {(showSection === 'all' || showSection === 'timeline') && (
+                <View style={{ marginTop: showSection === 'timeline' ? 0 : 20 }}>
+                    {customTitle && <Text style={[styles.managementTitle, { marginBottom: 20, paddingHorizontal: 5 }]}>{customTitle}</Text>}
+                    {visibleEvents.length === 0 ? (
+                        <Text style={{ textAlign: 'center', color: '#9CA3AF', fontStyle: 'italic', fontSize: 13, marginTop: 20 }}>No hay eventos registrados aún.</Text>
                     ) : (
                         visibleEvents.map((e, i) => {
                             const isMe = (e.actor?._id || e.actor)?.toString() === currentUser?._id?.toString();
                             return (
-                                <View key={i} style={{ flexDirection: 'row', marginBottom: 20 }}>
+                                <View key={i} style={{ flexDirection: 'row', marginBottom: 24 }}>
                                     <View style={{ alignItems: 'center', marginRight: 12, width: 30 }}>
-                                        {/* Line connecting to next item (below) */}
-                                        <View style={{ position: 'absolute', top: 15, bottom: -20, width: 2, backgroundColor: '#E2E8F0', zIndex: -1 }} />
-
+                                        <View style={{ position: 'absolute', top: 30, bottom: -24, width: 2, backgroundColor: '#E2E8F0', zIndex: -1 }} />
                                         <View style={{
-                                            width: 30, height: 30, borderRadius: 15,
-                                            backgroundColor: isMe ? '#DBEAFE' : '#F1F5F9',
+                                            width: 32, height: 32, borderRadius: 16,
+                                            backgroundColor: isMe ? '#DBEAFE' : '#FFFFFF',
                                             justifyContent: 'center', alignItems: 'center',
-                                            borderWidth: 2, borderColor: isMe ? '#3B82F6' : '#94A3B8'
+                                            borderWidth: 2, borderColor: isMe ? '#2563EB' : '#94A3B8'
                                         }}>
                                             <Feather
-                                                name={e.eventType === 'photo_uploaded' ? 'camera' : (e.eventType === 'job_finished' ? 'check' : (e.eventType === 'job_created' ? 'file-text' : 'message-square'))}
+                                                name={
+                                                    e.eventType === 'photo_uploaded' ? 'camera' :
+                                                        e.eventType === 'job_finished' ? 'check' :
+                                                            e.eventType === 'job_created' ? 'file-text' :
+                                                                e.eventType === 'work_started' ? 'play' :
+                                                                    e.eventType === 'offer_sent' ? 'dollar-sign' :
+                                                                        e.eventType === 'offer_accepted' ? 'user-check' :
+                                                                            e.eventType === 'offer_rejected' ? 'user-x' : 'message-square'
+                                                }
                                                 size={14}
-                                                color={isMe ? '#3B82F6' : '#64748B'}
+                                                color={isMe ? '#2563EB' : '#64748B'}
                                             />
                                         </View>
                                     </View>
-                                    <View style={{ flex: 1 }}>
-                                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                                            <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#1F2937' }}>{e.title}</Text>
-                                            <Text style={{ fontSize: 11, color: '#9CA3AF' }}>{new Date(e.timestamp).toLocaleString()}</Text>
+                                    <View style={{ flex: 1, backgroundColor: 'white', padding: 12, borderRadius: 16, borderWidth: 1, borderColor: '#F1F5F9' }}>
+                                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+                                            <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#1E2937' }}>{e.title}</Text>
+                                            <Text style={{ fontSize: 10, color: '#94A3B8' }}>
+                                                {new Date(e.timestamp).toLocaleDateString()} {new Date(e.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                            </Text>
                                         </View>
                                         <Text style={{ fontSize: 13, color: '#4B5563', lineHeight: 18 }}>{e.description}</Text>
-
                                         {e.mediaUrl && (
-                                            <View style={{ marginTop: 8, position: 'relative', width: 150 }}>
-                                                <TouchableOpacity onPress={() => onViewImage(e.mediaUrl)}>
-                                                    <Image source={{ uri: e.mediaUrl }} style={{ width: 150, height: 100, borderRadius: 8 }} />
-                                                </TouchableOpacity>
-                                                <TouchableOpacity
-                                                    onPress={() => onTogglePortfolio(e.mediaUrl, categoryTitle)}
-                                                    style={{
-                                                        position: 'absolute', top: 5, right: 5,
-                                                        backgroundColor: portfolioGallery.includes(e.mediaUrl) ? '#F59E0B' : 'rgba(0,0,0,0.5)',
-                                                        padding: 6, borderRadius: 20, elevation: 3
-                                                    }}
-                                                >
-                                                    <Feather name={portfolioGallery.includes(e.mediaUrl) ? "star" : "plus"} size={16} color="white" />
-                                                </TouchableOpacity>
-                                                {portfolioGallery.includes(e.mediaUrl) && (
-                                                    <View style={{ position: 'absolute', bottom: 5, left: 5, backgroundColor: '#F59E0B', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
-                                                        <Text style={{ fontSize: 8, color: 'white', fontWeight: 'bold' }}>EN PORTAFOLIO</Text>
-                                                    </View>
-                                                )}
-                                            </View>
-                                        )}
-
-                                        {/* Privacy Indicator */}
-                                        {e.isPrivate && (
-                                            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6, backgroundColor: '#FEF2F2', alignSelf: 'flex-start', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
-                                                <Feather name="lock" size={10} color="#EF4444" style={{ marginRight: 4 }} />
-                                                <Text style={{ fontSize: 10, color: '#EF4444', fontWeight: 'bold' }}>Privado</Text>
-                                            </View>
+                                            <TouchableOpacity onPress={() => onViewImage(e.mediaUrl)} style={{ marginTop: 10 }}>
+                                                <Image source={{ uri: e.mediaUrl }} style={{ width: '100%', height: 180, borderRadius: 12 }} />
+                                            </TouchableOpacity>
                                         )}
                                     </View>
                                 </View>
                             );
                         })
-                    )
-                }
-            </View >
-        </View >
+                    )}
+                </View>
+            )}
+        </View>
     );
 };
+
+const styles = StyleSheet.create({
+    managementCard: {
+        backgroundColor: 'white',
+        borderRadius: 24,
+        padding: 20,
+        marginBottom: 25,
+        borderWidth: 1,
+        borderColor: '#F1F5F9',
+        elevation: 3,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.05,
+        shadowRadius: 10,
+    },
+    managementTitle: {
+        fontSize: 18,
+        fontWeight: '900',
+        color: '#1E2937',
+    },
+    statusLabel: {
+        fontSize: 12,
+        fontWeight: 'bold',
+        color: '#64748B',
+    },
+    auditableBadge: {
+        backgroundColor: '#DBEAFE',
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 8,
+    },
+    auditableText: {
+        fontSize: 10,
+        fontWeight: '900',
+        color: '#2563EB',
+    },
+    journeyContainer: {
+        flexDirection: 'row',
+        marginBottom: 25,
+        height: 44,
+        paddingRight: 15,
+    },
+    journeyStep: {
+        flex: 1,
+        height: '100%',
+        marginRight: 4,
+    },
+    journeyBlock: {
+        flex: 1,
+        height: '100%',
+        justifyContent: 'center',
+        alignItems: 'center',
+        position: 'relative',
+    },
+    journeyText: {
+        fontSize: 12,
+        fontWeight: 'bold',
+        zIndex: 5,
+        marginLeft: 8,
+    },
+    rightPoint: {
+        position: 'absolute',
+        right: -14,
+        top: 0,
+        width: 0,
+        height: 0,
+        borderTopWidth: 22,
+        borderBottomWidth: 22,
+        borderLeftWidth: 14,
+        borderTopColor: 'transparent',
+        borderBottomColor: 'transparent',
+        zIndex: 10,
+    },
+    leftCutout: {
+        position: 'absolute',
+        left: 0,
+        top: 0,
+        width: 0,
+        height: 0,
+        borderTopWidth: 22,
+        borderBottomWidth: 22,
+        borderLeftWidth: 14,
+        borderTopColor: 'transparent',
+        borderBottomColor: 'transparent',
+        borderLeftColor: 'white',
+        zIndex: 4,
+    },
+    instructionBox: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#F1F5F9',
+        paddingVertical: 10,
+        paddingHorizontal: 14,
+        borderRadius: 12,
+        marginBottom: 15,
+    },
+    instructionText: {
+        fontSize: 12,
+        color: '#475569',
+        fontWeight: '600',
+        flex: 1,
+    },
+    actionsGrid: {
+        flexDirection: 'row',
+        gap: 10,
+        marginBottom: 20,
+    },
+    actionBtn: {
+        flex: 1,
+        height: 60,
+        borderRadius: 12,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    actionBtnText: {
+        fontSize: 11,
+        fontWeight: 'bold',
+        color: '#1E2937',
+        marginTop: 4,
+    },
+    mainActionBtn: {
+        borderRadius: 16,
+        paddingVertical: 14,
+        alignItems: 'center',
+        elevation: 2,
+    },
+    mainActionText: {
+        color: 'white',
+        fontSize: 14,
+        fontWeight: '900',
+    },
+});
 
 export default ProjectTimeline;

@@ -150,7 +150,7 @@ export default function MyRequestsScreen({ navigation, allRequests: propsAllRequ
     return unsub;
   }, []); // Se elimina 'navigation' de las dependencias para evitar bucle por objeto literal en app.js
 
-  const getClientStatus = (request) => {
+  const getClientStatus = useCallback((request) => {
     if (request.calculatedClientStatus) return request.calculatedClientStatus;
 
     // 0. ELIMINADA (Canceled)
@@ -179,25 +179,24 @@ export default function MyRequestsScreen({ navigation, allRequests: propsAllRequ
 
     // 8. NUEVA
     return 'NUEVA';
-  };
+  }, []);
 
   const categories = ['Todas', ...new Set(requests.map(r => r.category?.name || 'General'))].sort();
 
-  const filteredRequests = requests.filter(req => {
-    const catMatch = filterCategory === 'Todas' || (req.category?.name || 'General') === filterCategory;
-    const label = getClientStatus(req);
-    const isArchived = label === 'TERMINADO' || label === 'ELIMINADA' || label === 'Cerrada';
+  const filteredRequests = useMemo(() => {
+    return requests.filter(req => {
+      const catMatch = filterCategory === 'Todas' || (req.category?.name || 'General') === filterCategory;
+      const label = getClientStatus(req);
+      const isArchived = label === 'TERMINADO' || label === 'ELIMINADA' || label === 'Cerrada';
 
-    // DEBUG LOG
-    // console.log(`[MyRequests] ID: ${req._id} | StatusLabel: ${label} | IsArchived: ${isArchived} | ShowArchivedMode: ${showArchived}`);
-
-    if (showArchived) {
-      if (!isArchived) return false;
-    } else {
-      if (isArchived) return false;
-    }
-    return catMatch;
-  });
+      if (showArchived) {
+        if (!isArchived) return false;
+      } else {
+        if (isArchived) return false;
+      }
+      return catMatch;
+    });
+  }, [requests, filterCategory, showArchived, getClientStatus]);
 
   const getStatusColors = (status) => {
     switch (status) {
@@ -220,7 +219,7 @@ export default function MyRequestsScreen({ navigation, allRequests: propsAllRequ
   const renderItem = ({ item }) => {
     const offerCount = item.offers ? item.offers.length : 0;
     const totalUnread = (item.conversations || []).reduce((acc, c) => acc + (c.unreadCount || 0), 0);
-    const hasPendingOffers = item.offers?.some(o => o.status === 'pending');
+    const hasPendingOffers = item.offers?.some(o => o.status === 'pending' && !o.seenByClient);
     const statusLabel = getClientStatus(item);
     const colors = getStatusColors(statusLabel);
 
@@ -314,16 +313,11 @@ export default function MyRequestsScreen({ navigation, allRequests: propsAllRequ
           <Text style={styles.headerTitle}>Mis Solicitudes</Text>
           <TouchableOpacity
             onPress={() => setShowArchived(!showArchived)}
-            style={{
-              width: 48, height: 48, borderRadius: 24,
-              backgroundColor: showArchived ? 'white' : 'rgba(255,255,255,0.2)',
-              justifyContent: 'center', alignItems: 'center'
-            }}
+            style={styles.archiveButton}
           >
             <Feather name="archive" size={20} color={showArchived ? '#EA580C' : 'white'} />
           </TouchableOpacity>
         </View>
-
       </View>
 
       {loading && !refreshing ? (
@@ -337,7 +331,18 @@ export default function MyRequestsScreen({ navigation, allRequests: propsAllRequ
           keyExtractor={item => item._id}
           renderItem={renderItem}
           contentContainerStyle={styles.listContent}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#EA580C']} />}
+          initialNumToRender={5}
+          maxToRenderPerBatch={10}
+          windowSize={5}
+          removeClippedSubviews={true}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={requests.length === 0 ? ['transparent'] : ['#EA580C']}
+              tintColor={requests.length === 0 ? 'transparent' : '#EA580C'}
+            />
+          }
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               {showArchived ? (
@@ -390,28 +395,28 @@ const styles = StyleSheet.create({
   // Header
   headerContainer: {
     backgroundColor: '#EA580C',
-    paddingVertical: 18,
+    paddingTop: Platform.OS === 'ios' ? 44 : 15,
+    paddingBottom: 25,
+    paddingHorizontal: 20,
     borderBottomLeftRadius: 32,
     borderBottomRightRadius: 32,
-    borderWidth: 0,
     elevation: 0
   },
   headerTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 4,
-    marginBottom: 0
   },
   headerTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
+    fontSize: 28,
+    fontWeight: '800',
     color: 'white',
+    letterSpacing: 0.5,
   },
-  refreshButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+  archiveButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: 'rgba(255,255,255,0.2)',
     justifyContent: 'center',
     alignItems: 'center'

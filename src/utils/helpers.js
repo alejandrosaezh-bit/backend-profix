@@ -37,7 +37,9 @@ export const areIdsEqual = (id1, id2) => {
     if (!id1 || !id2) return false;
     const s1 = (typeof id1 === 'object' && id1 !== null) ? (id1._id || id1.id || id1.toString()) : String(id1);
     const s2 = (typeof id2 === 'object' && id2 !== null) ? (id2._id || id2.id || id2.toString()) : String(id2);
-    return s1 === s2;
+    const str1 = String(s1).replace(/["']/g, "").trim();
+    const str2 = String(s2).replace(/["']/g, "").trim();
+    return str1 === str2;
 };
 
 export const getClientStatus = (request) => {
@@ -112,6 +114,12 @@ export const getProStatus = (job, myId) => {
     const isWinner = (job.professional && areIdsEqual(job.professional._id || job.professional, myId)) ||
         (job.offers && job.offers.some(o => areIdsEqual(o.proId?._id || o.proId, myId) && o.status === 'accepted'));
 
+    // Check if another professional won
+    const someoneElseWon = (job.professional && !areIdsEqual(job.professional._id || job.professional, myId)) ||
+        (job.offers && job.offers.some(o => !areIdsEqual(o.proId?._id || o.proId, myId) && o.status === 'accepted'));
+
+    if (someoneElseWon) return 'PERDIDA';
+
     if (job.status === 'rated' || job.status === 'completed' || job.status === 'Culminada' || job.status === 'TERMINADO') {
         if (!isWinner) return 'PERDIDA';
         if (job.status === 'rated' || job.status === 'TERMINADO' || job.proRated || job.clientRated || job.proRating > 0 || job.rating > 0) return 'TERMINADO';
@@ -131,6 +139,7 @@ export const getProStatus = (job, myId) => {
     // CHECK SHORTCUT (Calculated during loadRequests)
     if (job._myOfferStatus) {
         if (job._myOfferStatus === 'accepted') return 'GANADA';
+        // Only return RECHAZADA if no one else won (someoneElseWon check already handled that above)
         if (job._myOfferStatus === 'rejected') return 'RECHAZADA';
         if (job._myOfferStatus === 'pending' || job._myOfferStatus === 'sent') return 'PRESUPUESTADA';
     }
@@ -146,9 +155,9 @@ export const getProStatus = (job, myId) => {
         if (myOffer.status === 'rejected') return 'RECHAZADA';
         if (myOffer.status === 'pending' || myOffer.status === 'sent') return 'PRESUPUESTADA';
     } else {
-        if (job.offers && job.offers.length > 0) {
-            console.log(`[getProStatus] No matching offer for ${myId} in job ${job._id}. Offers proIds:`, job.offers.map(o => o.proId));
-        }
+        // if (job.offers && job.offers.length > 0) {
+        //     console.log(`[getProStatus] No matching offer for ${myId} in job ${job._id}. Offers proIds:`, job.offers.map(o => o.proId));
+        // }
     }
 
     // CHECK CONVERSATIONS

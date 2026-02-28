@@ -1,7 +1,7 @@
 import * as ImagePicker from 'expo-image-picker';
 import { Camera, ChevronDown, ChevronRight, Crosshair, ImagePlus, MapPin, X } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Image, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, Image, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import HomeSections from '../data/HomeSections';
 import { api } from '../utils/api';
 
@@ -162,7 +162,18 @@ export default function HomeScreen({ onSubmit, isLoggedIn, onTriggerLogin, initi
                                 <MapPin size={18} color="#666" style={{ marginRight: 5 }} />
                                 <TextInput style={{ flex: 1, fontSize: 16, color: '#111827' }} placeholder="Ej. Caracas, Altamira" placeholderTextColor="#4B5563" value={formData.location} onChangeText={t => setFormData({ ...formData, location: t })} />
                                 <TouchableOpacity onPress={handleLocateMe}>
-                                    {isLocating ? <ActivityIndicator size="small" color="#EA580C" /> : <Crosshair size={20} color="#2563EB" />}
+                                    {isLocating ? (
+                                        <View style={{ transform: [{ scale: 0.5 }] }}>
+                                            <View style={{ width: 30, height: 30, justifyContent: 'center', alignItems: 'center' }}>
+                                                <View style={{
+                                                    width: 20, height: 20, borderRadius: 10,
+                                                    borderWidth: 3, borderColor: '#2563EB',
+                                                    borderTopColor: '#EA580C', borderRightColor: '#EA580C',
+                                                    transform: [{ rotate: '-45deg' }]
+                                                }} />
+                                            </View>
+                                        </View>
+                                    ) : <Crosshair size={20} color="#2563EB" />}
                                 </TouchableOpacity>
                             </View>
                         </View>

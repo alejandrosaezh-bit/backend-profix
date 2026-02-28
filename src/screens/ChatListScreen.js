@@ -3,7 +3,7 @@ import { useMemo, useState } from 'react';
 import { FlatList, Image, Platform, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { API_URL } from '../utils/api'; // NEW: Import API_URL
 
-export default function ChatListScreen({ currentUser, requests, chats = [], onSelectChat, onBack, userMode, onRefresh, refreshing }) {
+export default function ChatListScreen({ currentUser, requests, chats = [], onSelectChat, onBack, userMode, onRefresh, refreshing, onGoToProfile }) {
     if (!currentUser) return <View style={{ flex: 1, backgroundColor: 'white' }} />;
 
     const [filterCategory, setFilterCategory] = useState('Todas');
@@ -26,7 +26,6 @@ export default function ChatListScreen({ currentUser, requests, chats = [], onSe
     };
 
     // 1. PROCESAMIENTO DE CHATS (Heavy Logic Memoized)
-    // 1. PROCESAMIENTO DE CHATS (Heavy Logic Memoized)
     const activeChats = useMemo(() => {
         const processedChats = [];
         const visitedIds = new Set();
@@ -44,7 +43,6 @@ export default function ChatListScreen({ currentUser, requests, chats = [], onSe
 
         // --- A. DATA DEL BACKEND (/api/chats) ---
         if (chats && chats.length > 0) {
-            console.log(`[ChatList] Received ${chats.length} chats from backend.`);
             chats.forEach(chat => {
                 const jobId = String(chat.job?._id || chat.job);
                 const relatedRequest = requestMap[jobId];
@@ -58,11 +56,9 @@ export default function ChatListScreen({ currentUser, requests, chats = [], onSe
 
                 // --- ROLE & ARCHIVE FILTERING ---
                 const backendRole = chat.chatRole;
-                // Si el backend nos da el rol, lo respetamos estrictamente. 
-                // Esto soluciona que se mezclen chats de pro en vista cliente.
                 if (backendRole && backendRole !== (isPro ? 'pro' : 'client')) return;
 
-                // Archived Status (Preferir backend, fallback a cálculo local)
+                // Archived Status
                 let isArchived = chat.isArchived ?? false;
                 if (chat.isArchived === undefined) {
                     const status = relatedRequest?.status || chat.job?.status;
@@ -70,8 +66,6 @@ export default function ChatListScreen({ currentUser, requests, chats = [], onSe
                     if (archivedStatuses.includes(status)) isArchived = true;
                 }
 
-                // El backend ahora nos manda unreadCount directamente
-                // Y el array messages solo tiene el último mensaje
                 const lastMsg = (chat.messages && chat.messages.length > 0)
                     ? chat.messages[chat.messages.length - 1]
                     : {
@@ -161,13 +155,12 @@ export default function ChatListScreen({ currentUser, requests, chats = [], onSe
         return processedChats;
     }, [chats, requests, currentUser, userMode, isPro]);
 
-
     // 2. FILTRADO FINAL (Memoized)
     const filteredChats = useMemo(() => {
         const getActionButton = (item) => {
             if (item.unreadCount > 0) return { text: 'Responder' };
             if (item.lastSender === 'other') return { text: 'Responder' };
-            return { text: 'Ver Chat' };
+            return { text: 'Preguntar' };
         };
 
         const chatsWithMeta = activeChats.map(chat => ({
@@ -178,7 +171,6 @@ export default function ChatListScreen({ currentUser, requests, chats = [], onSe
 
         return chatsWithMeta.filter(chat => {
             if (filterCategory !== 'Todas' && chat.category !== filterCategory) return false;
-            // Archivados logic
             return showArchived ? chat.isArchived : !chat.isArchived;
         }).sort((a, b) => (b.rawTimestamp || 0) - (a.rawTimestamp || 0));
 
@@ -192,20 +184,16 @@ export default function ChatListScreen({ currentUser, requests, chats = [], onSe
     }, [activeChats]);
 
     const renderItem = ({ item }) => {
-        // En los diseños, el botón SIEMPRE dice "Responder" y es outline naranja
         const hasValidImage = item.image && !item.image.includes('undefined') && !item.image.includes('placeholder');
 
-        // Helper para resolver URL de imagen
         const getFullImageUrl = (img) => {
             if (!img) return null;
             if (img.startsWith('http') || img.startsWith('file://') || img.startsWith('data:')) return img;
-            // Remove '/api' from API_URL to get root, then append image path
             const baseUrl = API_URL.replace('/api', '');
             const cleanPath = img.startsWith('/') ? img.substring(1) : img;
             return `${baseUrl}/${cleanPath}`;
         };
 
-        // Fallback de imagen
         const validUri = hasValidImage ? getFullImageUrl(item.image) : `https://ui-avatars.com/api/?name=${encodeURIComponent(item.title)}&background=random`;
 
         return (
@@ -233,9 +221,8 @@ export default function ChatListScreen({ currentUser, requests, chats = [], onSe
                             {item.subtitle}
                         </Text>
 
-                        {/* Always show outline "Responder" in orange as per screenshots */}
                         <View style={styles.responderButton}>
-                            <Text style={styles.responderText}>Responder</Text>
+                            <Text style={styles.responderText}>{item.actionStatus}</Text>
                         </View>
                     </View>
                 </View>
@@ -245,9 +232,7 @@ export default function ChatListScreen({ currentUser, requests, chats = [], onSe
 
     return (
         <View style={styles.container}>
-            {/* HEADER DESIGN MATCHED TO SCREENSHOTS */}
             <View style={[styles.headerContainer, { backgroundColor: themeColor }]}>
-                {/* Title Row */}
                 <View style={[styles.headerTop, { marginBottom: 0 }]}>
                     <Text style={styles.headerTitle}>
                         {isPro ? 'Conversaciones' : 'Chatear'}
@@ -261,12 +246,15 @@ export default function ChatListScreen({ currentUser, requests, chats = [], onSe
                 </View>
             </View>
 
-            {/* LISTA */}
             <FlatList
                 data={filteredChats}
                 renderItem={renderItem}
                 keyExtractor={item => item.id}
                 contentContainerStyle={{ paddingHorizontal: 10, paddingTop: 8, paddingBottom: 100 }}
+                initialNumToRender={8}
+                maxToRenderPerBatch={10}
+                windowSize={5}
+                removeClippedSubviews={true}
                 refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[themeColor]} />}
                 ListEmptyComponent={
                     <View style={{ alignItems: 'center', justifyContent: 'center', paddingTop: 0, paddingBottom: 25 }}>
@@ -279,52 +267,85 @@ export default function ChatListScreen({ currentUser, requests, chats = [], onSe
                                 })
                             }}>
                                 <View style={{ alignItems: 'center', marginBottom: 25 }}>
-                                    <Image
-                                        source={require('../../assets/images/intro2.png')}
-                                        style={{ width: 180, height: 140, marginBottom: 15 }}
-                                        resizeMode="contain"
-                                    />
-                                    <Text style={{ fontSize: 22, fontWeight: '800', color: '#1E3A8A', textAlign: 'center' }}>Centro de Negocios</Text>
-                                    <Text style={{ fontSize: 14, color: '#64748B', textAlign: 'center', marginTop: 5 }}>Tu espacio seguro para gestionar clientes.</Text>
-                                </View>
-
-                                <View style={{ gap: 18 }}>
-                                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                        <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: '#F0F9FF', justifyContent: 'center', alignItems: 'center', marginRight: 15 }}>
-                                            <Feather name="message-circle" size={22} color="#0284C7" />
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 15 }}>
+                                        <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: '#EFF6FF', justifyContent: 'center', alignItems: 'center', borderWidth: 3, borderColor: '#BFDBFE', marginRight: -15, zIndex: 2 }}>
+                                            <Feather name="shield" size={32} color="#2563EB" />
                                         </View>
-                                        <View style={{ flex: 1 }}>
-                                            <Text style={{ fontWeight: 'bold', color: '#1E293B', fontSize: 15 }}>Chat Directo</Text>
-                                            <Text style={{ color: '#64748B', fontSize: 13 }}>Acuerda precios y horarios sin intermediarios.</Text>
+                                        <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: '#BFDBFE', justifyContent: 'center', alignItems: 'center', zIndex: 1 }}>
+                                            <Feather name="briefcase" size={32} color="#2563EB" />
                                         </View>
                                     </View>
 
-                                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                        <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: '#F0FDF4', justifyContent: 'center', alignItems: 'center', marginRight: 15 }}>
-                                            <Feather name="camera" size={22} color="#16A34A" />
-                                        </View>
-                                        <View style={{ flex: 1 }}>
-                                            <Text style={{ fontWeight: 'bold', color: '#1E293B', fontSize: 15 }}>Evidencia Visual</Text>
-                                            <Text style={{ color: '#64748B', fontSize: 13 }}>Sube fotos de tu progreso para evitar reclamos.</Text>
-                                        </View>
-                                    </View>
-
-                                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                        <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: '#FFF7ED', justifyContent: 'center', alignItems: 'center', marginRight: 15 }}>
-                                            <Feather name="lock" size={22} color="#EA580C" />
-                                        </View>
-                                        <View style={{ flex: 1 }}>
-                                            <Text style={{ fontWeight: 'bold', color: '#1E293B', fontSize: 15 }}>Notas Privadas</Text>
-                                            <Text style={{ color: '#64748B', fontSize: 13 }}>Guarda recordatorios que solo tú puedes ver.</Text>
-                                        </View>
-                                    </View>
-                                </View>
-
-                                <View style={{ marginTop: 25, paddingTop: 15, borderTopWidth: 1, borderTopColor: '#F1F5F9', alignItems: 'center' }}>
-                                    <Text style={{ color: '#94A3B8', fontSize: 12, textAlign: 'center' }}>
-                                        <Feather name="shield" size={12} color="#94A3B8" /> Tus datos de contacto están protegidos.
+                                    <Text style={{ fontSize: 20, fontWeight: '800', color: '#1E3A8A', textAlign: 'center' }}>
+                                        {showArchived ? "Archivo de Conversaciones" : "Negocios con Privacidad"}
+                                    </Text>
+                                    <Text style={{ fontSize: 13, color: '#64748B', textAlign: 'center', marginTop: 5, paddingHorizontal: 10 }}>
+                                        {showArchived
+                                            ? "Aquí se guardan tus acuerdos pasados y chats finalizados."
+                                            : "Gestiona tus clientes sin compartir información de contacto. Mantén el control y respaldo de cada acuerdo."}
                                     </Text>
                                 </View>
+
+                                {!showArchived && (
+                                    <View style={{ gap: 15 }}>
+                                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                            <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#EFF6FF', justifyContent: 'center', alignItems: 'center', marginRight: 12 }}>
+                                                <Feather name="lock" size={20} color="#2563EB" />
+                                            </View>
+                                            <View style={{ flex: 1 }}>
+                                                <Text style={{ fontWeight: 'bold', color: '#1E293B', fontSize: 13 }}>Privacidad Total</Text>
+                                                <Text style={{ color: '#64748B', fontSize: 11 }}>Chatea y acuerda precios sin revelar tu número o correo personal.</Text>
+                                            </View>
+                                        </View>
+
+                                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                            <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#F0FDF4', justifyContent: 'center', alignItems: 'center', marginRight: 12 }}>
+                                                <Feather name="file-text" size={20} color="#16A34A" />
+                                            </View>
+                                            <View style={{ flex: 1 }}>
+                                                <Text style={{ fontWeight: 'bold', color: '#1E293B', fontSize: 13 }}>Historial de Acuerdos</Text>
+                                                <Text style={{ color: '#64748B', fontSize: 11 }}>Todo lo conversado queda guardado como respaldo profesional.</Text>
+                                            </View>
+                                        </View>
+
+                                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                            <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#FFF7ED', justifyContent: 'center', alignItems: 'center', marginRight: 12 }}>
+                                                <Feather name="camera" size={20} color="#EA580C" />
+                                            </View>
+                                            <View style={{ flex: 1 }}>
+                                                <Text style={{ fontWeight: 'bold', color: '#1E293B', fontSize: 13 }}>Control de Evidencia</Text>
+                                                <Text style={{ color: '#64748B', fontSize: 11 }}>Sube fotos de tu progreso para dar confianza y evitar reclamos.</Text>
+                                            </View>
+                                        </View>
+
+                                        <View style={{ marginTop: 25, paddingTop: 20, borderTopWidth: 1, borderTopColor: '#F1F5F9' }}>
+                                            {(!currentUser.profiles || Object.keys(currentUser.profiles).length === 0) ? (
+                                                <TouchableOpacity
+                                                    onPress={() => onGoToProfile && onGoToProfile()}
+                                                    style={{
+                                                        backgroundColor: '#2563EB',
+                                                        paddingVertical: 14,
+                                                        borderRadius: 16,
+                                                        alignItems: 'center',
+                                                        shadowColor: '#2563EB',
+                                                        shadowOffset: { width: 0, height: 4 },
+                                                        shadowOpacity: 0.3,
+                                                        shadowRadius: 8,
+                                                        elevation: 4
+                                                    }}
+                                                >
+                                                    <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 15 }}>Completar Perfil Profesional</Text>
+                                                </TouchableOpacity>
+                                            ) : (
+                                                <View style={{ alignItems: 'center' }}>
+                                                    <Text style={{ color: '#94A3B8', fontSize: 13, textAlign: 'center', fontStyle: 'italic' }}>
+                                                        Busca ofertas en la pantalla principal para iniciar nuevas conversaciones.
+                                                    </Text>
+                                                </View>
+                                            )}
+                                        </View>
+                                    </View>
+                                )}
                             </View>
                         ) : (
                             <View style={{
@@ -396,45 +417,31 @@ export default function ChatListScreen({ currentUser, requests, chats = [], onSe
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#F8F9FA' },
-
-    // Header Styles
     headerContainer: {
-        paddingVertical: 18,
+        backgroundColor: '#EA580C',
+        paddingTop: Platform.OS === 'ios' ? 44 : 15,
+        paddingBottom: 25,
+        paddingHorizontal: 20,
         borderBottomLeftRadius: 32,
         borderBottomRightRadius: 32,
-        borderWidth: 0,
-        elevation: 0
+        elevation: 0,
     },
-    headerTop: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingHorizontal: 24,
-        marginBottom: 0
-    },
-    headerTitle: {
-        fontSize: 24,
-        fontWeight: 'bold',
-        color: 'white',
-    },
-    archiveButton: {
-        width: 48,
-        height: 48,
-        borderRadius: 24,
-        backgroundColor: 'rgba(255,255,255,0.2)',
-        justifyContent: 'center',
-        alignItems: 'center'
-    },
+    headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    headerTitle: { fontSize: 28, fontWeight: '800', color: 'white', letterSpacing: 0.5 },
+    archiveButton: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255, 255, 255, 0.2)', justifyContent: 'center', alignItems: 'center' },
 
-    // Card Styles
     chatItem: {
+        flexDirection: 'row',
         backgroundColor: 'white',
-        padding: 14,
+        padding: 15,
         borderRadius: 20,
-        marginBottom: 10,
-        borderWidth: 1,
-        borderColor: '#E5E7EB',
-        flexDirection: 'row'
+        marginBottom: 12,
+        alignItems: 'center',
+        elevation: 2,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.1,
+        shadowRadius: 3,
     },
     avatarContainer: { marginRight: 12, justifyContent: 'flex-start' },
     avatar: { width: 50, height: 50, borderRadius: 25, backgroundColor: '#F3F4F6' },
@@ -452,10 +459,6 @@ const styles = StyleSheet.create({
     bottomRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
     chatSubtitle: { fontSize: 13, color: '#4B5563', flex: 1, marginRight: 10 },
     unreadText: { fontWeight: '600', color: '#111827' },
-
-    // Responder Button
-    statusBadge: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20 },
-    statusText: { fontSize: 11, fontWeight: 'bold' },
 
     responderButton: {
         paddingHorizontal: 10,

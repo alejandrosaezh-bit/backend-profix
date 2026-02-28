@@ -1,13 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, TextInput, Image, ActivityIndicator, Alert, Modal, Animated, Easing, KeyboardAvoidingView, Platform, Dimensions } from 'react-native';
-import { Feather, FontAwesome5, MaterialCommunityIcons } from '@expo/vector-icons';
-import * as ImagePicker from 'expo-image-picker';
-import * as Location from 'expo-location';
-
-import styles from '../styles/globalStyles';
-import { DETAILED_CATEGORIES, CATEGORY_EXAMPLES, BLOG_POSTS, TESTIMONIALS, LOCATIONS_DATA, FLAT_ZONES_SUGGESTIONS, HOME_COPY_OPTIONS, ROTATION_KEY } from '../constants/data';
-import { areIdsEqual, getClientStatus, getClientStatusColor, getProStatusColor, getProStatus, showAlert, showConfirmation, formatCurrency, formatDate } from '../utils/helpers';
-import { CAT_ICONS, ICON_MAP, IconHogar, IconAuto, IconSalud, IconTech, IconBeauty, IconEvents, IconPets, IconLegal } from '../constants/icons';
+import { FontAwesome5 } from '@expo/vector-icons';
+import { useState } from 'react';
+import { ActivityIndicator, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 const RatingForm = ({ onSubmit, revieweeName, isForPro, onCancel }) => {
     const [rating, setRating] = useState(5);
@@ -49,22 +42,22 @@ const RatingForm = ({ onSubmit, revieweeName, isForPro, onCancel }) => {
                 <>
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
                         <Text style={{ fontSize: 12, color: '#374151' }}>¿Cumplió con los tiempos?</Text>
-                        <Switch value={answers.deliveredOnTime} onValueChange={v => setAnswers({ ...answers, deliveredOnTime: v })} trackColor={{ true: '#10B981' }} />
+                        <Switch value={answers.deliveredOnTime} onValueChange={v => setAnswers({ ...answers, deliveredOnTime: v })} trackColor={{ true: '#10B981', false: '#CBD5E1' }} thumbColor={answers.deliveredOnTime ? '#fff' : '#f4f3f4'} />
                     </View>
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
                         <Text style={{ fontSize: 12, color: '#374151' }}>¿Calidad esperada?</Text>
-                        <Switch value={answers.qualityAsExpected} onValueChange={v => setAnswers({ ...answers, qualityAsExpected: v })} trackColor={{ true: '#10B981' }} />
+                        <Switch value={answers.qualityAsExpected} onValueChange={v => setAnswers({ ...answers, qualityAsExpected: v })} trackColor={{ true: '#10B981', false: '#CBD5E1' }} thumbColor={answers.qualityAsExpected ? '#fff' : '#f4f3f4'} />
                     </View>
                 </>
             ) : (
                 <>
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
                         <Text style={{ fontSize: 12, color: '#374151' }}>¿Pagó a tiempo?</Text>
-                        <Switch value={answers.paidOnTime} onValueChange={v => setAnswers({ ...answers, paidOnTime: v })} trackColor={{ true: '#10B981' }} />
+                        <Switch value={answers.paidOnTime} onValueChange={v => setAnswers({ ...answers, paidOnTime: v })} trackColor={{ true: '#10B981', false: '#CBD5E1' }} thumbColor={answers.paidOnTime ? '#fff' : '#f4f3f4'} />
                     </View>
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
                         <Text style={{ fontSize: 12, color: '#374151' }}>¿Instrucciones claras?</Text>
-                        <Switch value={answers.clearInstructions} onValueChange={v => setAnswers({ ...answers, clearInstructions: v })} trackColor={{ true: '#10B981' }} />
+                        <Switch value={answers.clearInstructions} onValueChange={v => setAnswers({ ...answers, clearInstructions: v })} trackColor={{ true: '#10B981', false: '#CBD5E1' }} thumbColor={answers.clearInstructions ? '#fff' : '#f4f3f4'} />
                     </View>
                 </>
             )}

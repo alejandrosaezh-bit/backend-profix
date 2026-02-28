@@ -1,4 +1,4 @@
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { FontAwesome5 } from '@expo/vector-icons';
 import { useEffect, useRef } from 'react';
 import { Animated, Easing, StyleSheet, View } from 'react-native';
 
@@ -11,7 +11,7 @@ export default function BriefcaseLoader() {
             Animated.loop(
                 Animated.timing(spinValue, {
                     toValue: 1,
-                    duration: 1500,
+                    duration: 1000,
                     easing: Easing.linear,
                     useNativeDriver: true,
                 })
@@ -28,18 +28,19 @@ export default function BriefcaseLoader() {
 
     return (
         <View style={styles.container}>
-            {/* Central Briefcase - Fixed */}
-            <View style={styles.centerIcon}>
-                <MaterialCommunityIcons name="briefcase-variant" size={32} color="#64748B" />
-            </View>
-
-            {/* Rotating Ring Container */}
-            <Animated.View style={[styles.rotatingContainer, { transform: [{ rotate: spin }] }]}>
-                {/* Blue Element (Top) */}
-                <View style={[styles.orbitDot, styles.blueDot]} />
-
-                {/* Orange Element (Bottom) */}
-                <View style={[styles.orbitDot, styles.orangeDot]} />
+            <Animated.View style={{ transform: [{ rotate: spin }] }}>
+                <View style={{ width: 60, height: 60, justifyContent: 'center', alignItems: 'center' }}>
+                    {/* Círculo Bicolor Base */}
+                    <View style={{
+                        width: 50, height: 50, borderRadius: 25,
+                        borderWidth: 5, borderColor: '#2563EB',
+                        borderTopColor: '#EA580C', borderRightColor: '#EA580C',
+                        transform: [{ rotate: '-45deg' }]
+                    }} />
+                    {/* Cabezas de Flecha */}
+                    <FontAwesome5 name="caret-right" size={16} color="#EA580C" style={{ position: 'absolute', top: 1, right: 10 }} />
+                    <FontAwesome5 name="caret-left" size={16} color="#2563EB" style={{ position: 'absolute', bottom: 1, left: 10 }} />
+                </View>
             </Animated.View>
         </View>
     );
@@ -51,30 +52,5 @@ const styles = StyleSheet.create({
         height: 80,
         justifyContent: 'center',
         alignItems: 'center',
-    },
-    centerIcon: {
-        zIndex: 1,
-        opacity: 0.8,
-    },
-    rotatingContainer: {
-        position: 'absolute',
-        width: 70,
-        height: 70,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    orbitDot: {
-        width: 10,
-        height: 10,
-        borderRadius: 5,
-        position: 'absolute',
-    },
-    blueDot: {
-        backgroundColor: '#3B82F6', // Blue-500
-        top: 0,
-    },
-    orangeDot: {
-        backgroundColor: '#F97316', // Orange-500
-        bottom: 0,
     }
 });

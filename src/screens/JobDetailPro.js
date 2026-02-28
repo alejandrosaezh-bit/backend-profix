@@ -1,10 +1,9 @@
 import { Feather } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useEffect, useState } from 'react';
-import { Image, Modal, Platform, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { Image, Modal, Platform, ScrollView, StatusBar, Text, TouchableOpacity, View } from 'react-native';
 
-import { api } from '../utils/api';
-import { areIdsEqual, getProStatus, showAlert, showConfirmation } from '../utils/helpers';
+import { areIdsEqual, getProStatus } from '../utils/helpers';
 import ProjectTimeline from './ProjectTimeline';
 
 const JobDetailPro = ({ job: initialJob, onBack, onSendQuote, onOpenChat, proStatus, onUpdateStatus, onArchive, onGoToQuote, onViewProfile, currentUser, onConfirmStart, onAddWorkPhoto, onFinish, onRate, onAddTimelineEvent, onStartJob, categories, userMode, onTogglePortfolio, onViewImage }) => {
@@ -14,8 +13,8 @@ const JobDetailPro = ({ job: initialJob, onBack, onSendQuote, onOpenChat, proSta
     // Sync with prop updates
     useEffect(() => { setJob(initialJob); }, [initialJob]);
 
-    // Force refresh detailed data on mount
-    useEffect(() => {
+    /* Redundant fetch removed as handleOpenJobDetail in app.js already fetches full detail
+    React.useEffect(() => {
         const loadFullDetails = async () => {
             try {
                 const id = initialJob._id || initialJob.id;
@@ -29,6 +28,7 @@ const JobDetailPro = ({ job: initialJob, onBack, onSendQuote, onOpenChat, proSta
         };
         loadFullDetails();
     }, []);
+    */
 
     // Al abrir, si es NUEVA, pasar a ABIERTA
     useEffect(() => {
@@ -47,6 +47,7 @@ const JobDetailPro = ({ job: initialJob, onBack, onSendQuote, onOpenChat, proSta
 
     // Check if I am the winner
     const isWinner = myOffer && myOffer.status === 'accepted';
+    const isLoser = proStatus === 'PERDIDA';
 
     // Encontrar conversación para este pro
     // Si soy pro, en teoría solo debo tener una o ninguna en el objeto job (filtrado por backend)
@@ -233,10 +234,11 @@ const JobDetailPro = ({ job: initialJob, onBack, onSendQuote, onOpenChat, proSta
 
 
 
-            <ScrollView contentContainerStyle={{ paddingBottom: 120 }}>
+            <ScrollView contentContainerStyle={{ paddingBottom: 120 }} style={{ backgroundColor: 'white' }}>
+
                 {/* CABECERA AZUL (SCROLLABLE) */}
                 <View style={{
-                    backgroundColor: '#2563EB', paddingTop: Platform.OS === 'android' ? (RNStatusBar.currentHeight || 0) + 5 : 20,
+                    backgroundColor: '#2563EB', paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 5 : 20,
                     paddingBottom: 18, paddingHorizontal: 24, borderBottomLeftRadius: 40, borderBottomRightRadius: 40,
                     elevation: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 10,
                     marginBottom: -20, zIndex: 1
@@ -288,7 +290,7 @@ const JobDetailPro = ({ job: initialJob, onBack, onSendQuote, onOpenChat, proSta
                     </View>
                 </View>
                 {/* PARTE BLANCA (INFO) como tarjeta */}
-                <View style={{ backgroundColor: 'white', borderRadius: 36, elevation: 6, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 12, marginBottom: 30 }}>
+                <View style={{ backgroundColor: 'white', borderRadius: 36, elevation: 6, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 12, marginBottom: 8 }}>
                     <View style={{ padding: 24 }}>
                         {myOffer && (myOffer.status === 'rejected' || proStatus === 'PERDIDA') && (
                             <View style={{ backgroundColor: '#FEE2E2', padding: 18, borderRadius: 20, marginBottom: 24, borderWidth: 1, borderColor: '#FCA5A5' }}>
@@ -306,36 +308,6 @@ const JobDetailPro = ({ job: initialJob, onBack, onSendQuote, onOpenChat, proSta
                                         <Text style={{ fontWeight: 'bold' }}>{"\n"}Motivo: "{myOffer.rejectionReason}"</Text>
                                     )}
                                 </Text>
-                                <View style={{ flexDirection: 'row', gap: 10 }}>
-                                    <TouchableOpacity
-                                        style={{ flex: 1, backgroundColor: 'white', padding: 12, borderRadius: 10, alignItems: 'center', borderWidth: 1, borderColor: '#EF4444' }}
-                                        onPress={() => {
-                                            showConfirmation(
-                                                "Confirmar Archivo",
-                                                "¿Estás seguro de archivar esta oferta? No podrás verla nuevamente en la lista principal.",
-                                                () => {
-                                                    onArchive();
-                                                    showAlert("Archivado", "La solicitud ha sido archivada.");
-                                                    onBack();
-                                                },
-                                                null,
-                                                "Archivar",
-                                                "Cancelar"
-                                            );
-                                        }}
-                                    >
-                                        <Text style={{ color: '#EF4444', fontWeight: 'bold' }}>Archivar</Text>
-                                    </TouchableOpacity>
-
-                                    {proStatus !== 'PERDIDA' && (
-                                        <TouchableOpacity
-                                            style={{ flex: 1, backgroundColor: '#EF4444', padding: 12, borderRadius: 10, alignItems: 'center' }}
-                                            onPress={onGoToQuote}
-                                        >
-                                            <Text style={{ color: 'white', fontWeight: 'bold' }}>Modificar y Reenviar</Text>
-                                        </TouchableOpacity>
-                                    )}
-                                </View>
                             </View>
                         )}
 
@@ -360,222 +332,201 @@ const JobDetailPro = ({ job: initialJob, onBack, onSendQuote, onOpenChat, proSta
                     </View>
                 </View>
 
-                {/* Resto del contenido con padding */}
+                {/* CONTENIDO DINÁMICO SEGÚN ESTADO (LA AGENDA) */}
                 <View style={{ paddingHorizontal: 0 }}>
 
-                    {/* HEADER: Conversaciones con el Cliente */}
-                    <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#1F2937', marginBottom: 15, marginTop: 10, paddingHorizontal: 20 }}>
-                        Conversaciones con el Cliente
-                    </Text>
-
-                    {/* Chat Styled Like Reference Image */}
+                    {/* STEPPER DE PROGRESO DE LA OFERTA */}
                     <View style={{
                         backgroundColor: 'white',
-                        borderRadius: 20,
-                        padding: 16,
+                        paddingVertical: 18,
+                        paddingHorizontal: 10,
                         marginHorizontal: 4,
-                        marginBottom: 35,
+                        marginTop: 8,
+                        marginBottom: 8,
+                        borderRadius: 20,
+                        borderWidth: 1,
+                        borderColor: '#EFF6FF',
                         elevation: 4,
-                        shadowColor: '#000',
-                        shadowOffset: { width: 0, height: 2 },
+                        shadowColor: '#2563EB',
+                        shadowOffset: { width: 0, height: 4 },
                         shadowOpacity: 0.1,
-                        shadowRadius: 8
+                        shadowRadius: 10,
+                        zIndex: 10
                     }}>
-                        {/* Header: Avatar + Name + Rating */}
-                        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 20 }}>
-                            <Image
-                                source={
-                                    (job.client && job.client.profileImage) ? { uri: job.client.profileImage } :
-                                        (job.client && job.client.avatar) ? { uri: job.client.avatar } :
-                                            (job.clientAvatar) ? { uri: job.clientAvatar } :
-                                                (job.clientProfileImage) ? { uri: job.clientProfileImage } :
-                                                    { uri: 'https://cdn-icons-png.flaticon.com/512/149/149071.png' }
-                                }
-                                style={{ width: 50, height: 50, borderRadius: 25, marginRight: 15, backgroundColor: '#E2E8F0' }}
-                                resizeMode="cover"
-                            />
-                            <View>
-                                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                    <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#1F2937', marginRight: 8 }}>
-                                        {job.clientName || (job.client && job.client.name) || 'Cliente'}
-                                    </Text>
-                                </View>
-                                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
-                                    <Feather name="star" size={14} color="#F59E0B" style={{ marginRight: 4 }} />
-                                    <Text style={{ color: '#64748B', fontSize: 13, fontWeight: 'bold' }}>{job.clientRating || '5.0'}</Text>
-                                </View>
-                            </View>
-                        </View>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 10 }}>
+                            {['Contacto', 'Presupuesto', 'Aceptación', 'Ejecución', 'Finalizado'].map((step, idx) => {
+                                const currentIdx = (() => {
+                                    if (['TERMINADO', 'FINALIZADA', 'Culminada'].includes(proStatus)) return 4;
+                                    if (['GANADA', 'ACEPTADO', 'EN EJECUCIÓN', 'VALIDANDO', 'VALORACIÓN'].includes(proStatus)) return 3;
+                                    if (proStatus === 'PRESUPUESTADA') return 2;
+                                    if (proStatus === 'CONTACTADA') return 1;
+                                    return 0;
+                                })();
 
-                        {/* Messages Area */}
-                        <View style={{ marginBottom: 20 }}>
-                            {messages.length === 0 ? (
-                                <View style={{ padding: 15, backgroundColor: '#F3F4F6', borderRadius: 12 }}>
-                                    <Text style={{ color: '#64748B', fontStyle: 'italic', textAlign: 'center' }}>
-                                        Inicia la conversación con {job.clientName}...
-                                    </Text>
-                                </View>
-                            ) : (
-                                messages.slice(-3).map((msg, i) => (
-                                    <View key={i} style={{
-                                        maxWidth: '85%',
-                                        paddingVertical: 4,
-                                        paddingHorizontal: 10,
-                                        borderRadius: 14,
-                                        marginBottom: 2,
-                                        alignSelf: msg.sender === 'pro' ? 'flex-end' : 'flex-start',
-                                        backgroundColor: msg.sender === 'pro' ? '#FFF7ED' : '#F3F4F6', // Orange tint for Pro, Gray for Client
-                                        borderBottomRightRadius: msg.sender === 'pro' ? 4 : 14,
-                                        borderBottomLeftRadius: msg.sender === 'pro' ? 14 : 4,
-                                    }}>
-                                        <Text style={{ color: '#374151', fontSize: 12, lineHeight: 16 }}>{msg.text}</Text>
-                                        <Text style={{ color: '#9CA3AF', fontSize: 8, marginTop: 1, textAlign: 'right' }}>
-                                            {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }).toLowerCase()}
+                                const isActive = idx === currentIdx;
+                                const isCompleted = idx < currentIdx;
+
+                                return (
+                                    <View key={idx} style={{ flex: 1, alignItems: 'center' }}>
+                                        {/* Line connector */}
+                                        {idx > 0 && (
+                                            <View style={{
+                                                position: 'absolute',
+                                                left: '-50%',
+                                                right: '50%',
+                                                top: 12,
+                                                height: 3,
+                                                backgroundColor: isCompleted || isActive ? '#2563EB' : '#E2E8F0',
+                                                zIndex: -1
+                                            }} />
+                                        )}
+
+                                        <View style={{
+                                            width: 24,
+                                            height: 24,
+                                            borderRadius: 12,
+                                            backgroundColor: isCompleted ? '#2563EB' : (isActive ? 'white' : 'white'),
+                                            borderWidth: 2,
+                                            borderColor: isCompleted || isActive ? '#2563EB' : '#CBD5E1',
+                                            justifyContent: 'center',
+                                            alignItems: 'center',
+                                            marginBottom: 4,
+                                            elevation: isActive ? 4 : 0,
+                                            shadowColor: '#2563EB',
+                                            shadowOffset: { width: 0, height: 2 },
+                                            shadowOpacity: 0.2,
+                                            shadowRadius: 3
+                                        }}>
+                                            {isCompleted ? (
+                                                <Feather name="check" size={12} color="white" />
+                                            ) : (
+                                                <View style={{
+                                                    width: 8,
+                                                    height: 8,
+                                                    borderRadius: 4,
+                                                    backgroundColor: isActive ? '#EA580C' : '#CBD5E1'
+                                                }} />
+                                            )}
+                                        </View>
+                                        <Text style={{
+                                            fontSize: 9,
+                                            fontWeight: isActive ? '900' : '600',
+                                            color: isActive ? '#1E293B' : (isCompleted ? '#2563EB' : '#94A3B8'),
+                                            textAlign: 'center'
+                                        }}>
+                                            {step}
                                         </Text>
                                     </View>
-                                ))
-                            )}
+                                );
+                            })}
                         </View>
-
-                        {/* Button "Preguntar" / "Responder" Style */}
-                        <TouchableOpacity
-                            onPress={() => {
-                                onUpdateStatus('CONTACTADO');
-                                const cName = job.clientName || job.client?.name || 'Cliente';
-                                const pName = currentUser?.name || 'Profesional';
-                                const defaultMsg = `Hola ${cName}, mi nombre es ${pName}. Me interesa tu solicitud de ${job.title}.`;
-                                onOpenChat && onOpenChat(job, null, messages.length > 0 ? null : defaultMsg);
-                            }}
-                            style={{
-                                backgroundColor: (messages.length > 0 && isClientLast) ? '#EA580C' : 'white',
-                                borderWidth: 1.5,
-                                borderColor: '#EA580C',
-                                paddingVertical: 14,
-                                borderRadius: 16,
-                                alignItems: 'center',
-                                elevation: (messages.length > 0 && isClientLast) ? 2 : 0,
-                                shadowColor: '#EA580C',
-                                shadowOffset: { width: 0, height: 2 },
-                                shadowOpacity: 0.1,
-                                shadowRadius: 4
-                            }}
-                        >
-                            <Text style={{ color: (messages.length > 0 && isClientLast) ? 'white' : '#EA580C', fontWeight: 'bold', fontSize: 16 }}>
-                                {messages.length === 0 ? 'Saludar' : (isClientLast ? 'Responder' : 'Preguntar')}
-                            </Text>
-                        </TouchableOpacity>
                     </View>
 
-                    {/* SECCIÓN PRECIOS Y PRESUPUESTOS (NUEVA LÓGICA) */}
-                    <View style={{ marginBottom: 25 }}>
-                        <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#64748B', marginBottom: 10, letterSpacing: 1 }}>PRESUPUESTOS</Text>
+                    {(() => {
+                        const isAcceptedOrRunning = ['GANADA', 'ACEPTADO', 'EN EJECUCIÓN', 'VALIDANDO', 'VALORACIÓN'].includes(proStatus);
+                        const isFinished = ['TERMINADO', 'FINALIZADA', 'Culminada'].includes(proStatus);
+                        const isContact = proStatus === 'CONTACTADA' || (messages.length > 0 && !myOffer);
+                        const isInitial = messages.length === 0;
 
-                        {!myOffer ? (
-                            <TouchableOpacity
-                                onPress={onGoToQuote}
-                                style={{
-                                    backgroundColor: '#2563EB',
-                                    paddingVertical: 16,
-                                    borderRadius: 16,
-                                    alignItems: 'center',
-                                    elevation: 3,
-                                    shadowColor: '#2563EB',
-                                    shadowOffset: { width: 0, height: 4 },
-                                    shadowOpacity: 0.3,
-                                    shadowRadius: 5
-                                }}
-                            >
-                                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                    <Feather name="plus-circle" size={20} color="white" style={{ marginRight: 8 }} />
-                                    <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 16 }}>ENVIAR PRESUPUESTO</Text>
-                                </View>
-                            </TouchableOpacity>
-                        ) : (
-                            <View style={{
-                                backgroundColor: myOffer.status === 'rejected' ? '#FEF2F2' : (myOffer.status === 'accepted' ? '#ECFDF5' : 'white'),
-                                borderRadius: 16,
-                                padding: 16,
-                                borderWidth: 1,
-                                borderColor: myOffer.status === 'rejected' ? '#FCA5A5' : (myOffer.status === 'accepted' ? '#6EE7B7' : '#E2E8F0'),
-                                elevation: 2
-                            }}>
-                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                        <View style={{
-                                            width: 8, height: 8, borderRadius: 4,
-                                            backgroundColor: myOffer.status === 'rejected' ? '#EF4444' : (myOffer.status === 'accepted' ? '#10B981' : '#F59E0B'),
-                                            marginRight: 8
-                                        }} />
-                                        <Text style={{
-                                            fontWeight: 'bold',
-                                            color: myOffer.status === 'rejected' ? '#991B1B' : (myOffer.status === 'accepted' ? '#065F46' : '#92400E'),
-                                            fontSize: 14
-                                        }}>
-                                            {myOffer.status === 'rejected' ? 'PROPUESTA RECHAZADA' : (myOffer.status === 'accepted' ? '¡PROPUESTA ACEPTADA!' : 'PRESUPUESTO ENVIADO')}
-                                        </Text>
-                                    </View>
-                                    <Text style={{ fontSize: 11, color: '#64748B' }}>
-                                        {new Date(myOffer.createdAt).toLocaleDateString()}
-                                    </Text>
-                                </View>
-
-                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 15 }}>
-                                    <View>
-                                        <Text style={{ fontSize: 11, color: '#64748B', fontWeight: 'bold' }}>MONTO TOTAL</Text>
-                                        <Text style={{ fontSize: 22, fontWeight: 'bold', color: '#1F2937' }}>
-                                            {myOffer.currency || '$'} {myOffer.amount || myOffer.price}
-                                        </Text>
-                                    </View>
-                                    {myOffer.status === 'pending' && (
-                                        <View style={{ backgroundColor: '#FEF3C7', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 }}>
-                                            <Text style={{ fontSize: 10, color: '#D97706', fontWeight: 'bold' }}>PENDIENTE</Text>
+                        // BLOCK DEFINITIONS
+                        const renderChat = () => (
+                            <View key="chat">
+                                <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#1F2937', marginBottom: 12, marginTop: 8, paddingHorizontal: 20 }}>
+                                    Conversaciones con el Cliente
+                                </Text>
+                                <View style={{ backgroundColor: 'white', borderRadius: 20, padding: 16, marginHorizontal: 4, marginBottom: 8, elevation: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 8 }}>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 20 }}>
+                                        <Image
+                                            source={(job.client && job.client.avatar) ? { uri: job.client.avatar } : (job.clientAvatar ? { uri: job.clientAvatar } : { uri: 'https://cdn-icons-png.flaticon.com/512/149/149071.png' })}
+                                            style={{ width: 50, height: 50, borderRadius: 25, marginRight: 15, backgroundColor: '#E2E8F0' }}
+                                        />
+                                        <View>
+                                            <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#1F2937' }}>{job.clientName || job.client?.name || 'Cliente'}</Text>
+                                            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
+                                                <Feather name="star" size={14} color="#F59E0B" style={{ marginRight: 4 }} />
+                                                <Text style={{ color: '#64748B', fontSize: 13, fontWeight: 'bold' }}>{job.clientRating || '5.0'}</Text>
+                                            </View>
                                         </View>
-                                    )}
-                                </View>
-
-                                {myOffer.status === 'rejected' && (
-                                    <View style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', padding: 10, borderRadius: 8, marginBottom: 15 }}>
-                                        <Text style={{ color: '#7F1D1D', fontSize: 13, fontStyle: 'italic' }}>
-                                            "{myOffer.rejectionReason || 'No especificado'}"
-                                        </Text>
                                     </View>
-                                )}
-
-                                <View style={{ flexDirection: 'row', gap: 10 }}>
-                                    <TouchableOpacity
-                                        onPress={() => setShowMyProposal(true)}
-                                        style={{ flex: 1, paddingVertical: 10, alignItems: 'center', backgroundColor: 'white', borderRadius: 8, borderWidth: 1, borderColor: '#CBD5E1' }}
-                                    >
-                                        <Text style={{ color: '#475569', fontWeight: 'bold', fontSize: 13 }}>Ver Detalle</Text>
-                                    </TouchableOpacity>
-
-                                    {myOffer.status !== 'accepted' && (
+                                    <View style={{ marginBottom: 20 }}>
+                                        {messages.length === 0 ? (
+                                            <View style={{ padding: 15, backgroundColor: '#F3F4F6', borderRadius: 12 }}>
+                                                <Text style={{ color: '#64748B', fontStyle: 'italic', textAlign: 'center' }}>Inicia la conversación con {job.clientName}...</Text>
+                                            </View>
+                                        ) : (
+                                            messages.slice(-3).map((msg, i) => (
+                                                <View key={i} style={{ maxWidth: '85%', paddingVertical: 4, paddingHorizontal: 10, borderRadius: 14, marginBottom: 2, alignSelf: msg.sender === 'pro' ? 'flex-end' : 'flex-start', backgroundColor: msg.sender === 'pro' ? '#FFF7ED' : '#F3F4F6', borderBottomRightRadius: msg.sender === 'pro' ? 4 : 14, borderBottomLeftRadius: msg.sender === 'pro' ? 14 : 4 }}>
+                                                    <Text style={{ color: '#374151', fontSize: 12, lineHeight: 16 }}>{msg.text}</Text>
+                                                    <Text style={{ color: '#9CA3AF', fontSize: 8, marginTop: 1, textAlign: 'right' }}>{new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }).toLowerCase()}</Text>
+                                                </View>
+                                            ))
+                                        )}
+                                    </View>
+                                    {proStatus !== 'PERDIDA' && (
                                         <TouchableOpacity
-                                            onPress={onGoToQuote}
-                                            style={{ flex: 1, paddingVertical: 10, alignItems: 'center', backgroundColor: '#3B82F6', borderRadius: 8 }}
+                                            onPress={() => {
+                                                onUpdateStatus('CONTACTADO');
+                                                onOpenChat && onOpenChat(job, null, messages.length > 0 ? null : `Hola ${job.clientName || 'Cliente'}, mi nombre es ${currentUser?.name}. Me interesa tu solicitud.`);
+                                            }}
+                                            style={{ backgroundColor: (messages.length > 0 && isClientLast) ? '#EA580C' : 'white', borderWidth: 1.5, borderColor: '#EA580C', paddingVertical: 14, borderRadius: 16, alignItems: 'center' }}
                                         >
-                                            <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 13 }}>
-                                                {myOffer.status === 'rejected' ? 'Modificar y Reenviar' : 'Editar'}
-                                            </Text>
+                                            <Text style={{ color: (messages.length > 0 && isClientLast) ? 'white' : '#EA580C', fontWeight: 'bold', fontSize: 16 }}>{messages.length === 0 ? 'Saludar' : (isClientLast ? 'Responder' : 'Preguntar')}</Text>
                                         </TouchableOpacity>
                                     )}
                                 </View>
                             </View>
-                        )}
-                    </View>
+                        );
 
-                    {/* ACCIONES DE ESTADO (Iniciar/Finalizar) - Solo si Ganada o Terminada */}
-                    {(isWinner || ['TERMINADO', 'Culminada', 'rated', 'completed'].includes(job.status)) && (
-                        <View style={{ marginBottom: 15 }}>
-                            <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#64748B', marginBottom: 5, letterSpacing: 1 }}>HISTORIAL LEGAL & AVANCE</Text>
-                            {/* El botón de inicio se maneja dentro de ProjectTimeline para evitar duplicados */}
-                        </View>
-                    )}
+                        const renderBudgets = () => (
+                            <View key="budgets" style={{ marginBottom: 8 }}>
+                                <View style={{
+                                    backgroundColor: 'white',
+                                    borderRadius: 24,
+                                    padding: 20,
+                                    marginHorizontal: 4,
+                                    borderWidth: 1,
+                                    borderColor: '#F1F5F9',
+                                    elevation: 3,
+                                    shadowColor: '#000',
+                                    shadowOffset: { width: 0, height: 4 },
+                                    shadowOpacity: 0.05,
+                                    shadowRadius: 10,
+                                }}>
+                                    <Text style={{ fontSize: 18, fontWeight: '900', color: '#1E2937', marginBottom: 20 }}>Propuesta Económica</Text>
+                                    {!myOffer && proStatus !== 'PERDIDA' ? (
+                                        <TouchableOpacity
+                                            onPress={onGoToQuote}
+                                            style={{ backgroundColor: '#2563EB', paddingVertical: 14, paddingHorizontal: 20, borderRadius: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', elevation: 4, shadowColor: '#2563EB', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 6 }}
+                                        >
+                                            <Feather name="file-text" size={20} color="white" style={{ marginRight: 10 }} />
+                                            <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 15, letterSpacing: 0.5 }}>ENVIAR PRESUPUESTO</Text>
+                                        </TouchableOpacity>
+                                    ) : myOffer ? (
+                                        <View style={{ backgroundColor: myOffer.status === 'rejected' ? '#FEF2F2' : (myOffer.status === 'accepted' ? '#ECFDF5' : '#F8FAFC'), borderRadius: 16, padding: 16, borderWidth: 1, borderColor: myOffer.status === 'rejected' ? '#FCA5A5' : (myOffer.status === 'accepted' ? '#6EE7B7' : '#E2E8F0') }}>
+                                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                                                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                                    <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: myOffer.status === 'rejected' ? '#EF4444' : (myOffer.status === 'accepted' ? '#10B981' : '#F59E0B'), marginRight: 8 }} />
+                                                    <Text style={{ fontWeight: 'bold', color: myOffer.status === 'rejected' ? '#991B1B' : (myOffer.status === 'accepted' ? '#065F46' : '#92400E'), fontSize: 14 }}>{myOffer.status === 'rejected' ? 'PROPUESTA RECHAZADA' : (myOffer.status === 'accepted' ? '¡PROPUESTA ACEPTADA!' : 'PRESUPUESTO ENVIADO')}</Text>
+                                                </View>
+                                                <Text style={{ fontSize: 11, color: '#64748B' }}>{new Date(myOffer.createdAt).toLocaleDateString()}</Text>
+                                            </View>
+                                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 15 }}>
+                                                <View><Text style={{ fontSize: 11, color: '#64748B', fontWeight: 'bold' }}>MONTO TOTAL</Text><Text style={{ fontSize: 22, fontWeight: 'bold', color: '#1F2937' }}>{myOffer.currency || '$'} {myOffer.amount || myOffer.price}</Text></View>
+                                                {myOffer.status === 'pending' && <View style={{ backgroundColor: '#FEF3C7', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 }}><Text style={{ fontSize: 10, color: '#D97706', fontWeight: 'bold' }}>PENDIENTE</Text></View>}
+                                            </View>
+                                            <View style={{ flexDirection: 'row', gap: 10 }}>
+                                                <TouchableOpacity onPress={() => setShowMyProposal(true)} style={{ flex: 1, paddingVertical: 10, alignItems: 'center', backgroundColor: 'white', borderRadius: 8, borderWidth: 1, borderColor: '#CBD5E1' }}><Text style={{ color: '#475569', fontWeight: 'bold', fontSize: 13 }}>Ver Detalle</Text></TouchableOpacity>
+                                                {myOffer.status !== 'accepted' && proStatus !== 'PERDIDA' && <TouchableOpacity onPress={onGoToQuote} style={{ flex: 1, paddingVertical: 10, alignItems: 'center', backgroundColor: '#3B82F6', borderRadius: 8 }}><Text style={{ color: 'white', fontWeight: 'bold', fontSize: 13 }}>{myOffer.status === 'rejected' ? 'Modificar y Reenviar' : 'Editar'}</Text></TouchableOpacity>}
+                                            </View>
+                                        </View>
+                                    ) : null}
+                                </View>
+                            </View>
+                        );
 
-                    {
-                        (isWinner || ['TERMINADO', 'Culminada', 'rated', 'completed'].includes(job.status)) &&
-                        (job.trackingStatus !== 'none' || ['TERMINADO', 'Culminada', 'rated', 'completed'].includes(job.status)) && (
+                        const renderTimelineSection = (section, title = null) => (
                             <ProjectTimeline
+                                key={`${section}-${title}`}
                                 job={job}
                                 userMode={userMode}
                                 currentUser={currentUser}
@@ -585,11 +536,58 @@ const JobDetailPro = ({ job: initialJob, onBack, onSendQuote, onOpenChat, proSta
                                 onRate={handleRateInternal}
                                 onTogglePortfolio={onTogglePortfolio}
                                 onViewImage={onViewImage}
+                                showSection={section}
+                                customTitle={title}
                             />
-                        )
-                    }
+                        );
 
+                        // --- ORDERING LOGIC ---
+                        if (isFinished) {
+                            return [
+                                renderTimelineSection('management'),
+                                renderTimelineSection('rating'),
+                                renderBudgets(),
+                                renderTimelineSection('timeline')
+                            ];
+                        }
+
+                        if (isAcceptedOrRunning) {
+                            return [
+                                renderTimelineSection('management'),
+                                renderChat(),
+                                renderBudgets(),
+                                renderTimelineSection('rating'),
+                                renderTimelineSection('timeline')
+                            ];
+                        }
+
+                        if (isInitial && !myOffer) {
+                            // Stage 2a: Nueva/Sin contacto - Primero el saludo
+                            return [
+                                renderChat(),
+                                renderBudgets(),
+                                renderTimelineSection('management', 'Histórico'),
+                                renderTimelineSection('rating', 'Histórico'),
+                                renderTimelineSection('timeline', 'Histórico')
+                            ];
+                        }
+
+                        if (myOffer || isContact || !isInitial) {
+                            // Stage 2b: Ya saludado o presupuestado - Primero el presupuesto
+                            return [
+                                renderBudgets(),
+                                renderChat(),
+                                renderTimelineSection('management', 'Histórico'),
+                                renderTimelineSection('rating', 'Histórico'),
+                                renderTimelineSection('timeline', 'Histórico')
+                            ];
+                        }
+
+                        // Default fallback
+                        return [renderChat()];
+                    })()}
                 </View>
+
             </ScrollView>
         </View >
     );

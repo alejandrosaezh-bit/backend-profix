@@ -192,7 +192,32 @@ const CreateQuoteScreen = ({ job, onBack, onSendQuote, currentUser }) => {
 
                     {/* Items */}
                     <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>Ítems del Trabajo</Text>
+                        <View style={[styles.rowBetween, { marginBottom: 15, alignItems: 'center' }]}>
+                            <Text style={[styles.sectionTitle, { marginBottom: 0 }]}>Ítems del Trabajo</Text>
+                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                <Text style={{ fontSize: 12, fontWeight: '700', color: '#64748B', marginRight: 8 }}>MONEDA:</Text>
+                                <View style={{ flexDirection: 'row', backgroundColor: '#F1F5F9', padding: 3, borderRadius: 10 }}>
+                                    <TouchableOpacity
+                                        onPress={() => setCurrency('$')}
+                                        style={[
+                                            { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 7 },
+                                            currency === '$' ? { backgroundColor: '#2563EB' } : null
+                                        ]}
+                                    >
+                                        <Text style={{ color: currency === '$' ? 'white' : '#64748B', fontSize: 11, fontWeight: 'bold' }}>$ USD</Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity
+                                        onPress={() => setCurrency('Bs')}
+                                        style={[
+                                            { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 7 },
+                                            currency === 'Bs' ? { backgroundColor: '#2563EB' } : null
+                                        ]}
+                                    >
+                                        <Text style={{ color: currency === 'Bs' ? 'white' : '#64748B', fontSize: 11, fontWeight: 'bold' }}>Bs</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            </View>
+                        </View>
                         {items.map((item, index) => (
                             <View key={item.id} style={styles.itemRow}>
                                 <View style={{ flex: 1, marginRight: 10 }}>
@@ -350,24 +375,6 @@ const CreateQuoteScreen = ({ job, onBack, onSendQuote, currentUser }) => {
                                 value={paymentTerms}
                                 onChangeText={setPaymentTerms}
                             />
-                        </View>
-
-                        <View style={styles.rowInput}>
-                            <Text style={{ fontWeight: 'bold', marginRight: 10, color: '#666' }}>Moneda:</Text>
-                            <View style={{ flexDirection: 'row', gap: 10 }}>
-                                <TouchableOpacity
-                                    onPress={() => setCurrency('$')}
-                                    style={[styles.currencyBadge, currency === '$' && styles.currencyActive]}
-                                >
-                                    <Text style={{ color: currency === '$' ? 'white' : '#666' }}>$ USD</Text>
-                                </TouchableOpacity>
-                                <TouchableOpacity
-                                    onPress={() => setCurrency('Bs')}
-                                    style={[styles.currencyBadge, currency === 'Bs' && styles.currencyActive]}
-                                >
-                                    <Text style={{ color: currency === 'Bs' ? 'white' : '#666' }}>Bs</Text>
-                                </TouchableOpacity>
-                            </View>
                         </View>
                     </View>
 

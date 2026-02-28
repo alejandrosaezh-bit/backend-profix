@@ -1,7 +1,7 @@
 import { Feather } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useContext, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Keyboard, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
+import { Alert, Keyboard, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
 import { AuthContext } from '../context/AuthContext';
 import { api } from '../utils/api';
 import { OTA_VERSION } from '../utils/version';
@@ -186,7 +186,16 @@ export default function LoginScreen({ navigation }) {
           disabled={isLoading}
         >
           {isLoading ? (
-            <ActivityIndicator color="white" />
+            <View style={{ transform: [{ scale: 0.6 }] }}>
+              <View style={{ width: 40, height: 40, justifyContent: 'center', alignItems: 'center' }}>
+                <View style={{
+                  width: 30, height: 30, borderRadius: 15,
+                  borderWidth: 4, borderColor: 'white',
+                  borderTopColor: '#EA580C', borderRightColor: '#EA580C',
+                  transform: [{ rotate: '-45deg' }]
+                }} />
+              </View>
+            </View>
           ) : (
             <Text style={styles.authButtonText}>
               {isRegistering ? 'Registrarse' : 'Entrar'}

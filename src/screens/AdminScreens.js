@@ -598,12 +598,16 @@ const UsersManager = () => {
 
                     <Text style={[styles.label, { marginTop: 15 }]}>Perfiles Activos:</Text>
                     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 5 }}>
-                        {selectedUser.profiles && Object.keys(selectedUser.profiles).map(k => (
-                            <View key={k} style={{ padding: 5, backgroundColor: '#E0E7FF', borderRadius: 5 }}>
-                                <Text style={{ color: '#3730A3', fontSize: 12, fontWeight: 'bold' }}>{k}</Text>
-                            </View>
-                        ))}
-                        {(!selectedUser.profiles || Object.keys(selectedUser.profiles).length === 0) && <Text style={{ color: '#999' }}>Ninguno</Text>}
+                        {/* Mostrar perfiles solo si existen */}
+                        {selectedUser.profiles && Object.keys(selectedUser.profiles).length > 0 ? (
+                            Object.keys(selectedUser.profiles).map(k => (
+                                <View key={k} style={{ padding: 5, backgroundColor: '#E0E7FF', borderRadius: 5 }}>
+                                    <Text style={{ color: '#3730A3', fontSize: 12, fontWeight: 'bold' }}>{k}</Text>
+                                </View>
+                            ))
+                        ) : (
+                            <Text style={{ color: '#999' }}>Ninguno</Text>
+                        )}
                     </View>
                 </View>
                 <View style={{ height: 50 }} />

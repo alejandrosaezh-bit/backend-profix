@@ -1,14 +1,15 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
-
 // Configuración de API
 const PROD_URL = 'https://profix-backend-h56b.onrender.com/api';
 const LOCAL_IP = '192.168.1.172'; // IMPORTANTE: Verifica tu IP con `ipconfig` en Windows
 
 // Automatización de entorno: Detecta si estamos en modo de desarrollo (Expo Go/Dev Client) o en un build real (APK)
 const isDev = __DEV__;
+const USE_LOCAL = false;
 
-export const API_URL = isDev
+// Export with override to PROD for testing if local backend is not available
+export const API_URL = (isDev && USE_LOCAL)
     ? Platform.select({
         android: `http://${LOCAL_IP}:5000/api`,
         ios: `http://${LOCAL_IP}:5000/api`,
@@ -17,7 +18,7 @@ export const API_URL = isDev
     })
     : PROD_URL;
 
-console.log(`[API] Using API_URL: ${API_URL}`);
+// console.log(`[API] Using API_URL: ${API_URL}`);
 
 const getHeaders = async () => {
     const token = await AsyncStorage.getItem('userToken');
@@ -47,8 +48,12 @@ const fetchWithTimeout = async (url, options = {}, timeout = 120000) => {
     } catch (error) {
         clearTimeout(id);
         const duration = Date.now() - start;
-        console.error(`[API] Error for ${url} after ${duration}ms:`, error.name, error.message);
-        throw error;
+        let msg = error.message;
+        if (msg.toLowerCase().includes('network request failed')) {
+            msg += ` (Verifica que tu celular y PC estén en la misma red Wi-Fi y que la IP ${url} sea correcta).`;
+        }
+        console.error(`[API] Error for ${url} after ${duration}ms:`, error.name, msg);
+        throw new Error(msg);
     }
 };
 
@@ -383,12 +388,31 @@ export const api = {
         return res.json();
     },
 
+    markAllProInteractionsAsRead: async (marketJobIds = []) => {
+        const headers = await getHeaders();
+        const res = await fetchWithTimeout(`${API_URL}/jobs/interactions/read-all`, {
+            method: 'PUT',
+            headers,
+            body: JSON.stringify({ marketJobIds })
+        });
+        return res.json();
+    },
+
     rejectOffer: async (jobId, proId, reason) => {
         const headers = await getHeaders();
         const res = await fetchWithTimeout(`${API_URL}/jobs/${jobId}/offers/${proId}/reject`, {
             method: 'PUT',
             headers,
             body: JSON.stringify({ reason })
+        });
+        return res.json();
+    },
+
+    markOffersAsSeen: async (jobId) => {
+        const headers = await getHeaders();
+        const res = await fetchWithTimeout(`${API_URL}/jobs/${jobId}/offers/read`, {
+            method: 'PUT',
+            headers
         });
         return res.json();
     },

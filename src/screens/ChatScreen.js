@@ -1,4 +1,4 @@
-import { Feather, Ionicons } from '@expo/vector-icons';
+import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -269,6 +269,13 @@ export default function ChatScreen({ request, currentUser, userMode, onBack, onS
     const isMyMessage = (isActingAsPro && item.sender === 'pro') ||
       (!isActingAsPro && item.sender === 'client');
 
+    // Detect if message is a budget/quote notification
+    const isBudgetNotification = !isMyMessage &&
+      !isActingAsPro &&
+      item.sender === 'pro' &&
+      (item.text || item.content || '').toLowerCase().includes('presupuesto') ||
+      (item.text || item.content || '').toLowerCase().includes('oferta');
+
     return (
       <View style={{ alignSelf: isMyMessage ? 'flex-end' : 'flex-start', maxWidth: '85%', marginBottom: 8, paddingHorizontal: 4 }}>
         <View style={[styles.messageBubble, isMyMessage ? styles.myMessage : styles.theirMessage, item.isTemp && styles.tempMessage]}>
@@ -277,6 +284,28 @@ export default function ChatScreen({ request, currentUser, userMode, onBack, onS
               {item.text || item.content}
             </Text>
           )}
+
+          {isBudgetNotification && (
+            <TouchableOpacity
+              onPress={() => onViewJob && onViewJob(request)}
+              style={{
+                backgroundColor: '#EFF6FF',
+                flexDirection: 'row',
+                alignItems: 'center',
+                padding: 10,
+                borderRadius: 10,
+                marginTop: 8,
+                marginBottom: 4,
+                borderWidth: 1,
+                borderColor: '#BFDBFE'
+              }}
+            >
+              <MaterialCommunityIcons name="file-document-edit-outline" size={20} color="#2563EB" style={{ marginRight: 8 }} />
+              <Text style={{ color: '#2563EB', fontWeight: 'bold', fontSize: 13 }}>VER PRESUPUESTO</Text>
+              <Feather name="chevron-right" size={16} color="#2563EB" style={{ marginLeft: 'auto' }} />
+            </TouchableOpacity>
+          )}
+
           {(item.type === 'media' || (!item.type && item.media)) && (
             <View style={{ borderRadius: 12, overflow: 'hidden', marginBottom: 4 }}>
               <Image source={{ uri: getFullImageUrl(item.media) }} style={{ width: 220, height: 160 }} />
@@ -296,8 +325,8 @@ export default function ChatScreen({ request, currentUser, userMode, onBack, onS
   };
 
   const getPlaceholder = () => {
-    if (messages.length === 0) return "Saludar...";
-    const lastMsg = messages[messages.length - 1];
+    if (localMessages.length === 0) return "Saludar...";
+    const lastMsg = localMessages[localMessages.length - 1];
     if (lastMsg && lastMsg.sender !== (isActingAsPro ? 'pro' : 'client')) return "Responder...";
     return "Preguntar...";
   };

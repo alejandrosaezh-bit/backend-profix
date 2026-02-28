@@ -1,37 +1,49 @@
-import { Feather, FontAwesome5 } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
 import { useEffect, useState } from 'react';
 import {
     Alert,
-    Dimensions,
-    Image,
     Platform,
     ScrollView,
     StyleSheet,
     Text,
-    TextInput,
     TouchableOpacity,
     View
 } from 'react-native';
+import {
+    ProAccountSettings,
+    ProCategoryConfig,
+    ProCategorySelector,
+    ProPersonalInfoCard,
+    ProProfileHeader
+} from '../components/profile/ProProfileComponents';
+import { ProCategorySelectionModal, ProPersonalEditModal, ProProfileEditModal } from '../components/profile/ProProfileModals';
 import { api } from '../utils/api';
+import { getProStatus } from '../utils/helpers';
 import { clearRequests } from '../utils/requests';
-
-const { width } = Dimensions.get('window');
 
 // --- MOCK DATA REMOVED ---
 
 const ICON_MAP = {
     'Hogar': 'home',
-    'Autos': 'tool',
-    'Mascotas': 'smile', // or github/gitlab exist in feather? no. 'smile', 'github'? 'gitlab'? 'heart'? 'anchor'? 'feather'?
-    // Feather icons: home, tool, user, settings, camera, star, etc.
-    // Let's use generic mapping.
+    'Autos': 'truck',
+    'Automotriz': 'truck',
+    'Mascotas': 'heart',
     'Evento': 'calendar',
-    'Salud': 'heart',
-    'Belleza': 'sun',
-    'Tech': 'monitor',
-    'Clases': 'book',
-    'Legal': 'briefcase',
+    'Eventos': 'calendar',
+    'Salud': 'activity',
+    'Salud y Bienestar': 'activity',
+    'Belleza': 'scissors',
+    'Belleza y Estética': 'scissors',
+    'Tech': 'cpu',
+    'Tecnología': 'cpu',
+    'Clases': 'book-open',
+    'Cursos': 'edit-3',
+    'Legal': 'file-text',
+    'Legal y Trámites': 'file-text',
+    'Bienes Raíces': 'map',
+    'Inmuebles': 'map',
     'General': 'grid'
 };
 
@@ -49,17 +61,15 @@ export default function ProfessionalProfileScreen({
     onSwitchMode,
     onViewImage
 }) {
-    // Si no hay usuario (ej: durante logout), no renderizar nada para evitar errores
-    if (!user) return null;
-
     const [isEditing, setIsEditing] = useState(false); // Professional Profile Editing
+    const [isCategorySelectionVisible, setIsCategorySelectionVisible] = useState(false); // Category Selection Modal
     const [isEditingPersonal, setIsEditingPersonal] = useState(false); // Personal Data Editing
     const [personalData, setPersonalData] = useState({}); // Temp state for personal data editing
     const [reviews, setReviews] = useState([]);
-    const [isLoadingReviews, setIsLoadingReviews] = useState(false);
 
     // Location Selector State
     const [expandedStates, setExpandedStates] = useState({});
+    const [showAllStates, setShowAllStates] = useState(false);
 
     const toggleStateExpansion = (stateName) => {
         setExpandedStates(prev => ({
@@ -69,64 +79,59 @@ export default function ProfessionalProfileScreen({
     };
 
     // Fetch reviews when category or user changes
-    const [stats, setStats] = useState({
-        active: 0,
-        completed: 0,
-        successRate: 100
-    });
     const [jobsList, setJobsList] = useState([]); // Store fetched jobs for portfolio display
 
     // Fetch reviews & stats
     useEffect(() => {
         const fetchData = async () => {
             if (!user?._id) return;
-            setIsLoadingReviews(true);
             try {
-                // If owner, ensure we have the latest profile data too
-                if (isOwner) {
-                    // We might want to rely on the parent updating `user`, but let's be safe
-                    // Actually, parent handles user updates via `getMe`.
-                    // The issue might be `profileData` not syncing if `user` prop hasn't changed reference but content did (though React should handle reference changes).
-                    // However, fetching fresh stats is always good.
-                }
-
                 // 1. Reviews
                 const reviewsData = await api.getProfessionalReviews(user._id);
                 setReviews(reviewsData || []);
 
                 // 2. Real Jobs Stats
-                // Fetch all jobs where this user is the assigned professional
-                const allJobs = await api.getJobs({ professional: user._id });
-                if (Array.isArray(allJobs)) {
-                    setJobsList(allJobs); // Save for portfolio usage
-                    const activeCount = allJobs.filter(j => ['En Ejecución', 'Asignada', 'Aceptada', 'in_progress', 'active'].includes(j.status)).length;
-                    const completedCount = allJobs.filter(j => ['Finalizada', 'Cerrado', 'Cerrada', 'TERMINADO', 'completed', 'rated', 'Culminada'].includes(j.status) || j.proFinished).length;
-                    const totalFinished = completedCount + allJobs.filter(j => j.status === 'Cancelada').length; // Suponiendo canceladas cuentan para ratio
+                let allJobs = [];
+                if (isOwner) {
+                    // If owner, get all jobs I'm involved in (Offered, Contacted, Assigned)
+                    allJobs = await api.getMyJobs({ role: 'pro' });
+                } else {
+                    // If public view, only show assigned/completed jobs publically?
+                    // For now keeping it consistent with public availability
+                    allJobs = await api.getJobs({ professional: user._id });
+                }
 
-                    // Success Rate: Finalizadas vs Total Finalizadas (o Total Asignadas históricas?)
-                    // Usaremos: de los trabajos terminados, cuántos fueron exitosos (Finalizada) vs Cancelados/Problema.
-                    // O simplemente el % de trabajos aceptados que se completaron.
-                    // Para simplificar: % de trabajos (Finalizada) sobre (Finalizada + Cancelada). Si es 0, 100%.
+                if (Array.isArray(allJobs)) {
+                    setJobsList(allJobs);
+
+                    let activeCount = 0;
+                    let completedCount = 0;
+                    let cancelledCount = 0;
+
+                    allJobs.forEach(j => {
+                        const status = getProStatus(j, user._id);
+                        if (['GANADA', 'EN EJECUCIÓN', 'ACEPTADO', 'VALIDANDO', 'PRESUPUESTADA', 'CONTACTADA'].includes(status)) {
+                            activeCount++;
+                        } else if (['TERMINADO', 'VALORACIÓN', 'FINALIZADA'].includes(status)) {
+                            completedCount++;
+                        } else if (['PERDIDA', 'RECHAZADA', 'Cerrada'].includes(status)) {
+                            cancelledCount++;
+                        }
+                    });
+
+                    const totalFinished = completedCount + cancelledCount;
                     let successRate = 100;
                     if (totalFinished > 0) {
                         successRate = Math.round((completedCount / totalFinished) * 100);
                     }
 
-                    setStats({
-                        active: activeCount,
-                        completed: completedCount,
-                        successRate: successRate
-                    });
                 }
-
             } catch (error) {
                 console.error("Error fetching pro data:", error);
-            } finally {
-                setIsLoadingReviews(false);
             }
         };
         fetchData();
-    }, [user?._id]);
+    }, [user?._id, isOwner]);
 
     // Estado principal del perfil
     // Estructura esperada: 
@@ -192,8 +197,9 @@ export default function ProfessionalProfileScreen({
     }, [profileData.profiles]);
 
     // Helper: Obtener perfil de la categoría actual
-    const currentCatProfile = profileData.profiles?.[categoryKey];
-    const isCategoryActive = !!currentCatProfile && currentCatProfile.isActive !== false;
+    const realProfile = profileData.profiles?.[categoryKey];
+    const currentCatProfile = realProfile || { bio: '', subcategories: [], gallery: [], zones: [] };
+    const isCategoryActive = !!realProfile && realProfile.isActive !== false;
 
     // --- ORDENAMIENTO DE CATEGORÍAS (Activas primero) ---
     const sortedCategories = [...categories].sort((a, b) => {
@@ -259,23 +265,6 @@ export default function ProfessionalProfileScreen({
         setIsEditingPersonal(true);
     };
 
-    const handleClearChats = async () => {
-        Alert.alert(
-            "Borrar Chats",
-            "¿Estás seguro de que quieres borrar todos los chats y solicitudes locales?",
-            [
-                { text: "Cancelar", style: "cancel" },
-                {
-                    text: "Borrar",
-                    style: "destructive",
-                    onPress: async () => {
-                        await clearRequests();
-                        Alert.alert("Éxito", "Chats borrados. Por favor recarga la app.");
-                    }
-                }
-            ]
-        );
-    };
 
     const toggleCategoryActivation = () => {
         const newProfiles = { ...profileData.profiles };
@@ -324,6 +313,30 @@ export default function ProfessionalProfileScreen({
         }
     };
 
+    const handleResetApplicationData = async () => {
+        Alert.alert(
+            "Limpiar Historial",
+            "¿Estás seguro de que deseas limpiar el historial local? Esto no borrará los datos del servidor.",
+            [
+                { text: "Cancelar", style: "cancel" },
+                {
+                    text: "Limpiar",
+                    style: "destructive",
+                    onPress: async () => {
+                        try {
+                            await clearRequests();
+                            await AsyncStorage.removeItem(`@chats_${profileData.email}`);
+                            Alert.alert("Éxito", "El historial local ha sido limpiado.");
+                        } catch (e) {
+                            console.error(e);
+                            Alert.alert("Error", "No se pudo limpiar el historial.");
+                        }
+                    }
+                }
+            ]
+        );
+    };
+
     const toggleSubcategory = (sub) => {
         if (!isCategoryActive) return;
         const currentSubs = currentCatProfile.subcategories || [];
@@ -357,16 +370,21 @@ export default function ProfessionalProfileScreen({
     };
 
     const updateCurrentProfile = (updates) => {
-        setProfileData(prev => ({
-            ...prev,
-            profiles: {
-                ...prev.profiles,
-                [categoryKey]: {
-                    ...prev.profiles[categoryKey],
-                    ...updates
+        setProfileData(prev => {
+            const currentProfiles = prev.profiles || {};
+            const profileToUpdate = currentProfiles[categoryKey] || { bio: '', subcategories: [], gallery: [], zones: [] };
+
+            return {
+                ...prev,
+                profiles: {
+                    ...currentProfiles,
+                    [categoryKey]: {
+                        ...profileToUpdate,
+                        ...updates
+                    }
                 }
-            }
-        }));
+            };
+        });
     };
 
     const pickMainImage = async () => {
@@ -425,23 +443,12 @@ export default function ProfessionalProfileScreen({
         updateCurrentProfile({ gallery: newGallery });
     };
 
-    // --- RENDER HELPERS ---
-
-    const renderStars = (rating) => (
-        <View style={{ flexDirection: 'row' }}>
-            {[...Array(5)].map((_, i) => (
-                <FontAwesome5 key={i} name="star" solid={i < rating} size={12} color="#FBBF24" />
-            ))}
-        </View>
-    );
-
     // --- CÁLCULO DE ESTADÍSTICAS ESPECÍFICAS DE LA CATEGORÍA ---
     const filteredJobs = jobsList.filter(j => {
         const jCat = (typeof j.category === 'object') ? j.category.name : j.category;
         return jCat === categoryKey;
     });
 
-    const catActiveCount = filteredJobs.filter(j => ['En Ejecución', 'Asignada', 'Aceptada', 'VALIDANDO', 'in_progress'].includes(j.status)).length;
     const catCompletedCount = filteredJobs.filter(j => ['Finalizada', 'Cerrado', 'Cerrada', 'TERMINADO', 'completed', 'rated', 'Culminada'].includes(j.status) || j.proFinished).length;
     const catTotalFinished = catCompletedCount + filteredJobs.filter(j => j.status === 'canceled' || j.status === 'Cancelada').length;
 
@@ -474,396 +481,110 @@ export default function ProfessionalProfileScreen({
         success: `${catSuccessRate}%`
     };
 
-    const globalRating = user.rating || 5.0; // Global Rating from User Object
+    if (!user) return null;
 
     return (
         <View style={styles.container}>
-            {/* Header Redesign */}
-            <View style={styles.header}>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <Text style={styles.headerTitle}>Perfil Profesional</Text>
-                    <View style={{ backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, marginLeft: 10 }}>
-                        <Text style={{ fontSize: 10, color: 'white', fontWeight: 'bold' }}>V33.0</Text>
-                    </View>
-                </View>
-                <TouchableOpacity onPress={onLogout} style={styles.logoutIconButton}>
-                    <Feather name="log-out" size={20} color="white" />
-                </TouchableOpacity>
-            </View>
+            <ProProfileHeader onLogout={onLogout} />
 
             <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+                <ProPersonalInfoCard
+                    isEditingPersonal={isEditingPersonal}
+                    personalData={personalData}
+                    profileData={profileData}
+                    user={user}
+                    pickMainImage={pickMainImage}
+                />
 
-                {/* PERSONAL INFO CARD (FLOATING) */}
-                <View style={styles.profileCard}>
-                    <View style={styles.avatarContainer}>
-                        <TouchableOpacity disabled={!isEditingPersonal} onPress={pickMainImage}>
-                            {(isEditingPersonal ? personalData.avatar : (profileData.avatar || profileData.image)) ? (
-                                <Image
-                                    source={{ uri: isEditingPersonal ? personalData.avatar : (profileData.avatar || profileData.image) }}
-                                    style={styles.avatar}
-                                />
-                            ) : (
-                                <View style={[styles.avatar, { justifyContent: 'center', alignItems: 'center' }]}>
-                                    <Feather name="user" size={40} color="#9CA3AF" />
-                                </View>
-                            )}
+                <View style={[styles.sectionContainer, { marginTop: 10, shadowColor: '#2563EB', shadowOpacity: 0.1, shadowRadius: 10, elevation: 5 }]}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', marginBottom: 15, paddingRight: 10 }}>
+                        <TouchableOpacity
+                            onPress={() => setIsCategorySelectionVisible(true)}
+                            style={{
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                backgroundColor: '#EFF6FF',
+                                paddingHorizontal: 16,
+                                paddingVertical: 10,
+                                borderRadius: 14,
+                                borderWidth: 1,
+                                borderColor: '#DBEAFE'
+                            }}
+                        >
+                            <Feather name="plus-circle" size={16} color="#2563EB" style={{ marginRight: 8 }} />
+                            <Text style={{ color: '#2563EB', fontWeight: 'bold', fontSize: 13 }}>Configurar mis Servicios</Text>
                         </TouchableOpacity>
-                        {isEditingPersonal && (
-                            <TouchableOpacity style={styles.editBadge} onPress={pickMainImage}>
-                                <Feather name="camera" size={14} color="white" />
-                            </TouchableOpacity>
-                        )}
                     </View>
 
-                    {isEditingPersonal ? (
-                        <View style={styles.formContainer}>
-                            <View style={styles.inputGroup}>
-                                <Text style={styles.inputLabel}>Nombre Completo</Text>
-                                <TextInput
-                                    style={styles.textInput}
-                                    value={personalData.name}
-                                    onChangeText={(t) => setPersonalData(p => ({ ...p, name: t }))}
-                                />
-                            </View>
-                            <View style={styles.inputGroup}>
-                                <Text style={styles.inputLabel}>Teléfono</Text>
-                                <TextInput
-                                    style={styles.textInput}
-                                    value={personalData.phone}
-                                    onChangeText={(t) => setPersonalData(p => ({ ...p, phone: t }))}
-                                    placeholder="+56 9 1234 5678"
-                                    keyboardType="phone-pad"
-                                />
-                            </View>
-                            <View style={styles.inputGroup}>
-                                <Text style={styles.inputLabel}>Cédula (Solo lectura)</Text>
-                                <TextInput
-                                    style={[styles.textInput, { backgroundColor: '#F3F4F6', color: '#6B7280' }]}
-                                    value={personalData.cedula}
-                                    editable={false}
-                                />
-                            </View>
-                            <View style={styles.rowButtons}>
-                                <TouchableOpacity style={styles.btnCancel} onPress={() => setIsEditingPersonal(false)}>
-                                    <Text style={styles.btnTextCancel}>Cancelar</Text>
-                                </TouchableOpacity>
-                                <TouchableOpacity style={styles.btnSave} onPress={handleSavePersonal}>
-                                    <Text style={styles.btnTextSave}>Guardar Datos</Text>
-                                </TouchableOpacity>
-                            </View>
-                        </View>
-                    ) : (
-                        <>
-                            <Text style={styles.userName}>{profileData.name || 'Profesional'}</Text>
-                            <Text style={styles.userEmail}>{profileData.email}</Text>
-                            <View style={styles.ratingContainer}>
-                                <Feather name="star" size={14} color="#D97706" style={{ marginRight: 4 }} />
-                                <Text style={styles.ratingText}>{globalRating} (General)</Text>
-                            </View>
+                    <ProCategorySelector
+                        sortedCategories={sortedCategories}
+                        profileData={profileData}
+                        selectedCategory={selectedCategory}
+                        setSelectedCategory={setSelectedCategory}
+                        ICON_MAP={ICON_MAP}
+                    />
 
-                            {!isEditing && (
-                                <TouchableOpacity style={styles.editPersonalButton} onPress={startEditingPersonal}>
-                                    <Text style={styles.editPersonalButtonText}>Editar Datos Personales</Text>
-                                </TouchableOpacity>
-                            )}
-                        </>
-                    )}
+                    <ProCategoryConfig
+                        isCategoryActive={isCategoryActive}
+                        categoryStats={categoryStats}
+                        currentCatProfile={currentCatProfile}
+                        catReviews={catReviews}
+                        selectedCategory={selectedCategory}
+                        setIsEditing={setIsEditing}
+                        onViewImage={onViewImage}
+                    />
                 </View>
 
-                {/* PROFESSIONAL SECTION (HIDDEN WHILE EDITING PERSONAL) */}
-                {!isEditingPersonal && (
-                    <View style={styles.sectionContainer}>
+                <ProAccountSettings
+                    startEditingPersonal={startEditingPersonal}
+                    handleResetApplicationData={handleResetApplicationData}
+                    onSwitchMode={onSwitchMode}
+                />
 
-                        {/* HEADER DE SECCIÓN */}
-                        <View style={styles.sectionHeader}>
-                            <Text style={styles.sectionTitle}>Tu Perfil Profesional</Text>
-                            {!isEditing && (
-                                <TouchableOpacity onPress={() => setIsEditing(true)}>
-                                    <Text style={{ color: '#2563EB', fontWeight: 'bold' }}>Gestionar / Editar</Text>
-                                </TouchableOpacity>
-                            )}
-                        </View>
+                {/* MODAL 1: SELECTOR DE CATEGORÍAS REDISEÑADO */}
+                <ProCategorySelectionModal
+                    visible={isCategorySelectionVisible}
+                    onClose={() => setIsCategorySelectionVisible(false)}
+                    categories={categories}
+                    profileData={profileData}
+                    ICON_MAP={ICON_MAP}
+                    setSelectedCategory={setSelectedCategory}
+                    setIsEditing={setIsEditing}
+                />
 
-                        {/* CATEGORY SELECTOR */}
-                        <View style={{ marginBottom: 20 }}>
-                            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryList}>
-                                {sortedCategories.map((cat) => {
-                                    const catKey = cat.fullName || cat.name;
-                                    const isActive = !!profileData.profiles?.[catKey] && profileData.profiles[catKey].isActive !== false;
-                                    const isSelected = selectedCategory.id === cat.id;
+                {/* MODAL 2: EDICIÓN PROFESIONAL */}
+                <ProProfileEditModal
+                    visible={isEditing}
+                    onClose={() => setIsEditing(false)}
+                    selectedCategory={selectedCategory}
+                    isCategoryActive={isCategoryActive}
+                    toggleCategoryActivation={toggleCategoryActivation}
+                    allSubcategories={allSubcategories}
+                    categoryKey={categoryKey}
+                    currentCatProfile={currentCatProfile}
+                    toggleSubcategory={toggleSubcategory}
+                    allZones={allZones}
+                    showAllStates={showAllStates}
+                    expandedStates={expandedStates}
+                    getSelectedMunicipalitiesInState={getSelectedMunicipalitiesInState}
+                    toggleStateExpansion={toggleStateExpansion}
+                    toggleMunicipality={toggleMunicipality}
+                    setShowAllStates={setShowAllStates}
+                    updateCurrentProfile={updateCurrentProfile}
+                    pickImage={pickImage}
+                    removeImage={removeImage}
+                    handleSaveProfessional={handleSaveProfessional}
+                />
 
-                                    // View Mode: Show only active (unless none active)
-                                    if (!isEditing && !isActive && sortedCategories.some(c => !!profileData.profiles?.[(c.fullName || c.name)]?.isActive)) return null;
-
-                                    return (
-                                        <TouchableOpacity
-                                            key={cat.id}
-                                            style={[
-                                                styles.categoryCard,
-                                                isSelected && styles.categoryCardSelected,
-                                                isActive && !isSelected && { borderColor: '#BBF7D0', backgroundColor: '#F0FDF4' }
-                                            ]}
-                                            onPress={() => setSelectedCategory(cat)}
-                                        >
-                                            <View style={styles.categoryIcon}>
-                                                {typeof cat.icon === 'function' ? (
-                                                    <cat.icon size={24} color={isSelected ? '#2563EB' : (isActive ? '#16A34A' : '#6B7280')} />
-                                                ) : (
-                                                    <Feather
-                                                        name={cat.icon || ICON_MAP[cat.name] || 'grid'}
-                                                        size={24}
-                                                        color={isSelected ? '#2563EB' : (isActive ? '#16A34A' : '#6B7280')}
-                                                    />
-                                                )}
-                                            </View>
-                                            <Text style={[styles.categoryName, isSelected && styles.categoryNameSelected]}>{cat.name}</Text>
-                                        </TouchableOpacity>
-                                    );
-                                })}
-                            </ScrollView>
-                        </View>
-
-                        {/* CONTENT FOR SELECTED CATEGORY */}
-                        {isEditing ? (
-                            // --- EDITING MODE ---
-                            <View style={styles.activationContainer}>
-                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <Text style={[styles.sectionTitle, { fontSize: 18 }]}>{selectedCategory.name}</Text>
-                                    <TouchableOpacity
-                                        onPress={toggleCategoryActivation}
-                                        style={{ backgroundColor: isCategoryActive ? '#FEF2F2' : '#F0FDF4', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 }}
-                                    >
-                                        <Text style={{ color: isCategoryActive ? '#EF4444' : '#16A34A', fontSize: 12, fontWeight: 'bold' }}>
-                                            {isCategoryActive ? 'Pausar Categoría' : 'Activar Categoría'}
-                                        </Text>
-                                    </TouchableOpacity>
-                                </View>
-
-                                {/* Step 1: Subcategories */}
-                                <Text style={styles.stepTitle}>1. Especialidades</Text>
-                                <View style={styles.chipsContainer}>
-                                    {(allSubcategories[categoryKey] || []).map((sub, i) => {
-                                        const subName = typeof sub === 'object' ? sub.name : sub;
-                                        const isSelected = currentCatProfile.subcategories?.includes(subName);
-                                        return (
-                                            <TouchableOpacity
-                                                key={i}
-                                                style={[styles.chip, isSelected && styles.chipSelected]}
-                                                onPress={() => toggleSubcategory(subName)}
-                                            >
-                                                <Text style={[styles.chipText, isSelected && styles.chipTextSelected]}>{subName}</Text>
-                                            </TouchableOpacity>
-                                        );
-                                    })}
-                                </View>
-
-                                {/* Step 2: Location (Improved) */}
-                                <Text style={styles.stepTitle}>2. Zonas de Cobertura</Text>
-                                <View style={{ borderWidth: 1, borderColor: '#F3F4F6', borderRadius: 10, overflow: 'hidden' }}>
-                                    {Object.keys(allZones).map((state) => {
-                                        const municipalities = allZones[state];
-                                        const isExpanded = expandedStates[state];
-                                        const selectedInState = getSelectedMunicipalitiesInState(state);
-                                        const hasSelection = selectedInState.length > 0;
-
-                                        return (
-                                            <View key={state}>
-                                                <TouchableOpacity
-                                                    style={[styles.stateItem, { paddingHorizontal: 12, backgroundColor: hasSelection ? '#F8FAFC' : 'white' }]}
-                                                    onPress={() => toggleStateExpansion(state)}
-                                                >
-                                                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                                        <Feather name={isExpanded ? "chevron-down" : "chevron-right"} size={18} color="#6B7280" />
-                                                        <Text style={[styles.stateName, hasSelection && { color: '#2563EB', fontWeight: 'bold' }]}>
-                                                            {state}
-                                                            {hasSelection && <Text style={{ fontWeight: 'normal', color: '#6B7280' }}> ({selectedInState.length})</Text>}
-                                                        </Text>
-                                                    </View>
-                                                </TouchableOpacity>
-
-                                                {isExpanded && (
-                                                    <View style={styles.municipalityList}>
-                                                        <View style={styles.chipsContainer}>
-                                                            {municipalities.map(muni => {
-                                                                const fullZone = `${muni}, ${state}`;
-                                                                const isSelected = currentCatProfile.zones?.includes(fullZone);
-                                                                return (
-                                                                    <TouchableOpacity
-                                                                        key={muni}
-                                                                        style={[styles.chip, isSelected && styles.chipSelected, { transform: [{ scale: 0.95 }] }]}
-                                                                        onPress={() => toggleMunicipality(muni, state)}
-                                                                    >
-                                                                        <Text style={[styles.chipText, isSelected && styles.chipTextSelected, { fontSize: 12 }]}>{muni}</Text>
-                                                                    </TouchableOpacity>
-                                                                );
-                                                            })}
-                                                        </View>
-                                                    </View>
-                                                )}
-                                            </View>
-                                        );
-                                    })}
-                                </View>
-
-                                {/* Step 3: Bio */}
-                                <Text style={styles.stepTitle}>3. Presentación</Text>
-                                <TextInput
-                                    style={styles.bioInput}
-                                    multiline
-                                    placeholder="Cuéntale a los clientes sobre tu experiencia..."
-                                    value={currentCatProfile.bio}
-                                    onChangeText={(t) => updateCurrentProfile({ bio: t })}
-                                />
-
-                                {/* Step 4: Gallery */}
-                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 15 }}>
-                                    <Text style={styles.stepTitle}>4. Fotos de Presentación</Text>
-                                    <TouchableOpacity onPress={pickImage}>
-                                        <Text style={{ color: '#2563EB', fontWeight: 'bold', fontSize: 13 }}>+ Agregar Foto</Text>
-                                    </TouchableOpacity>
-                                </View>
-                                <ScrollView horizontal style={{ marginBottom: 10 }}>
-                                    {(currentCatProfile.gallery || []).map((img, i) => (
-                                        <View key={i} style={{ position: 'relative', marginRight: 10 }}>
-                                            <Image source={{ uri: img }} style={styles.galleryImage} />
-                                            <TouchableOpacity style={styles.deleteImageButton} onPress={() => removeImage(i)}>
-                                                <Feather name="x" size={12} color="white" />
-                                            </TouchableOpacity>
-                                        </View>
-                                    ))}
-                                </ScrollView>
-
-                                {/* Action Buttons */}
-                                <View style={styles.rowButtons}>
-                                    <TouchableOpacity style={styles.btnCancel} onPress={() => setIsEditing(false)}>
-                                        <Text style={styles.btnTextCancel}>Descartar Cambios</Text>
-                                    </TouchableOpacity>
-                                    <TouchableOpacity style={styles.btnSave} onPress={handleSaveProfessional}>
-                                        <Text style={styles.btnTextSave}>Guardar Perfil</Text>
-                                    </TouchableOpacity>
-                                </View>
-                            </View>
-                        ) : (
-                            // --- VIEW MODE ---
-                            <View>
-                                {isCategoryActive ? (
-                                    <>
-                                        {/* Stats */}
-                                        <View style={styles.statsGrid}>
-                                            <View style={styles.statBox}>
-                                                <Text style={styles.statNumber}>{categoryStats.jobs}</Text>
-                                                <Text style={styles.statLabelSmall}>Trabajos</Text>
-                                            </View>
-                                            <View style={styles.statBox}>
-                                                <Text style={styles.statNumber}>{categoryStats.rating}</Text>
-                                                <Text style={styles.statLabelSmall}>Valoración</Text>
-                                            </View>
-                                            <View style={styles.statBox}>
-                                                <Text style={styles.statNumber}>{categoryStats.success}</Text>
-                                                <Text style={styles.statLabelSmall}>Éxito</Text>
-                                            </View>
-                                        </View>
-
-                                        {/* Info Sections */}
-                                        <View style={styles.infoSection}>
-                                            <Text style={styles.infoLabel}>Bio</Text>
-                                            <Text style={styles.infoText}>{currentCatProfile.bio || 'Sin información.'}</Text>
-                                        </View>
-
-                                        <View style={styles.infoSection}>
-                                            <Text style={styles.infoLabel}>Cobertura</Text>
-                                            <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-                                                {(currentCatProfile.zones || []).map((zone, i) => (
-                                                    <View key={i} style={styles.zoneTag}>
-                                                        <Text style={styles.zoneTagText}>{zone}</Text>
-                                                    </View>
-                                                ))}
-                                                {(!currentCatProfile.zones?.length) && <Text style={{ color: '#9CA3AF' }}>Sin zonas definidas</Text>}
-                                            </View>
-                                        </View>
-
-                                        <View style={styles.infoSection}>
-                                            <Text style={styles.infoLabel}>Especialidades</Text>
-                                            <View style={styles.chipsContainer}>
-                                                {(currentCatProfile.subcategories || []).map((sub, i) => (
-                                                    <View key={i} style={styles.chip}>
-                                                        <Text style={styles.chipText}>{sub}</Text>
-                                                    </View>
-                                                ))}
-                                            </View>
-                                        </View>
-
-                                        {/* Portfolio (View Only) */}
-                                        <Text style={styles.infoLabel}>Portafolio</Text>
-                                        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 20 }}>
-                                            {(currentCatProfile.gallery || []).map((img, i) => (
-                                                <TouchableOpacity key={i} onPress={() => onViewImage && onViewImage(img)}>
-                                                    <Image source={{ uri: img }} style={styles.galleryImage} />
-                                                </TouchableOpacity>
-                                            ))}
-                                            {(!currentCatProfile.gallery?.length) && <Text style={{ color: '#9CA3AF' }}>Sin fotos.</Text>}
-                                        </ScrollView>
-
-                                        {/* Reviews */}
-                                        <Text style={styles.infoLabel}>Reseñas Recientes</Text>
-                                        {catReviews.length > 0 ? catReviews.slice(0, 3).map((r, i) => (
-                                            <View key={i} style={styles.reviewCard}>
-                                                <Text style={{ fontWeight: 'bold' }}>{r.reviewer?.name || 'Cliente'}</Text>
-                                                <Text>{r.comment}</Text>
-                                            </View>
-                                        )) : <Text style={{ color: '#9CA3AF' }}>No hay reseñas aún.</Text>}
-
-                                    </>
-                                ) : (
-                                    <View style={styles.emptyState}>
-                                        <Feather name="briefcase" size={40} color="#CBD5E1" />
-                                        <Text style={styles.emptyStateText}>Perfil inactivo en {selectedCategory.name}</Text>
-                                        <Text style={styles.emptyStateSubtext}>Actívalo para empezar a recibir trabajos en esta categoría.</Text>
-                                        <TouchableOpacity
-                                            style={[styles.btnSave, { marginTop: 15, width: '100%' }]}
-                                            onPress={() => setIsEditing(true)}
-                                        >
-                                            <Text style={styles.btnTextSave}>Comenzar Activación</Text>
-                                        </TouchableOpacity>
-                                    </View>
-                                )}
-                            </View>
-                        )}
-                    </View>
-                )}
-
-                {/* SETTINGS LINKS & SWITCH MODE */}
-                <View style={[styles.sectionContainer, { marginTop: 10 }]}>
-                    <Text style={styles.sectionTitle}>Ajustes de Cuenta</Text>
-
-                    <TouchableOpacity style={styles.settingRow} onPress={startEditingPersonal}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                            <View style={[styles.iconBox, { backgroundColor: '#F3F4F6' }]}>
-                                <Feather name="user" size={20} color="#4B5563" />
-                            </View>
-                            <Text style={styles.settingText}>Editar Mis Datos Personales</Text>
-                        </View>
-                        <Feather name="chevron-right" size={20} color="#9CA3AF" />
-                    </TouchableOpacity>
-
-                    <TouchableOpacity style={styles.settingRow}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                            <View style={[styles.iconBox, { backgroundColor: '#E0E7FF' }]}>
-                                <Feather name="bell" size={20} color="#4F46E5" />
-                            </View>
-                            <Text style={styles.settingText}>Notificaciones</Text>
-                        </View>
-                        <Feather name="chevron-right" size={20} color="#9CA3AF" />
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                        style={styles.switchModeButton}
-                        onPress={() => onSwitchMode && onSwitchMode('client')}
-                    >
-                        <Feather name="user" size={18} color="white" style={{ marginRight: 8 }} />
-                        <Text style={styles.switchModeButtonText}>Cambiar a Cliente</Text>
-                    </TouchableOpacity>
-                </View>
+                {/* MODAL 3: DATOS PERSONALES */}
+                <ProPersonalEditModal
+                    visible={isEditingPersonal}
+                    onClose={() => setIsEditingPersonal(false)}
+                    personalData={personalData}
+                    setPersonalData={setPersonalData}
+                    pickMainImage={pickMainImage}
+                    handleSavePersonal={handleSavePersonal}
+                />
             </ScrollView>
         </View>
     );
@@ -871,25 +592,46 @@ export default function ProfessionalProfileScreen({
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#FFFFFF' },
-    scrollContent: { paddingBottom: 100 },
+    scrollContent: { paddingBottom: 20 },
 
     // Header
     header: {
         backgroundColor: '#2563EB',
-        paddingHorizontal: 24,
-        paddingTop: 10,
-        paddingBottom: 22,
+        paddingTop: Platform.OS === 'ios' ? 44 : 15,
+        paddingBottom: 25,
+        paddingHorizontal: 20,
         borderBottomLeftRadius: 32,
         borderBottomRightRadius: 32,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between'
+        elevation: 0,
     },
-    headerTitle: { fontSize: 24, fontWeight: 'bold', color: 'white' },
-    logoutIconButton: {
-        width: 48,
-        height: 48,
-        borderRadius: 24,
+    headerTop: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    },
+    headerTitle: {
+        fontSize: 28,
+        fontWeight: '800',
+        color: 'white',
+        letterSpacing: 0.5,
+    },
+    versionBadge: {
+        backgroundColor: 'rgba(255,255,255,0.2)',
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+        borderRadius: 6,
+        marginLeft: 10,
+        marginTop: 4
+    },
+    versionText: {
+        fontSize: 10,
+        color: 'white',
+        fontWeight: 'bold'
+    },
+    logoutIconButtonHeader: {
+        width: 44,
+        height: 44,
+        borderRadius: 22,
         backgroundColor: 'rgba(255,255,255,0.2)',
         justifyContent: 'center',
         alignItems: 'center'
@@ -959,15 +701,18 @@ const styles = StyleSheet.create({
         fontSize: 13,
     },
     editPersonalButton: {
-        backgroundColor: '#F3F4F6',
-        paddingHorizontal: 16,
+        backgroundColor: 'transparent',
+        paddingHorizontal: 24,
         paddingVertical: 8,
         borderRadius: 20,
+        borderWidth: 1,
+        borderColor: '#2563EB',
+        marginTop: 8
     },
     editPersonalButtonText: {
-        color: '#4B5563',
-        fontWeight: '600',
-        fontSize: 13
+        color: '#2563EB',
+        fontWeight: 'bold',
+        fontSize: 14
     },
 
     // Forms
@@ -1028,9 +773,11 @@ const styles = StyleSheet.create({
         marginBottom: 15
     },
     sectionTitle: {
-        fontSize: 18,
+        fontSize: 24,
         fontWeight: 'bold',
-        color: '#111827'
+        color: '#111827',
+        marginBottom: 16,
+        paddingHorizontal: 16,
     },
 
     // Category Selector (Professional Mode)
@@ -1097,25 +844,37 @@ const styles = StyleSheet.create({
         flexWrap: 'wrap',
         gap: 8
     },
+    gridContainer: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        justifyContent: 'center',
+        width: '100%',
+        gap: 10
+    },
     chip: {
-        paddingVertical: 6,
-        paddingHorizontal: 12,
+        width: '30%',
+        paddingVertical: 8,
         borderRadius: 20,
-        backgroundColor: '#F3F4F6',
+        backgroundColor: '#EFF6FF',
         borderWidth: 1,
-        borderColor: '#E5E7EB'
+        borderColor: '#DBEAFE',
+        justifyContent: 'center',
+        alignItems: 'center'
     },
     chipSelected: {
         backgroundColor: '#DBEAFE',
-        borderColor: '#BFDBFE'
+        borderColor: '#2563EB'
     },
     chipText: {
-        fontSize: 13,
-        color: '#4B5563'
+        fontSize: 11,
+        color: '#2563EB',
+        fontWeight: '600',
+        textAlign: 'center',
+        paddingHorizontal: 4
     },
     chipTextSelected: {
         color: '#2563EB',
-        fontWeight: '600'
+        fontWeight: 'bold'
     },
 
     // Location Selector
@@ -1165,16 +924,21 @@ const styles = StyleSheet.create({
         lineHeight: 22
     },
     zoneTag: {
-        backgroundColor: '#EEF2FF',
-        paddingHorizontal: 8,
-        paddingVertical: 4,
-        borderRadius: 6,
-        marginRight: 6,
-        marginBottom: 6
+        width: '46%',
+        backgroundColor: '#EFF6FF',
+        paddingVertical: 8,
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: '#DBEAFE',
+        justifyContent: 'center',
+        alignItems: 'center'
     },
     zoneTagText: {
-        fontSize: 12,
-        color: '#4F46E5'
+        fontSize: 11,
+        color: '#2563EB',
+        fontWeight: '600',
+        textAlign: 'center',
+        paddingHorizontal: 4
     },
 
     // Stats
@@ -1221,14 +985,14 @@ const styles = StyleSheet.create({
         backgroundColor: 'white',
         padding: 16,
         borderRadius: 24,
-        marginBottom: 8,
+        marginBottom: 12,
         borderWidth: 1,
         borderColor: '#EFF6FF',
         shadowColor: '#2563EB',
         shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.05,
+        shadowOpacity: 0.1,
         shadowRadius: 10,
-        elevation: 3,
+        elevation: 5,
     },
     iconBox: {
         width: 36,
@@ -1251,8 +1015,8 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         alignSelf: 'center',
-        marginTop: 20,
-        marginBottom: 20,
+        marginTop: 12,
+        marginBottom: 0,
         shadowColor: '#EA580C',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.2,
@@ -1263,5 +1027,87 @@ const styles = StyleSheet.create({
         color: 'white',
         fontWeight: 'bold',
         fontSize: 16
+    },
+
+    // Modal Styles
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.6)',
+        justifyContent: 'flex-end'
+    },
+    modalContent: {
+        backgroundColor: 'white',
+        borderTopLeftRadius: 32,
+        borderTopRightRadius: 32,
+        padding: 24,
+        width: '100%',
+        height: '90%',
+        maxHeight: '100%'
+    },
+    modalTitle: {
+        fontSize: 22,
+        fontWeight: 'bold',
+        color: '#111827'
+    },
+    modalLabel: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        color: '#374151',
+        marginBottom: 8,
+        marginTop: 18,
+    },
+    modalInput: {
+        backgroundColor: '#F9FAFB',
+        borderWidth: 1,
+        borderColor: '#E5E7EB',
+        borderRadius: 14,
+        padding: 16,
+        fontSize: 16,
+        color: '#111827',
+        minHeight: 56,
+    },
+    modalActionButton: {
+        padding: 16,
+        borderRadius: 14,
+        alignItems: 'center',
+    },
+    modalActionButtonText: {
+        color: 'white',
+        fontWeight: 'bold',
+        fontSize: 16,
+    },
+
+    // Show More
+    showMoreContainer: {
+        position: 'relative',
+        height: 60,
+        justifyContent: 'flex-end',
+        alignItems: 'center',
+        backgroundColor: 'white'
+    },
+    fadeOverlay: {
+        position: 'absolute',
+        top: -40,
+        left: 0,
+        right: 0,
+        height: 60,
+        backgroundColor: 'rgba(255,255,255,0.7)',
+    },
+    showMoreButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 12,
+        paddingHorizontal: 20,
+        backgroundColor: '#EFF6FF',
+        borderRadius: 20,
+        marginBottom: 10,
+        borderWidth: 1,
+        borderColor: '#DBEAFE'
+    },
+    showMoreText: {
+        color: '#2563EB',
+        fontWeight: '600',
+        fontSize: 14,
+        marginRight: 6
     }
 });
