@@ -8,6 +8,7 @@ import {
     Animated,
     Easing,
     Image,
+    KeyboardAvoidingView,
     LogBox,
     Modal,
     Platform,
@@ -1422,22 +1423,24 @@ function MainApp() {
 
     if (isLoading) {
         return (
-            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'white' }}>
+            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F8F9FA' }}>
+                {/* Mascot Image Active */}
+                <Image source={require('./assets/mascot.png')} style={{ width: 250, height: 250, resizeMode: 'contain', marginBottom: 20 }} />
+
                 <Animated.View style={{ transform: [{ rotate: spin }] }}>
-                    <View style={{ width: 60, height: 60, justifyContent: 'center', alignItems: 'center' }}>
-                        {/* Círculo Bicolor Base */}
+                    <View style={{ width: 80, height: 80, justifyContent: 'center', alignItems: 'center' }}>
                         <View style={{
-                            width: 50, height: 50, borderRadius: 25,
-                            borderWidth: 5, borderColor: '#2563EB',
+                            width: 70, height: 70, borderRadius: 35,
+                            borderWidth: 6, borderColor: '#2563EB',
                             borderTopColor: '#EA580C', borderRightColor: '#EA580C',
                             transform: [{ rotate: '-45deg' }]
                         }} />
-                        {/* Cabezas de Flecha */}
-                        <FontAwesome5 name="caret-right" size={16} color="#EA580C" style={{ position: 'absolute', top: 1, right: 10 }} />
-                        <FontAwesome5 name="caret-left" size={16} color="#2563EB" style={{ position: 'absolute', bottom: 1, left: 10 }} />
                     </View>
                 </Animated.View>
-                <Text style={{ marginTop: 25, color: '#1E293B', fontWeight: 'bold', fontSize: 18, letterSpacing: 0.5 }}>Iniciando ProFix...</Text>
+
+                <Text style={{ marginTop: 30, color: '#1E293B', fontWeight: 'bold', fontSize: 20, letterSpacing: 0.5 }}>
+                    Iniciando Profesional Cercano...
+                </Text>
             </View>
         );
     }
@@ -1502,41 +1505,47 @@ function MainApp() {
             <View style={{ flex: 1 }}>
                 {/* CLIENTE HOME */}
                 {userMode === 'client' && view === 'home' && (
-                    <ScrollView style={{ flex: 1, backgroundColor: '#F8F9FA' }} contentContainerStyle={{ paddingBottom: 0 }}>
-                        <SectionDivider />
-                        <ServiceForm
-                            onSubmit={createRequest} // Acceso directo para pruebas, idealmente pasar por handleCreateNewRequest
-                            isLoggedIn={isLoggedIn}
-                            onTriggerLogin={(data) => { setPendingRequestData(data.pendingData); setShowAuth(true); }}
-                            initialCategory={selectedCategory?.name}
-                            initialSubcategory={selectedSubcategory}
-                            categories={categories}
-                            allSubcategories={
-                                categories.reduce((acc, cat) => ({ ...acc, [cat.name]: cat.subcategories }), {})
-                            }
-                            currentUser={currentUser}
-                            dynamicCopy={dynamicCopy}
-                        />
-                        <SectionDivider />
-                        <UrgencyBanner
-                            categories={categories}
-                            onActionPress={(cat, sub) => {
-                                setSelectedCategory(categories.find(c => c.name === cat));
-                                setSelectedSubcategory(sub);
-                            }}
-                            onPress={() => {
-                                showAlert("Urgencia", "Selecciona una categoría para respuesta inmediata.");
-                            }}
-                        />
-                        <SectionDivider />
-                        <HomeSections
-                            onSelectCategory={(cat) => { setSelectedCategory(cat); setView('category-detail'); }}
-                            onSelectPost={(post) => { setSelectedBlogPost(post); setView('blog-post'); }}
-                            categories={categories}
-                            articles={articles}
-                        />
-                        <SectionDivider />
-                    </ScrollView>
+                    <KeyboardAvoidingView
+                        style={{ flex: 1 }}
+                        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                        keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}
+                    >
+                        <ScrollView style={{ flex: 1, backgroundColor: '#F8F9FA' }} contentContainerStyle={{ paddingBottom: 100 }} keyboardShouldPersistTaps="handled">
+                            <SectionDivider />
+                            <ServiceForm
+                                onSubmit={createRequest} // Acceso directo para pruebas, idealmente pasar por handleCreateNewRequest
+                                isLoggedIn={isLoggedIn}
+                                onTriggerLogin={(data) => { setPendingRequestData(data.pendingData); setShowAuth(true); }}
+                                initialCategory={selectedCategory?.name}
+                                initialSubcategory={selectedSubcategory}
+                                categories={categories}
+                                allSubcategories={
+                                    categories.reduce((acc, cat) => ({ ...acc, [cat.name]: cat.subcategories }), {})
+                                }
+                                currentUser={currentUser}
+                                dynamicCopy={dynamicCopy}
+                            />
+                            <SectionDivider />
+                            <UrgencyBanner
+                                categories={categories}
+                                onActionPress={(cat, sub) => {
+                                    setSelectedCategory(categories.find(c => c.name === cat));
+                                    setSelectedSubcategory(sub);
+                                }}
+                                onPress={() => {
+                                    showAlert("Urgencia", "Selecciona una categoría para respuesta inmediata.");
+                                }}
+                            />
+                            <SectionDivider />
+                            <HomeSections
+                                onSelectCategory={(cat) => { setSelectedCategory(cat); setView('category-detail'); }}
+                                onSelectPost={(post) => { setSelectedBlogPost(post); setView('blog-post'); }}
+                                categories={categories}
+                                articles={articles}
+                            />
+                            <SectionDivider />
+                        </ScrollView>
+                    </KeyboardAvoidingView>
                 )}
 
                 {/* GLOBAL OVERLAY LOADER FOR OPENING DETAILS */}

@@ -3,7 +3,6 @@ import * as ImagePicker from 'expo-image-picker';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
-const API_URL = 'http://localhost:5000/api'; // Adjust if needed
 
 export default function ManageJobModal({ visible, onClose, job, onUpdate }) {
     const [activeTab, setActiveTab] = useState('agenda'); // agenda, photos, payments

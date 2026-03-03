@@ -25,6 +25,7 @@ const ServiceForm = ({ onSubmit, isLoggedIn, onTriggerLogin, initialCategory, in
     const [showSubcategoryGrid, setShowSubcategoryGrid] = useState(false);
     const [locationDetected, setLocationDetected] = useState(false);
     const titleInputRef = useRef(null);
+    const descriptionInputRef = useRef(null);
     const locationInputRef = useRef(null);
 
     useEffect(() => {
@@ -50,6 +51,10 @@ const ServiceForm = ({ onSubmit, isLoggedIn, onTriggerLogin, initialCategory, in
         setFormData(prev => ({ ...prev, location: zone }));
         setShowSuggestions(false);
         setLocationDetected(true);
+        // Cierra el teclado para mostrar la sección de adjuntos y el botón naranja
+        if (locationInputRef.current) {
+            locationInputRef.current.blur();
+        }
     };
 
     const handleLocateMe = async () => {
@@ -261,8 +266,8 @@ const ServiceForm = ({ onSubmit, isLoggedIn, onTriggerLogin, initialCategory, in
                     categories={categories}
                     onSelect={(c) => {
                         setFormData({ ...formData, category: c, subcategory: '' });
-                        // Auto-open Subcategories after short delay to allow state update
-                        setTimeout(() => setShowSubcategoryGrid(true), 300);
+                        // Aumentar delay a 600ms para asegurar que el Modal anterior se cierre por completo en Android
+                        setTimeout(() => setShowSubcategoryGrid(true), 600);
                     }}
                 />
 
@@ -310,17 +315,31 @@ const ServiceForm = ({ onSubmit, isLoggedIn, onTriggerLogin, initialCategory, in
                                 placeholderTextColor="#9CA3AF"
                                 value={formData.title}
                                 onChangeText={t => setFormData({ ...formData, title: t })}
+                                returnKeyType="next"
+                                onSubmitEditing={() => {
+                                    if (descriptionInputRef.current) {
+                                        descriptionInputRef.current.focus();
+                                    }
+                                }}
                             />
                         </View>
                         <View style={styles.inputGroup}>
                             <Text style={styles.label}>Explícanos qué sucede</Text>
                             <TextInput
+                                ref={descriptionInputRef}
                                 style={[styles.inputBox, { height: 120, textAlignVertical: 'top' }]}
                                 multiline
                                 placeholder={placeholders.description}
                                 placeholderTextColor="#9CA3AF"
                                 value={formData.description}
                                 onChangeText={t => setFormData({ ...formData, description: t })}
+                                blurOnSubmit={true}
+                                returnKeyType="next"
+                                onSubmitEditing={() => {
+                                    if (locationInputRef.current) {
+                                        locationInputRef.current.focus();
+                                    }
+                                }}
                             />
                         </View>
                     </>
@@ -341,6 +360,13 @@ const ServiceForm = ({ onSubmit, isLoggedIn, onTriggerLogin, initialCategory, in
                                 placeholderTextColor="#9CA3AF"
                                 value={formData.location}
                                 onChangeText={handleLocationChange}
+                                returnKeyType="done"
+                                onSubmitEditing={() => {
+                                    // Cuando se le da Enter/Realiz en ubicación, baja el teclado para ver los anexos
+                                    if (locationInputRef.current) {
+                                        locationInputRef.current.blur();
+                                    }
+                                }}
                             />
                             {locationDetected && (
                                 <Feather name="check-circle" size={20} color="#10B981" style={{ marginLeft: 5 }} />

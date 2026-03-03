@@ -63,8 +63,9 @@ export default function CreateRequestScreen({ navigation }) {
   };
 
   const scrollToSection = (key) => {
-    if (scrollViewRef.current && coords[key]) {
-      scrollViewRef.current.scrollTo({ y: coords[key], animated: true });
+    if (scrollViewRef.current && coords[key] !== undefined) {
+      // Add ~150 to account for absolute positioning offset (hero headers + topbar)
+      scrollViewRef.current.scrollTo({ y: coords[key] + 150, animated: true });
     }
   };
 
