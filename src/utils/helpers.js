@@ -46,9 +46,12 @@ export const getClientStatus = (request) => {
     // PRIORITY ORDER: TERMINADO > VALORACIÓN > VALIDANDO > EN EJECUCIÓN > PRESUPUESTADA > CONTACTADA > ABIERTA > NUEVA
     if (request.status === 'canceled' || request.status === 'Cerrada') return 'ELIMINADA';
 
-    // 1. TERMINADO (Any rating exists or status is rated/completed)
-    const isRated = !!(request.status === 'rated' || request.status === 'TERMINADO' || request.status === 'completed' || request.status === 'Culminada' || request.clientRated || request.proRated || request.rating > 0 || request.proRating > 0 || (request.proFinished && request.clientFinished));
+    // 1. TERMINADO (Any rating exists or explicitly completed/rated)
+    const isRated = !!(request.status === 'rated' || request.status === 'TERMINADO' || request.status === 'completed' || request.status === 'Culminada' || request.clientRated || request.proRated || request.rating > 0 || request.proRating > 0);
     if (isRated) return 'TERMINADO';
+
+    // 2. VALORACIÓN (Both sides finished, waiting for rating)
+    if (request.proFinished && request.clientFinished) return 'VALORACIÓN';
 
     // 3. VALIDANDO (Pro finished, Client hasn't confirmed)
     if (request.proFinished && !request.clientFinished) return 'VALIDANDO';
@@ -56,7 +59,11 @@ export const getClientStatus = (request) => {
     // 4. EN EJECUCIÓN (Started)
     if (request.status === 'in_progress' || request.status === 'started' || request.status === 'En Ejecución') return 'EN EJECUCIÓN';
 
-    const activeOffers = request.offers?.filter(o => o.status !== 'rejected');
+    // 5. ACEPTADO / EN EJECUCIÓN (Offer accepted)
+    const acceptedOffer = request.offers?.find(o => o.status === 'accepted');
+    if (acceptedOffer) return 'EN EJECUCIÓN';
+
+    const activeOffers = request.offers?.filter(o => o.status !== 'rejected' && o.status !== 'accepted');
     if (activeOffers && activeOffers.length > 0) return 'PRESUPUESTADA';
 
     // If there are offers but all are rejected

@@ -70,37 +70,53 @@ router.post('/register', async (req, res) => {
 // @route   POST /api/auth/login
 // @access  Public
 router.post('/login', async (req, res) => {
+    console.log("-> /login request started");
     try {
         const { email, password } = req.body;
-
-        const user = await User.findOne({ email });
+        console.log("-> parsed body, email:", email);
+        
+        console.time("FindUser");
+        const user = await User.findOne({ email }).select('+password');
+        console.timeEnd("FindUser");
+        console.log("-> user found?", !!user);
 
         if (user && user.isActive === false) {
+            console.log("-> user inactive");
             return res.status(403).json({ message: 'Cuenta desactivada. Contacte al administrador.' });
         }
 
-        if (user && (await bcrypt.compare(password, user.password))) {
+        console.time("Bcrypt");
+        const isMatch = user && (await bcrypt.compare(password, user.password));
+        console.timeEnd("Bcrypt");
+        
+        if (isMatch) {
+            console.log("-> password match, serializing...");
             const userSerialized = serializeUser(user);
+            console.log("-> responding 200...");
             res.json({
                 ...userSerialized,
                 token: generateToken(user._id),
             });
         } else {
+            console.log("-> password mismatch, responding 401...");
             res.status(401).json({ message: 'Email o contraseña inválidos' });
         }
     } catch (error) {
+        console.error("-> /login error:", error);
         res.status(500).json({ message: error.message });
     }
 });
 
 // Helper to safely serialize user data (handling Map types)
 const serializeUser = (userDoc) => {
-    const userObj = userDoc.toObject ? userDoc.toObject() : userDoc;
+    // toObject with flattenMaps correctly converts Map to Object
+    const userObj = userDoc.toObject ? userDoc.toObject({ flattenMaps: true }) : { ...userDoc };
+
+    // Extra safety for profiles if not a Mongoose doc
     if (userObj.profiles && userObj.profiles instanceof Map) {
         userObj.profiles = Object.fromEntries(userObj.profiles);
-    } else if (userObj.profiles && typeof userObj.profiles === 'object' && !Array.isArray(userObj.profiles)) {
-        // Already an object, but ensure it's not a weird Mongoose internal
     }
+    delete userObj.password;
     return userObj;
 };
 
@@ -111,7 +127,7 @@ router.get('/me', protect, async (req, res) => {
     try {
         // Explicitly fetch the FULL user for the /me route (including heavy profiles)
         // This is fine here as it's only called on sync/refresh, not every request.
-        const fullUser = await User.findById(req.user._id);
+        const fullUser = await User.findById(req.user._id).select('-password -documents');
         if (!fullUser) return res.status(404).json({ message: 'User not found' });
 
         const userSerialized = serializeUser(fullUser);

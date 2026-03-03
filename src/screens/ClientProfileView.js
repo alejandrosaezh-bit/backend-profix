@@ -1,7 +1,9 @@
-import { Feather, FontAwesome5 } from '@expo/vector-icons';
+﻿import { Feather, FontAwesome5 } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Image, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Dimensions, Image, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { api } from '../utils/api';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 const ClientProfileView = ({ client, visible, onClose }) => {
     // Fallback data if client object is minimal
@@ -10,27 +12,33 @@ const ClientProfileView = ({ client, visible, onClose }) => {
     const image = client?.image || client?.avatar || client?.profileImage || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`;
 
     const [reviews, setReviews] = useState([]);
+    const [clientJobs, setClientJobs] = useState([]);
     const [loading, setLoading] = useState(false);
+    const [selectedGallery, setSelectedGallery] = useState(null);
 
     useEffect(() => {
         if (!visible) return; // Only fetch if visible
 
-        const fetchReviews = async () => {
+        const fetchData = async () => {
             const clientId = client?._id || client?.clientId || client?.id;
             if (!clientId) return;
 
             setLoading(true);
             try {
-                const data = await api.getClientReviews(clientId);
-                setReviews(data || []);
+                const [reviewsData, jobsData] = await Promise.all([
+                    api.getClientReviews(clientId),
+                    api.getJobs({ client: clientId })
+                ]);
+                setReviews(reviewsData || []);
+                if (Array.isArray(jobsData)) setClientJobs(jobsData);
             } catch (e) {
-                console.error("Error fetching client reviews:", e);
+                console.error("Error fetching client data:", e);
             } finally {
                 setLoading(false);
             }
         };
 
-        fetchReviews();
+        fetchData();
     }, [client, visible]);
 
     // Calcular rating real
@@ -39,144 +47,203 @@ const ClientProfileView = ({ client, visible, onClose }) => {
         ? client.rating.toFixed(1)
         : (reviews.length > 0
             ? (reviews.reduce((acc, r) => acc + r.rating, 0) / reviews.length).toFixed(1)
-            : '5.0');
+            : '0.0');
+
+    // Calcular estadísticas de trabajo
+    const requestedJobsCount = clientJobs.length;
+    const contractedJobsCount = clientJobs.filter(j => j.professional || ['in_progress', 'completed', 'rated', 'Culminada'].includes(j.status)).length;
+    let successPercentage = 0;
+    if (requestedJobsCount > 0) {
+        successPercentage = Math.round((contractedJobsCount / requestedJobsCount) * 100);
+    }
 
     return (
-        <Modal
-            visible={visible}
-            animationType="slide"
-            transparent={true}
-            onRequestClose={onClose}
-        >
-            <View style={styles.modalOverlay}>
-                <View style={styles.modalContent}>
-                    {/* Barra de arrastre (Visual) */}
-                    <View style={styles.dragHandle} />
+        <>
+            <Modal
+                visible={visible}
+                animationType="slide"
+                transparent={true}
+                onRequestClose={onClose}
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContent}>
+                        {/* Barra de arrastre (Visual) */}
+                        <View style={styles.dragHandle} />
 
-                    <ScrollView contentContainerStyle={{ paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
-                        {/* CABECERA AZUL DENTRO DEL MODAL */}
-                        <View style={styles.blueHeader}>
-                            <View style={styles.headerTop}>
-                                <Text style={styles.headerTitle}>Perfil del Cliente</Text>
-                                <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-                                    <Feather name="x" size={24} color="white" />
+                        <ScrollView contentContainerStyle={{ paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
+                            {/* CABECERA AZUL DENTRO DEL MODAL */}
+                            <View style={styles.blueHeader}>
+                                <View style={styles.headerTop}>
+                                    <Text style={styles.headerTitle}>Perfil del Cliente</Text>
+                                    <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+                                        <Feather name="x" size={24} color="white" />
+                                    </TouchableOpacity>
+                                </View>
+
+                                <View style={styles.headerMain}>
+                                    <View style={styles.avatarContainer}>
+                                        <Image source={{ uri: image }} style={styles.avatar} />
+                                        <View style={styles.verifiedBadge}>
+                                            <Feather name="shield" size={12} color="white" />
+                                        </View>
+                                    </View>
+                                    <View style={{ marginLeft: 20, flex: 1 }}>
+                                        <Text style={styles.headerName} numberOfLines={1}>{name}</Text>
+                                        <View style={styles.headerRating}>
+                                            <FontAwesome5 name="star" solid size={14} color="#FBBF24" />
+                                            <Text style={styles.headerRatingText}>{ratingDisplay} â€¢ {reviewCount} reseÃ±as</Text>
+                                        </View>
+                                    </View>
+                                </View>
+                            </View>
+
+                            {/* CONTENIDO PRINCIPAL EN TARJETAS */}
+                            <View style={styles.cardContainer}>
+                                {/* INFO BIO (If exists) */}
+                                {(client?.bio || client?.description) ? (
+                                    <View style={[styles.infoCard, { padding: 18, backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#EFF6FF' }]}>
+                                        <Text style={[styles.sectionTitle, { marginBottom: 12, color: '#2563EB' }]}>SOBRE MÃ</Text>
+                                        <Text style={{ fontSize: 14, color: '#334155', fontStyle: 'italic', lineHeight: 22 }}>
+                                            "{client?.bio || client?.description}"
+                                        </Text>
+                                    </View>
+                                ) : null}
+
+
+                                {/* ESTADÍSTICAS DEL CLIENTE */}
+                                <View style={styles.infoCard}>
+                                    <Text style={styles.sectionTitle}>ESTADÍSTICAS DEL CLIENTE</Text>
+                                    <View style={styles.statsGrid}>
+                                        <View style={styles.statBox}>
+                                            <Text style={styles.statNumber}>{requestedJobsCount}</Text>
+                                            <Text style={styles.statDesc}>Solicitados</Text>
+                                        </View>
+                                        <View style={{ width: 1, backgroundColor: '#E2E8F0', marginVertical: 10 }} />
+                                        <View style={styles.statBox}>
+                                            <Text style={styles.statNumber}>{contractedJobsCount}</Text>
+                                            <Text style={styles.statDesc}>Contratados</Text>
+                                        </View>
+                                        <View style={{ width: 1, backgroundColor: '#E2E8F0', marginVertical: 10 }} />
+                                        <View style={styles.statBox}>
+                                            <Text style={styles.statNumber}>{successPercentage}%</Text>
+                                            <Text style={styles.statDesc}>Éxito</Text>
+                                        </View>
+                                    </View>
+                                </View>
+
+                                {/* PORTAFOLIO DE TRABAJOS */}
+                                <View style={styles.infoCard}>
+                                    <Text style={styles.sectionTitle}>PORTAFOLIO DE TRABAJOS</Text>
+                                    {(() => {
+                                        const portfolioFolders = [];
+                                        if (client?.profiles) {
+                                            const profilesObj = client.profiles instanceof Map ? Object.fromEntries(client.profiles) : client.profiles;
+                                            Object.keys(profilesObj).forEach(cat => {
+                                                if (profilesObj[cat]?.gallery && profilesObj[cat].gallery.length > 0) {
+                                                    portfolioFolders.push({
+                                                        category: cat,
+                                                        subcategories: profilesObj[cat].subcategories || [],
+                                                        images: profilesObj[cat].gallery
+                                                    });
+                                                }
+                                            });
+                                        }
+
+                                        if (portfolioFolders.length === 0) {
+                                            return (
+                                                <View style={styles.emptyContainer}>
+                                                    <Feather name="folder" size={40} color="#E2E8F0" />
+                                                    <Text style={styles.emptyText}>No hay trabajos en el portafolio.</Text>
+                                                </View>
+                                            );
+                                        }
+
+                                        return (
+                                            <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }}>
+                                                {portfolioFolders.map((folder, index) => (
+                                                    <TouchableOpacity key={index} style={styles.folderCard} onPress={() => setSelectedGallery(folder.images)}>
+                                                        <View style={styles.folderTab} />
+                                                        <View style={styles.folderContent}>
+                                                            <Image source={{ uri: folder.images[0] }} style={styles.folderImage} />
+                                                            <View style={styles.folderInfo}>
+                                                                <Text style={styles.folderTitle} numberOfLines={2}>{folder.category}</Text>
+                                                                <Text style={{ fontSize: 11, color: '#64748B', marginTop: 2, marginBottom: 2 }} numberOfLines={1}>
+                                                                    {folder.subcategories.length > 0 ? folder.subcategories.join(', ') : 'Servicios generales'}
+                                                                </Text>
+                                                                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
+                                                                    <Feather name="image" size={10} color="#94A3B8" />
+                                                                    <Text style={styles.folderCount}>{folder.images.length} fotos</Text>
+                                                                </View>
+                                                            </View>
+                                                        </View>
+                                                    </TouchableOpacity>
+                                                ))}
+                                            </View>
+                                        );
+                                    })()}
+                                </View>
+
+                                {/* OPINIONES */}
+                                <View style={styles.infoCard}>
+                                    <Text style={styles.sectionTitle}>OPINIONES DE PROFESIONALES</Text>
+                                    {loading ? (
+                                        <ActivityIndicator color="#2563EB" style={{ marginVertical: 20 }} />
+                                    ) : reviews.length === 0 ? (
+                                        <View style={styles.emptyContainer}>
+                                            <Feather name="message-circle" size={40} color="#E2E8F0" />
+                                            <Text style={styles.emptyText}>Este cliente aÃºn no ha sido valorado por otros profesionales.</Text>
+                                        </View>
+                                    ) : (
+                                        reviews.map((review, idx) => (
+                                            <View key={review._id || idx} style={styles.reviewItem}>
+                                                <View style={styles.reviewHeader}>
+                                                    <View style={styles.reviewerInfo}>
+                                                        <Text style={styles.reviewerName}>{review.reviewer?.name || 'Profesional'}</Text>
+                                                        <View style={styles.reviewStars}>
+                                                            {[...Array(5)].map((_, i) => (
+                                                                <FontAwesome5 key={i} name="star" solid={i < review.rating} size={10} color={i < review.rating ? "#F59E0B" : "#E2E8F0"} style={{ marginRight: 2 }} />
+                                                            ))}
+                                                        </View>
+                                                    </View>
+                                                    <Text style={styles.reviewDate}>{new Date(review.createdAt).toLocaleDateString()}</Text>
+                                                </View>
+                                                <View style={styles.commentBox}>
+                                                    <Text style={styles.reviewComment}>"{review.comment ? review.comment : 'Sin comentario adicional.'}"</Text>
+                                                </View>
+                                            </View>
+                                        ))
+                                    )}
+                                </View>
+
+                                {/* BOTÓN CERRAR FOOTER */}
+                                <TouchableOpacity onPress={onClose} style={styles.footerCloseButton}>
+                                    <Text style={styles.footerCloseText}>Cerrar Perfil</Text>
                                 </TouchableOpacity>
                             </View>
+                        </ScrollView>
+                    </View>
+                </View>
+            </Modal>
 
-                            <View style={styles.headerMain}>
-                                <View style={styles.avatarContainer}>
-                                    <Image source={{ uri: image }} style={styles.avatar} />
-                                    <View style={styles.verifiedBadge}>
-                                        <Feather name="shield" size={12} color="white" />
-                                    </View>
-                                </View>
-                                <View style={{ marginLeft: 20, flex: 1 }}>
-                                    <Text style={styles.headerName} numberOfLines={1}>{name}</Text>
-                                    <View style={styles.headerRating}>
-                                        <FontAwesome5 name="star" solid size={14} color="#FBBF24" />
-                                        <Text style={styles.headerRatingText}>{ratingDisplay} • {reviewCount} reseñas</Text>
-                                    </View>
-                                </View>
+            {/* GALLERY MODAL */}
+            <Modal visible={!!selectedGallery} transparent={true} animationType="fade" onRequestClose={() => setSelectedGallery(null)}>
+                <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.95)' }}>
+                    <TouchableOpacity
+                        style={{ position: 'absolute', top: 50, right: 20, zIndex: 10, padding: 10, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 20 }}
+                        onPress={() => setSelectedGallery(null)}
+                    >
+                        <Feather name="x" size={30} color="white" />
+                    </TouchableOpacity>
+                    <ScrollView horizontal pagingEnabled style={{ flex: 1 }}>
+                        {selectedGallery?.map((img, i) => (
+                            <View key={i} style={{ width: SCREEN_WIDTH, height: '100%', justifyContent: 'center', alignItems: 'center' }}>
+                                <Image source={{ uri: img }} style={{ width: '100%', height: '80%', resizeMode: 'contain' }} />
                             </View>
-                        </View>
-
-                        {/* CONTENIDO PRINCIPAL EN TARJETAS */}
-                        <View style={styles.cardContainer}>
-                            {/* INFO CONTACTO */}
-                            <View style={styles.infoCard}>
-                                <Text style={styles.sectionTitle}>INFORMACIÓN DE CONTACTO</Text>
-
-                                <View style={styles.infoRow}>
-                                    <View style={[styles.iconBox, { backgroundColor: '#EFF6FF' }]}>
-                                        <Feather name="mail" size={18} color="#2563EB" />
-                                    </View>
-                                    <View>
-                                        <Text style={styles.infoLabel}>Correo Electrónico</Text>
-                                        <Text style={styles.infoValue}>{email}</Text>
-                                    </View>
-                                </View>
-
-                                <View style={styles.infoRow}>
-                                    <View style={[styles.iconBox, { backgroundColor: '#F0FDF4' }]}>
-                                        <Feather name="phone" size={18} color="#10B981" />
-                                    </View>
-                                    <View>
-                                        <Text style={styles.infoLabel}>Teléfono</Text>
-                                        <Text style={styles.infoValue}>+58 412 *** ** **</Text>
-                                    </View>
-                                </View>
-
-                                <View style={styles.infoRow}>
-                                    <View style={[styles.iconBox, { backgroundColor: '#FFF7ED' }]}>
-                                        <Feather name="map-pin" size={18} color="#EA580C" />
-                                    </View>
-                                    <View>
-                                        <Text style={styles.infoLabel}>Ubicación Principal</Text>
-                                        <Text style={styles.infoValue}>{client?.location || 'Caracas, Venezuela'}</Text>
-                                    </View>
-                                </View>
-                            </View>
-
-                            {/* ESTADÍSTICAS */}
-                            <View style={styles.infoCard}>
-                                <Text style={styles.sectionTitle}>ACTIVIDAD EN PROFIX</Text>
-                                <View style={styles.statsGrid}>
-                                    <View style={styles.statBox}>
-                                        <Text style={styles.statNumber}>15</Text>
-                                        <Text style={styles.statDesc}>Solicitudes</Text>
-                                    </View>
-                                    <View style={[styles.statBox, { borderLeftWidth: 1, borderRightWidth: 1, borderColor: '#F1F5F9' }]}>
-                                        <Text style={styles.statNumber}>12</Text>
-                                        <Text style={styles.statDesc}>Contratados</Text>
-                                    </View>
-                                    <View style={styles.statBox}>
-                                        <Text style={styles.statNumber}>100%</Text>
-                                        <Text style={styles.statDesc}>Respuesta</Text>
-                                    </View>
-                                </View>
-                            </View>
-
-                            {/* OPINIONES */}
-                            <View style={styles.infoCard}>
-                                <Text style={styles.sectionTitle}>OPINIONES DE PROFESIONALES</Text>
-                                {loading ? (
-                                    <ActivityIndicator color="#2563EB" style={{ marginVertical: 20 }} />
-                                ) : reviews.length === 0 ? (
-                                    <View style={styles.emptyContainer}>
-                                        <Feather name="message-circle" size={40} color="#E2E8F0" />
-                                        <Text style={styles.emptyText}>Este cliente aún no ha sido valorado por otros profesionales.</Text>
-                                    </View>
-                                ) : (
-                                    reviews.map((review, idx) => (
-                                        <View key={review._id || idx} style={styles.reviewItem}>
-                                            <View style={styles.reviewHeader}>
-                                                <View style={styles.reviewerInfo}>
-                                                    <Text style={styles.reviewerName}>{review.reviewer?.name || 'Profesional'}</Text>
-                                                    <View style={styles.reviewStars}>
-                                                        {[...Array(5)].map((_, i) => (
-                                                            <FontAwesome5 key={i} name="star" solid={i < review.rating} size={10} color={i < review.rating ? "#F59E0B" : "#E2E8F0"} style={{ marginRight: 2 }} />
-                                                        ))}
-                                                    </View>
-                                                </View>
-                                                <Text style={styles.reviewDate}>{new Date(review.createdAt).toLocaleDateString()}</Text>
-                                            </View>
-                                            <View style={styles.commentBox}>
-                                                <Text style={styles.reviewComment}>"{review.comment || 'Excelente cliente, comunicación clara y pago puntual.'}"</Text>
-                                            </View>
-                                        </View>
-                                    ))
-                                )}
-                            </View>
-
-                            {/* BOTÓN CERRAR FOOTER */}
-                            <TouchableOpacity onPress={onClose} style={styles.footerCloseButton}>
-                                <Text style={styles.footerCloseText}>Cerrar Perfil</Text>
-                            </TouchableOpacity>
-                        </View>
+                        ))}
                     </ScrollView>
                 </View>
-            </View>
-        </Modal>
+            </Modal>
+        </>
     );
 };
 
@@ -205,7 +272,7 @@ const styles = StyleSheet.create({
         zIndex: 10,
     },
     blueHeader: {
-        backgroundColor: '#2563EB',
+        backgroundColor: '#EA580C',
         paddingTop: 20,
         paddingBottom: 35,
         paddingHorizontal: 24,
@@ -283,7 +350,7 @@ const styles = StyleSheet.create({
 
     statsGrid: { flexDirection: 'row', marginTop: 5 },
     statBox: { flex: 1, alignItems: 'center', paddingVertical: 10 },
-    statNumber: { fontSize: 20, fontWeight: 'bold', color: '#2563EB' },
+    statNumber: { fontSize: 20, fontWeight: 'bold', color: '#EA580C' },
     statDesc: { fontSize: 11, color: '#64748B', marginTop: 4 },
 
     reviewItem: { marginBottom: 15, borderBottomWidth: 1, borderBottomColor: '#F1F5F9', paddingBottom: 15 },
@@ -295,6 +362,56 @@ const styles = StyleSheet.create({
     reviewComment: { color: '#475569', fontSize: 13, fontStyle: 'italic', lineHeight: 18 },
     emptyContainer: { alignItems: 'center', paddingVertical: 30 },
     emptyText: { color: '#94A3B8', fontSize: 13, textAlign: 'center', marginTop: 15, paddingHorizontal: 20 },
+
+    folderCard: {
+        width: '48%',
+        marginBottom: 16,
+        position: 'relative',
+        marginTop: 10,
+    },
+    folderTab: {
+        width: '45%',
+        height: 12,
+        backgroundColor: '#2563EB',
+        borderTopLeftRadius: 8,
+        borderTopRightRadius: 8,
+        position: 'absolute',
+        top: -10,
+        left: 0,
+        zIndex: 1
+    },
+    folderContent: {
+        backgroundColor: 'white',
+        borderTopRightRadius: 12,
+        borderBottomLeftRadius: 12,
+        borderBottomRightRadius: 12,
+        borderTopLeftRadius: 0, // for the tab effect
+        borderColor: '#E2E8F0',
+        borderWidth: 1.5,
+        overflow: 'hidden',
+        zIndex: 2,
+    },
+    folderImage: {
+        width: '100%',
+        height: 80,
+        borderTopRightRadius: 10,
+        borderBottomWidth: 1,
+        borderBottomColor: '#F1F5F9',
+    },
+    folderInfo: {
+        padding: 8,
+    },
+    folderTitle: {
+        fontSize: 11,
+        fontWeight: 'bold',
+        color: '#1E293B',
+    },
+    folderCount: {
+        fontSize: 10,
+        color: '#94A3B8',
+        marginLeft: 4,
+        fontWeight: '600',
+    },
 
     footerCloseButton: {
         backgroundColor: '#F1F5F9',

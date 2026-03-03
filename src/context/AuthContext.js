@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createContext, useEffect, useState } from 'react';
 import { api } from '../utils/api';
+import { clearSession, getSession, saveSession } from '../utils/session';
 
 export const AuthContext = createContext();
 
@@ -9,25 +10,9 @@ export const AuthProvider = ({ children }) => {
     const [userToken, setUserToken] = useState(null);
     const [userInfo, setUserInfo] = useState(null);
 
-    const stripHeavyData = (user) => {
-        if (!user) return user;
-        const cleanUser = { ...user };
-        // We keep the avatar as it's small-ish and useful for UI
-        // but we definitely strip the gallery (work history photos)
-        if (cleanUser.profiles) {
-            Object.keys(cleanUser.profiles).forEach(key => {
-                if (cleanUser.profiles[key] && cleanUser.profiles[key].gallery) {
-                    cleanUser.profiles[key].gallery = [];
-                }
-            });
-        }
-        return cleanUser;
-    };
-
     const saveUserInfo = async (data) => {
         setUserInfo(data);
-        const clean = stripHeavyData(data);
-        await AsyncStorage.setItem('userInfo', JSON.stringify(clean));
+        await saveSession(data);
     };
 
     const login = async (email, password) => {
@@ -80,11 +65,17 @@ export const AuthProvider = ({ children }) => {
 
     const logout = async () => {
         setIsLoading(true);
-        setUserToken(null);
-        setUserInfo(null);
-        await AsyncStorage.removeItem('userToken');
-        await AsyncStorage.removeItem('userInfo');
-        setIsLoading(false);
+        try {
+            await AsyncStorage.removeItem('userToken');
+            await clearSession();
+            console.log("[AuthContext] Session cleared successfully.");
+        } catch (error) {
+            console.error("[AuthContext] Error during logout storage cleanup:", error);
+        } finally {
+            setUserToken(null);
+            setUserInfo(null);
+            setIsLoading(false);
+        }
     };
 
     const isLoggedIn = async () => {
@@ -92,13 +83,14 @@ export const AuthProvider = ({ children }) => {
             setIsLoading(true);
             console.log("[AuthContext] Checking session...");
             let token = await AsyncStorage.getItem('userToken');
-            let storedUserInfo = await AsyncStorage.getItem('userInfo');
 
             if (token) {
                 console.log("[AuthContext] Token found, restoring user...");
                 setUserToken(token);
+
+                let storedUserInfo = await getSession();
                 if (storedUserInfo) {
-                    setUserInfo(JSON.parse(storedUserInfo));
+                    setUserInfo(storedUserInfo);
                 }
 
                 // Intentar obtener datos frescos del backend (con timeout implícito si el login es lento)
@@ -114,15 +106,13 @@ export const AuthProvider = ({ children }) => {
                     console.log("[AuthContext] Profile updated from backend:", freshUser.email);
                     await saveUserInfo(freshUser);
                 } catch (apiError) {
-                    console.warn("[AuthContext] Error fetching fresh profile/timeout, using local:", apiError.message);
+                    console.log("[AuthContext] Error fetching fresh profile/timeout, using local:", apiError.message);
                     if (apiError.message === 'Unauthorized') {
                         console.log("[AuthContext] Token is invalid, logging out automatically...");
                         setUserToken(null);
                         setUserInfo(null);
                         await AsyncStorage.removeItem('userToken');
-                        await AsyncStorage.removeItem('userInfo');
-                    } else if (storedUserInfo) {
-                        setUserInfo(JSON.parse(storedUserInfo));
+                        await clearSession();
                     }
                 }
             } else {
@@ -140,7 +130,7 @@ export const AuthProvider = ({ children }) => {
 
     const updateUser = async (user) => {
         setUserInfo(user);
-        await AsyncStorage.setItem('userInfo', JSON.stringify(user));
+        await saveSession(user);
     };
 
     useEffect(() => {

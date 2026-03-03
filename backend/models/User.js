@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const userSchema = mongoose.Schema({
     name: { type: String, required: true },
     email: { type: String, required: true, unique: true },
-    password: { type: String }, // Opcional si usa Google
+    password: { type: String, select: false }, // Opcional si usa Google
     googleId: { type: String, unique: true, sparse: true }, // ID de Google
     cedula: { type: String, unique: true, sparse: true }, // Cédula (Opcional con Google al inicio)
     role: { type: String, enum: ['client', 'professional', 'admin'], default: 'client' },

@@ -156,8 +156,11 @@ export default function MyRequestsScreen({ navigation, allRequests: propsAllRequ
     // 0. ELIMINADA (Canceled)
     if (request.status === 'canceled') return 'ELIMINADA';
 
-    // 1. TERMINADO (Rated, Completed or Both Finished)
-    if (request.status === 'rated' || request.status === 'completed' || request.rating > 0 || request.proRating > 0 || request.clientRating > 0 || (request.proFinished && request.clientFinished)) return 'TERMINADO';
+    // 1. TERMINADO (Rated, Completed or Rated by someone)
+    if (request.status === 'rated' || request.status === 'completed' || request.rating > 0 || request.proRating > 0 || request.clientRating > 0 || request.status === 'TERMINADO' || request.status === 'Culminada') return 'TERMINADO';
+
+    // 2. VALORACIÓN (Pro and Client finished, but not rated)
+    if (request.proFinished && request.clientFinished) return 'VALORACIÓN';
 
     // 3. VALIDANDO (Pro Finished, waiting for Client)
     if (request.proFinished && !request.clientFinished) return 'VALIDANDO';

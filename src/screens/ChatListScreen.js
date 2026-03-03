@@ -221,8 +221,14 @@ export default function ChatListScreen({ currentUser, requests, chats = [], onSe
                             {item.subtitle}
                         </Text>
 
-                        <View style={styles.responderButton}>
-                            <Text style={styles.responderText}>{item.actionStatus}</Text>
+                        <View style={[
+                            styles.responderButton,
+                            item.actionStatus === 'Responder' && styles.responderButtonActive
+                        ]}>
+                            <Text style={[
+                                styles.responderText,
+                                item.actionStatus === 'Responder' && styles.responderTextActive
+                            ]}>{item.actionStatus}</Text>
                         </View>
                     </View>
                 </View>
@@ -469,7 +475,11 @@ const styles = StyleSheet.create({
         backgroundColor: 'white',
         justifyContent: 'center'
     },
+    responderButtonActive: {
+        backgroundColor: '#EA580C',
+    },
     responderText: { fontSize: 11, fontWeight: 'bold', color: '#EA580C' },
+    responderTextActive: { color: 'white' },
 
     emptyState: { alignItems: 'center', justifyContent: 'center', padding: 40, marginTop: 50 },
     emptyText: { fontSize: 18, color: '#4B5563', marginTop: 16, fontWeight: '600' },

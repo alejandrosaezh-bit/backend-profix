@@ -1,0 +1,27 @@
+
+E:\PROFIX APP\ProFix\src\screens\ProfessionalProfileScreen.js
+   27:9   warning  'width' is assigned a value but never used                                                                                                                                                   no-unused-vars
+   70:39  error    React Hook "useState" is called conditionally. React Hooks must be called in the exact same order in every component render                                                                  react-hooks/rules-of-hooks
+   71:73  error    React Hook "useState" is called conditionally. React Hooks must be called in the exact same order in every component render                                                                  react-hooks/rules-of-hooks
+   72:55  error    React Hook "useState" is called conditionally. React Hooks must be called in the exact same order in every component render                                                                  react-hooks/rules-of-hooks
+   73:45  error    React Hook "useState" is called conditionally. React Hooks must be called in the exact same order in every component render                                                                  react-hooks/rules-of-hooks
+   74:35  error    React Hook "useState" is called conditionally. React Hooks must be called in the exact same order in every component render                                                                  react-hooks/rules-of-hooks
+   75:12  warning  'isLoadingReviews' is assigned a value but never used                                                                                                                                        no-unused-vars
+   75:53  error    React Hook "useState" is called conditionally. React Hooks must be called in the exact same order in every component render                                                                  react-hooks/rules-of-hooks
+   78:49  error    React Hook "useState" is called conditionally. React Hooks must be called in the exact same order in every component render                                                                  react-hooks/rules-of-hooks
+   79:47  error    React Hook "useState" is called conditionally. React Hooks must be called in the exact same order in every component render                                                                  react-hooks/rules-of-hooks
+   89:12  warning  'stats' is assigned a value but never used                                                                                                                                                   no-unused-vars
+   89:31  error    React Hook "useState" is called conditionally. React Hooks must be called in the exact same order in every component render                                                                  react-hooks/rules-of-hooks
+   94:37  error    React Hook "useState" is called conditionally. React Hooks must be called in the exact same order in every component render                                                                  react-hooks/rules-of-hooks
+   97:5   error    React Hook "useEffect" is called conditionally. React Hooks must be called in the exact same order in every component render                                                                 react-hooks/rules-of-hooks
+  166:43  error    React Hook "useState" is called conditionally. React Hooks must be called in the exact same order in every component render. Did you accidentally call a React Hook after an early return?   react-hooks/rules-of-hooks
+  174:53  error    React Hook "useState" is called conditionally. React Hooks must be called in the exact same order in every component render. Did you accidentally call a React Hook after an early return?   react-hooks/rules-of-hooks
+  190:5   error    React Hook "useEffect" is called conditionally. React Hooks must be called in the exact same order in every component render. Did you accidentally call a React Hook after an early return?  react-hooks/rules-of-hooks
+  202:5   error    React Hook "useEffect" is called conditionally. React Hooks must be called in the exact same order in every component render. Did you accidentally call a React Hook after an early return?  react-hooks/rules-of-hooks
+  217:8   warning  React Hook useEffect has missing dependencies: 'categories', 'selectedCategory.fullName', and 'selectedCategory.name'. Either include them or remove the dependency array                    react-hooks/exhaustive-deps
+  468:11  warning  'renderStars' is assigned a value but never used                                                                                                                                             no-unused-vars
+  482:11  warning  'catActiveCount' is assigned a value but never used                                                                                                                                          no-unused-vars
+  515:11  warning  'globalRating' is assigned a value but never used                                                                                                                                            no-unused-vars
+
+✖ 22 problems (15 errors, 7 warnings)
+

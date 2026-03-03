@@ -1,0 +1,6 @@
+
+E:\PROFIX APP\ProFix\src\screens\ProHomeScreen.js
+  71:27  warning  'totalUnread' is assigned a value but never used  no-unused-vars
+
+✖ 1 problem (0 errors, 1 warning)
+

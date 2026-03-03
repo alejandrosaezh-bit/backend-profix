@@ -4,9 +4,9 @@ import React, { useEffect, useState } from 'react';
 import { Alert, Image, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 import CustomDropdown from '../components/CustomDropdown';
-import styles from '../styles/globalStyles';
 import { api } from '../utils/api';
 import { getClientStatus, getClientStatusColor, showAlert } from '../utils/helpers';
+import { compressImage } from '../utils/imageCompressor';
 import ProjectTimeline from './ProjectTimeline';
 
 const RequestDetailClient = ({ request, onBack, onAcceptOffer, onOpenChat, onUpdateRequest, selectedBudget, setSelectedBudget, showBudgetModal, setShowBudgetModal, startWithRejectForm, setStartWithRejectForm, categories = [], onRejectOffer, onConfirmStart, onAddWorkPhoto, onFinish, onRate, onCloseRequest, currentUser, onAddTimelineEvent, onTogglePortfolio, onViewUserProfile, onViewImage }) => {
@@ -48,12 +48,21 @@ const RequestDetailClient = ({ request, onBack, onAcceptOffer, onOpenChat, onUpd
             base64: true,
         });
         if (!result.canceled) {
-            onAddWorkPhoto(request._id || request.id, `data:image/jpeg;base64,${result.assets[0].base64}`);
+            const compressedImg = await compressImage(result.assets[0].uri);
+            onAddWorkPhoto(request._id || request.id, compressedImg);
         }
     };
 
-    const handleFinishInternal = () => {
-        onFinish(request._id || request.id);
+    const handleFinishInternal = async () => {
+        await onFinish(request._id || request.id);
+        if (onAddTimelineEvent) {
+            await onAddTimelineEvent({
+                eventType: 'job_finished',
+                title: 'Trabajo Validado por Cliente',
+                description: 'Has validado que el trabajo ha sido terminado. Ahora puedes valorar al profesional.',
+                isPrivate: false
+            });
+        }
     };
 
     const handleRateInternal = (reviewData) => {
@@ -126,8 +135,8 @@ const RequestDetailClient = ({ request, onBack, onAcceptOffer, onOpenChat, onUpd
         });
 
         if (!result.canceled) {
-            const base64Img = `data:image/jpeg;base64,${result.assets[0].base64}`;
-            const newImages = [...(data.images || []), base64Img];
+            const compressedImg = await compressImage(result.assets[0].uri);
+            const newImages = [...(data.images || []), compressedImg];
             setData({ ...data, images: newImages });
         }
     };
@@ -147,7 +156,9 @@ const RequestDetailClient = ({ request, onBack, onAcceptOffer, onOpenChat, onUpd
         });
 
         if (!result.canceled) {
-            const newPhotos = result.assets.map(asset => `data:image/jpeg;base64,${asset.base64}`);
+            // Comprimir multiples imagenes
+            const compressedPromises = result.assets.map(asset => compressImage(asset.uri));
+            const newPhotos = await Promise.all(compressedPromises);
             setData(prev => ({
                 ...prev,
                 images: [...(prev.images || []), ...newPhotos]
@@ -362,10 +373,10 @@ const RequestDetailClient = ({ request, onBack, onAcceptOffer, onOpenChat, onUpd
                         />
                     );
 
-                    const InteractionsSection = (
+                    const ChatsSection = (
                         <View style={{ paddingHorizontal: 0, marginBottom: 20 }}>
                             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, paddingHorizontal: 20 }}>
-                                <Text style={styles.sectionTitle}>Interacciones y Ofertas</Text>
+                                <Text style={{ fontSize: 18, fontWeight: '900', color: '#1E2937' }}>Mensajes</Text>
                                 <View style={{ backgroundColor: '#EFF6FF', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 }}>
                                     <Text style={{ color: '#2563EB', fontWeight: 'bold', fontSize: 12 }}>
                                         {Array.from(new Set([
@@ -412,55 +423,14 @@ const RequestDetailClient = ({ request, onBack, onAcceptOffer, onOpenChat, onUpd
                                 const hasHidden = archivedPros.length > 0 && !showArchivedChats;
 
                                 return (
-                                    <View>
+                                    <View style={{ paddingHorizontal: 0 }}>
                                         {prosToRender.map((pro, index) => {
                                             const messages = pro.chat?.messages || [];
                                             const lastThree = messages.slice(-3);
-                                            const isWinner = pro.offer?.status === 'accepted';
                                             const isLastFromPro = lastThree.length > 0 && lastThree[lastThree.length - 1].sender === 'pro';
 
-                                            const renderBudgetBox = (isSeparate = false) => (
-                                                <View style={{
-                                                    backgroundColor: isSeparate ? 'white' : '#F0F9FF',
-                                                    padding: 16, borderRadius: 20, marginBottom: 12,
-                                                    borderWidth: 1, borderColor: isSeparate ? '#E2E8F0' : '#BAE6FD',
-                                                    elevation: isSeparate ? 3 : 0
-                                                }}>
-                                                    <Text style={{ fontWeight: 'bold', color: isWinner ? '#059669' : '#1E3A8A', fontSize: 11, textAlign: 'center', marginBottom: 8 }}>
-                                                        {isWinner ? '✅ PRESUPUESTO ACEPTADO' : 'PRESUPUESTO RECIBIDO'}
-                                                    </Text>
-                                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                                                        <View><Text style={{ fontSize: 9, color: '#64748B' }}>MONTO</Text><Text style={{ fontWeight: 'bold', fontSize: 13 }}>{pro.offer.currency || '$'}{pro.offer.amount}</Text></View>
-                                                        <View><Text style={{ fontSize: 9, color: '#64748B' }}>INICIO</Text><Text style={{ fontWeight: '600', fontSize: 12 }}>{pro.offer.startDate || 'Pronto'}</Text></View>
-                                                        <View><Text style={{ fontSize: 9, color: '#64748B' }}>PLAZO</Text><Text style={{ fontWeight: '600', fontSize: 12 }}>{pro.offer.duration}</Text></View>
-                                                    </View>
-                                                    <TouchableOpacity
-                                                        style={{ marginTop: 12, backgroundColor: '#10B981', height: 40, borderRadius: 10, justifyContent: 'center', alignItems: 'center' }}
-                                                        onPress={() => { setSelectedBudget(pro.offer); setShowBudgetModal(true); }}
-                                                    >
-                                                        <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 14 }}>VER PRESUPUESTO</Text>
-                                                    </TouchableOpacity>
-                                                </View>
-                                            );
-
-                                            const renderChatBox = () => (
-                                                <View style={{ marginBottom: 10 }}>
-                                                    {lastThree.map((msg, mIdx) => (
-                                                        <View key={mIdx} style={{ backgroundColor: msg.sender === 'pro' ? '#F1F5F9' : '#FFF7ED', padding: 8, borderRadius: 12, marginBottom: 4, alignSelf: msg.sender === 'pro' ? 'flex-start' : 'flex-end', maxWidth: '85%' }}>
-                                                            <Text style={{ fontSize: 12, color: '#334155' }}>{msg.text || (msg.media ? '📷 Archivo' : '...')}</Text>
-                                                        </View>
-                                                    ))}
-                                                    <TouchableOpacity
-                                                        style={{ backgroundColor: isLastFromPro ? '#EA580C' : 'white', paddingVertical: 12, borderRadius: 14, alignItems: 'center', borderWidth: 1.5, borderColor: '#EA580C', marginTop: 6 }}
-                                                        onPress={() => onOpenChat && onOpenChat(request, { ...pro, role: 'pro' })}
-                                                    >
-                                                        <Text style={{ color: isLastFromPro ? 'white' : '#EA580C', fontWeight: 'bold' }}>{isLastFromPro ? 'Responder' : 'Preguntar'}</Text>
-                                                    </TouchableOpacity>
-                                                </View>
-                                            );
-
                                             return (
-                                                <View key={index} style={{ backgroundColor: 'white', borderRadius: 24, padding: 16, marginHorizontal: 16, marginBottom: 16, elevation: 4, shadowColor: '#000', shadowOpacity: 0.1, borderWidth: 1, borderColor: '#F1F5F9' }}>
+                                                <View key={`chat-${index}`} style={{ backgroundColor: 'white', borderRadius: 24, padding: 16, marginBottom: 16, elevation: 4, shadowColor: '#000', shadowOpacity: 0.1, borderWidth: 1, borderColor: '#F1F5F9' }}>
                                                     {/* PRO HEADER */}
                                                     <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 15 }} onPress={() => onViewUserProfile && onViewUserProfile(pro)}>
                                                         <Image source={{ uri: pro.avatar }} style={{ width: 44, height: 44, borderRadius: 22, marginRight: 10 }} />
@@ -470,22 +440,19 @@ const RequestDetailClient = ({ request, onBack, onAcceptOffer, onOpenChat, onUpd
                                                         </View>
                                                     </TouchableOpacity>
 
-                                                    {status === 'PRESUPUESTADA' ? (
-                                                        <>
-                                                            {renderBudgetBox()}
-                                                            {renderChatBox()}
-                                                        </>
-                                                    ) : status === 'EN EJECUCIÓN' ? (
-                                                        <>
-                                                            {renderChatBox()}
-                                                            {renderBudgetBox(true)}
-                                                        </>
-                                                    ) : (
-                                                        <>
-                                                            {renderChatBox()}
-                                                            {pro.offer && renderBudgetBox()}
-                                                        </>
-                                                    )}
+                                                    <View style={{ marginBottom: 10 }}>
+                                                        {lastThree.map((msg, mIdx) => (
+                                                            <View key={mIdx} style={{ backgroundColor: msg.sender === 'pro' ? '#F1F5F9' : '#FFF7ED', padding: 8, borderRadius: 12, marginBottom: 4, alignSelf: msg.sender === 'pro' ? 'flex-start' : 'flex-end', maxWidth: '85%' }}>
+                                                                <Text style={{ fontSize: 12, color: '#334155' }}>{msg.text || (msg.media ? '📷 Archivo' : '...')}</Text>
+                                                            </View>
+                                                        ))}
+                                                        <TouchableOpacity
+                                                            style={{ backgroundColor: isLastFromPro ? '#EA580C' : 'white', paddingVertical: 12, borderRadius: 14, alignItems: 'center', borderWidth: 1.5, borderColor: '#EA580C', marginTop: 6 }}
+                                                            onPress={() => onOpenChat && onOpenChat(request, { ...pro, role: 'pro' })}
+                                                        >
+                                                            <Text style={{ color: isLastFromPro ? 'white' : '#EA580C', fontWeight: 'bold' }}>{isLastFromPro ? 'Responder' : 'Preguntar'}</Text>
+                                                        </TouchableOpacity>
+                                                    </View>
                                                 </View>
                                             );
                                         })}
@@ -500,11 +467,111 @@ const RequestDetailClient = ({ request, onBack, onAcceptOffer, onOpenChat, onUpd
                         </View>
                     );
 
+                    const BudgetSection = (
+                        <View style={{ paddingHorizontal: 0, marginBottom: 20 }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, paddingHorizontal: 20 }}>
+                                <Text style={{ fontSize: 18, fontWeight: '900', color: '#1E2937' }}>Presupuesto</Text>
+                            </View>
+
+                            {(() => {
+                                const proMap = {};
+                                (request.offers || []).forEach((offer, idx) => {
+                                    const pid = offer.proId._id || offer.proId;
+                                    if (!proMap[pid]) proMap[pid] = { id: pid, name: offer.proName, avatar: offer.proAvatar, rating: offer.proRating };
+                                    proMap[pid].offer = {
+                                        ...offer,
+                                        index: idx,
+                                        proName: proMap[pid].name,
+                                        proAvatar: proMap[pid].avatar
+                                    };
+                                });
+
+                                const allPros = Object.values(proMap).sort((a, b) => {
+                                    if (a.offer?.status === 'accepted') return -1;
+                                    if (b.offer?.status === 'accepted') return 1;
+                                    return 0;
+                                });
+
+                                const winner = allPros.find(p => p.offer?.status === 'accepted');
+                                let visiblePros = allPros;
+                                if (winner) {
+                                    visiblePros = [winner];
+                                }
+
+                                const prosToRender = showArchivedChats ? allPros : visiblePros;
+                                const prosWithOffers = prosToRender.filter(p => p.offer);
+
+                                if (prosWithOffers.length === 0) return null;
+
+                                return (
+                                    <View style={{ paddingHorizontal: 0 }}>
+                                        {prosWithOffers.map((pro, index) => {
+                                            const isWinner = pro.offer?.status === 'accepted';
+                                            return (
+                                                <View key={`budget-${index}`} style={{
+                                                    backgroundColor: 'white', borderRadius: 24, padding: 16, marginBottom: 16, elevation: 4, shadowColor: '#000', shadowOpacity: 0.1, borderWidth: 1, borderColor: '#F1F5F9'
+                                                }}>
+
+                                                    <View style={{
+                                                        backgroundColor: '#F0F9FF',
+                                                        padding: 16, borderRadius: 20,
+                                                        borderWidth: 1, borderColor: '#BAE6FD',
+                                                        elevation: 0
+                                                    }}>
+                                                        <Text style={{ fontWeight: 'bold', color: isWinner ? '#059669' : '#1E3A8A', fontSize: 11, textAlign: 'center', marginBottom: 8 }}>
+                                                            {isWinner ? '✅ PRESUPUESTO ACEPTADO' : 'PRESUPUESTO RECIBIDO'}
+                                                        </Text>
+                                                        <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                                                            <View><Text style={{ fontSize: 9, color: '#64748B' }}>MONTO</Text><Text style={{ fontWeight: 'bold', fontSize: 13 }}>{pro.offer.currency || '$'}{pro.offer.amount}</Text></View>
+                                                            <View><Text style={{ fontSize: 9, color: '#64748B' }}>INICIO</Text><Text style={{ fontWeight: '600', fontSize: 12 }}>{pro.offer.startDate || 'Pronto'}</Text></View>
+                                                            <View><Text style={{ fontSize: 9, color: '#64748B' }}>PLAZO</Text><Text style={{ fontWeight: '600', fontSize: 12 }}>{pro.offer.duration}</Text></View>
+                                                        </View>
+                                                        <TouchableOpacity
+                                                            style={{ marginTop: 12, backgroundColor: '#10B981', height: 40, borderRadius: 10, justifyContent: 'center', alignItems: 'center' }}
+                                                            onPress={() => { setSelectedBudget(pro.offer); setShowBudgetModal(true); }}
+                                                        >
+                                                            <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 14 }}>VER PRESUPUESTO</Text>
+                                                        </TouchableOpacity>
+                                                    </View>
+                                                </View>
+                                            );
+                                        })}
+                                    </View>
+                                );
+                            })()}
+                        </View>
+                    );
+
+                    const ValidationSection = status === 'VALIDANDO' ? (
+                        <View style={{ backgroundColor: 'white', borderRadius: 24, padding: 20, marginHorizontal: 20, marginBottom: 20, elevation: 4, shadowColor: '#000', shadowOpacity: 0.1, borderWidth: 1, borderColor: '#F87171' }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 15 }}>
+                                <View style={{ backgroundColor: '#FEE2E2', width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', marginRight: 15 }}>
+                                    <Feather name="check-circle" size={24} color="#EF4444" />
+                                </View>
+                                <Text style={{ flex: 1, fontSize: 16, fontWeight: 'bold', color: '#1E293B', lineHeight: 22 }}>
+                                    El profesional {(data.professional?.name || (data.offers && data.offers.find(o => o.status === 'accepted')?.proName) || '')} ha indicado que el trabajo está listo o terminado.
+                                </Text>
+                            </View>
+                            <TouchableOpacity
+                                onPress={handleFinishInternal}
+                                style={{ backgroundColor: '#EF4444', paddingVertical: 14, borderRadius: 16, alignItems: 'center' }}
+                            >
+                                <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 15 }}>Trabajo terminado</Text>
+                            </TouchableOpacity>
+                        </View>
+                    ) : null;
+
                     // Reorder Page Sections
                     if (status === 'NUEVA' || status === 'CONTACTADA' || status === 'PRESUPUESTADA') {
-                        return <>{InteractionsSection}{ManagementSection}{RatingSection}{TimelineSection}</>;
+                        return <>{ChatsSection}{BudgetSection}{ManagementSection}{RatingSection}{TimelineSection}</>;
+                    } else if (status === 'VALIDANDO') {
+                        return <>{ValidationSection}{ManagementSection}{ChatsSection}{BudgetSection}{RatingSection}{TimelineSection}</>;
+                    } else if (status === 'VALORACIÓN') {
+                        return <>{RatingSection}{ManagementSection}{ChatsSection}{BudgetSection}{TimelineSection}</>;
+                    } else if (status === 'TERMINADO') {
+                        return <>{RatingSection}{ManagementSection}{ChatsSection}{BudgetSection}{TimelineSection}</>;
                     } else {
-                        return <>{ManagementSection}{InteractionsSection}{RatingSection}{TimelineSection}</>;
+                        return <>{ManagementSection}{ChatsSection}{BudgetSection}{RatingSection}{TimelineSection}</>;
                     }
                 })()}
 

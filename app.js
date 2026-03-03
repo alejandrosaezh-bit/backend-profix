@@ -3,14 +3,14 @@ import { Feather, FontAwesome5 } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as Notifications from 'expo-notifications'; // Import Notifications
 import { StatusBar } from 'expo-status-bar';
-import React, { useCallback, useContext, useEffect, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import {
-    ActivityIndicator,
+    Animated,
+    Easing,
     Image,
     LogBox,
     Modal,
     Platform,
-    RefreshControl,
     SafeAreaView,
     ScrollView,
     Text,
@@ -20,6 +20,7 @@ import {
 
 // --- IMPORTS DE UTILIDADES ---
 // V13 Update
+import BottomNav from './src/components/BottomNav';
 import { AuthContext, AuthProvider } from './src/context/AuthContext';
 import { SocketProvider, useSocket } from './src/context/SocketContext'; // Updated Socket Import
 import AdminScreens from './src/screens/AdminScreens';
@@ -33,16 +34,16 @@ import CreateQuoteScreen from './src/screens/CreateQuoteScreen';
 import LoginScreen from './src/screens/LoginScreen';
 import MyRequestsScreen from './src/screens/MyRequestsScreen';
 import ProfessionalProfileScreen from './src/screens/ProfessionalProfileScreen';
+import ProHomeScreen from './src/screens/ProHomeScreen';
 import SubcategoryDetailScreen from './src/screens/SubcategoryDetailScreen';
 import { api } from './src/utils/api';
 import * as AuthLocal from './src/utils/auth_local';
-import { registerForPushNotificationsAsync } from './src/utils/push'; // Add Push Utility
-import { setRequests } from './src/utils/requests';
 import { saveSession } from './src/utils/session';
 
+import BudgetPopup from './src/components/BudgetPopup';
 import { SectionDivider } from './src/components/Dividers';
 import Header from './src/components/Header';
-import { BLOG_POSTS, HOME_COPY_OPTIONS, LOCATIONS_DATA } from './src/constants/data';
+import { HOME_COPY_OPTIONS, LOCATIONS_DATA } from './src/constants/data';
 import styles from './src/styles/globalStyles';
 import { areIdsEqual, getClientStatus, getProStatus, getProStatusColor, showAlert } from './src/utils/helpers';
 
@@ -82,7 +83,7 @@ if (Platform.OS !== 'web') {
 
 const { checkCredentials, getUser, registerUser } = AuthLocal;
 
-import { CAT_ICONS, ICON_MAP, IconAuto, IconBeauty, IconEvents, IconHogar, IconLegal, IconPets, IconSalud, IconTech } from './src/constants/icons';
+import { ICON_MAP, IconAuto, IconBeauty, IconEvents, IconHogar, IconLegal, IconPets, IconSalud, IconTech } from './src/constants/icons';
 
 const mapCategoryToDisplay = (cat) => ({
     id: cat._id,
@@ -115,242 +116,9 @@ const CATEGORIES_DISPLAY = [
 // showAlert and showConfirmation are imported from src/utils/helpers
 
 // SectionDivider and HandDrawnDivider imported from src/components/Dividers// HOME_COPY_OPTIONS and ROTATION_KEY are now imported from src/constants/data.js
+import { HomeSections, UrgencyBanner } from './src/components/HomeComponents';
+import { useAppData } from './src/hooks/useAppData';
 
-const QuickActionsRow = ({ onActionPress, categories }) => {
-    // 1. Flatten all subcategories and filter isUrgent
-    const urgentSubs = [];
-    (categories || []).forEach(cat => {
-        (cat.subcategories || []).forEach(sub => {
-            if (typeof sub === 'object' && sub.isUrgent) {
-                urgentSubs.push({
-                    name: sub.name,
-                    icon: sub.icon,
-                    category: cat.name,
-                    color: cat.color || '#F3F4F6'
-                });
-            }
-        });
-    });
-
-    // 2. Limit to 6
-    const actions = urgentSubs.slice(0, 6);
-
-    if (actions.length === 0) return null;
-
-    // Calcular el tamaño proporcional para que se vean más discretos pero claros
-    const ITEM_SIZE = width / 8.8;
-
-    return (
-        <View style={{
-            marginTop: 15,
-            marginBottom: 25,
-            flexDirection: 'row',
-            justifyContent: 'space-around', // Mejor distribución para tamaños pequeños
-            alignItems: 'center',
-            paddingHorizontal: 10
-        }}>
-            {actions.map((action, index) => {
-                const iconData = CAT_ICONS[action.icon] || { lib: Feather, name: 'layers' };
-                const Lib = iconData.lib;
-                return (
-                    <TouchableOpacity
-                        key={index}
-                        onPress={() => onActionPress(action.category, action.name)}
-                        style={{ alignItems: 'center' }}
-                        activeOpacity={0.6}
-                    >
-                        <View style={{
-                            width: ITEM_SIZE,
-                            height: ITEM_SIZE,
-                            borderRadius: ITEM_SIZE / 2,
-                            backgroundColor: '#F1F5F9', // Gris neutro claro
-                            justifyContent: 'center',
-                            alignItems: 'center',
-                            borderWidth: 1.5,
-                            borderColor: '#E2E8F0', // Borde sutil
-                            // Sombras muy minimalistas
-                            shadowColor: '#000',
-                            shadowOffset: { width: 0, height: 1 },
-                            shadowOpacity: 0.05,
-                            shadowRadius: 2,
-                            elevation: 1
-                        }}>
-                            <Lib name={iconData.name} size={ITEM_SIZE * 0.5} color="#475569" />
-                        </View>
-                    </TouchableOpacity>
-                );
-            })}
-        </View>
-    );
-};
-
-// Header and CustomDropdown are imported from src/components
-
-
-// --- 3. SECCIONES DE CONTENIDO (BLOG, ETC) ---
-const HomeSections = ({ onSelectCategory, onSelectPost, categories, articles }) => {
-    const displayCategories = (categories && categories.length > 0) ? categories : [];
-    const displayArticles = (articles && articles.length > 0) ? articles : BLOG_POSTS;
-
-    return (
-        <View style={{ backgroundColor: 'transparent' }}>
-            {/* Categorías */}
-            <View style={{ backgroundColor: 'white', marginHorizontal: 4, borderRadius: 24, borderWidth: 1, borderColor: '#FFF7ED', shadowColor: '#EA580C', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 10, elevation: 5, paddingHorizontal: 20, paddingVertical: 24 }}>
-                <Text style={styles.sectionTitle}>Categorías Populares</Text>
-                <View style={styles.categoriesGrid}>
-                    {displayCategories.slice(0, 9).map(cat => (
-                        <TouchableOpacity
-                            key={cat.id}
-                            style={styles.catCard}
-                            onPress={() => onSelectCategory(cat)}
-                        >
-                            <View style={[styles.catIconCircle, { backgroundColor: cat.color || '#F3F4F6', marginBottom: 6 }]}>
-                                <cat.icon size={24} color={cat.iconColor || "#EA580C"} />
-                            </View>
-                            <Text style={[styles.catTextCard, { textAlign: 'center' }]} numberOfLines={2}>{cat.name}</Text>
-                        </TouchableOpacity>
-                    ))}
-                </View>
-            </View>
-
-            <SectionDivider />
-
-            {/* Cómo funciona */}
-            <View style={[styles.howToCard, { marginBottom: 0, marginHorizontal: 4, borderRadius: 24, borderWidth: 1, borderColor: '#FFF7ED', elevation: 5, shadowColor: '#EA580C', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 10 }]}>
-                <View style={styles.howToHeader}>
-                    <Text style={styles.howToTitle}>¿Cómo funciona?</Text>
-                    <Text style={styles.howToSubtitle}>Resuelve tu problema en 3 pasos</Text>
-                </View>
-                <View style={styles.stepsRow}>
-                    <View style={styles.step}>
-                        <View style={[styles.stepBadge, { backgroundColor: '#FFEDD5' }]}><Text style={[styles.stepNumber, { color: '#EA580C' }]}>1</Text></View>
-                        <Text style={styles.stepLabel}>Pide</Text>
-                    </View>
-                    <View style={styles.step}>
-                        <View style={[styles.stepBadge, { backgroundColor: '#DBEAFE' }]}><Text style={[styles.stepNumber, { color: '#2563EB' }]}>2</Text></View>
-                        <Text style={styles.stepLabel}>Recibe</Text>
-                    </View>
-                    <View style={styles.step}>
-                        <View style={[styles.stepBadge, { backgroundColor: '#DCFCE7' }]}><Text style={[styles.stepNumber, { color: '#16A34A' }]}>3</Text></View>
-                        <Text style={styles.stepLabel}>Elige</Text>
-                    </View>
-                </View>
-                <View style={{ alignItems: 'center', paddingBottom: 25 }}>
-                    <View style={{ width: '90%', height: 180, borderRadius: 20, overflow: 'hidden', position: 'relative', marginTop: 10, elevation: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4 }}>
-                        <Image
-                            source={{ uri: 'https://images.unsplash.com/photo-1581578731522-5b17b88bb7d5?auto=format&fit=crop&w=800&q=80' }}
-                            style={{ width: '100%', height: '100%' }}
-                        />
-                        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.15)' }}>
-                            <View style={{ backgroundColor: '#FF0000', width: 68, height: 48, borderRadius: 14, justifyContent: 'center', alignItems: 'center' }}>
-                                <Feather name="play" size={28} color="white" />
-                            </View>
-                        </View>
-                    </View>
-                </View>
-            </View>
-        </View>
-    );
-};
-
-// --- COMPONENT: URGENCY BANNER ---
-// --- COMPONENT: URGENCY BANNER ---
-const UrgencyBanner = ({ onPress, onActionPress, categories }) => {
-    // Logic from QuickActionsRow to get urgent subcategories
-    const urgentSubs = [];
-    (categories || []).forEach(cat => {
-        (cat.subcategories || []).forEach(sub => {
-            if (typeof sub === 'object' && sub.isUrgent) {
-                urgentSubs.push({
-                    name: sub.name,
-                    icon: sub.icon,
-                    category: cat.name,
-                    color: cat.color || '#F3F4F6',
-                    emergencyIcon: sub.emergencyIcon // Added support for custom emergency icon
-                });
-            }
-        });
-    });
-
-    const actions = urgentSubs.slice(0, 5); // Limit to 5 for better layout in banner
-
-    return (
-        <View style={{ marginHorizontal: 4, marginTop: 0, marginBottom: 0 }}>
-            <View
-                style={{
-                    backgroundColor: 'white',
-                    borderRadius: 24,
-                    padding: 20,
-                    borderWidth: 1,
-                    borderColor: '#FFF7ED',
-                    shadowColor: '#EA580C',
-                    shadowOffset: { width: 0, height: 4 },
-                    shadowOpacity: 0.1,
-                    shadowRadius: 10,
-                    elevation: 5
-                }}
-            >
-                {/* Icons inside the banner (moved to top) */}
-                <View style={{ flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center', marginBottom: 25, backgroundColor: 'rgba(249,250,251,0.5)', borderRadius: 24, paddingVertical: 15 }}>
-                    {actions.map((action, index) => {
-                        const IconComponent = ICON_MAP[action.icon] || ICON_MAP['default'];
-                        return (
-                            <TouchableOpacity
-                                key={index}
-                                onPress={() => onActionPress(action.category, action.name)}
-                                style={{ alignItems: 'center', flex: 1 }}
-                                activeOpacity={0.7}
-                            >
-                                <View style={{
-                                    width: 56,
-                                    height: 56,
-                                    borderRadius: 28,
-                                    backgroundColor: 'white',
-                                    justifyContent: 'center',
-                                    alignItems: 'center',
-                                    borderWidth: 1.5,
-                                    borderColor: '#FED7AA',
-                                    elevation: 2,
-                                    overflow: 'hidden'
-                                }}>
-                                    {action.emergencyIcon ? (
-                                        <Image source={{ uri: action.emergencyIcon }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
-                                    ) : (
-                                        <IconComponent size={26} color="#EA580C" />
-                                    )}
-                                </View>
-                                <Text style={{ fontSize: 9, color: '#4B5563', fontWeight: 'bold', marginTop: 8, textAlign: 'center' }} numberOfLines={1}>{action.name}</Text>
-                            </TouchableOpacity>
-                        );
-                    })}
-                </View>
-
-                {/* Title and Subtitle centered (moved to bottom) */}
-                <TouchableOpacity
-                    activeOpacity={0.9}
-                    onPress={onPress}
-                    style={{ alignItems: 'center', justifyContent: 'center' }}
-                >
-                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
-                        <View style={{
-                            width: 32, height: 32,
-                            borderRadius: 16,
-                            backgroundColor: '#FFEDD5',
-                            justifyContent: 'center', alignItems: 'center',
-                            marginRight: 10,
-                            borderWidth: 1,
-                            borderColor: '#FED7AA'
-                        }}>
-                            <Feather name="zap" size={18} color="#EA580C" />
-                        </View>
-                        <Text style={{ fontSize: 20, fontWeight: '800', color: '#111811' }}>Urgencias 24/7</Text>
-                    </View>
-                    <Text style={{ fontSize: 14, color: '#6B7280', textAlign: 'center' }}>Expertos listos para salir ahora mismo.</Text>
-                </TouchableOpacity>
-            </View>
-        </View>
-    );
-};
 
 import CloseRequestModal from './src/screens/CloseRequestModal';
 import JobDetailPro from './src/screens/JobDetailPro';
@@ -445,43 +213,42 @@ function MainApp() {
             const legacyClientId = String(job.clientId).trim();
             if (myId && legacyClientId && myId === legacyClientId) return false;
         }
-        if (user.email && job.client?.email) {
-            if (user.email.trim().toLowerCase() === job.client.email.trim().toLowerCase()) return false;
-        }
 
         // 2. Profile Categories & Zones
         const myProfiles = user.profiles || {};
         const activeProfileKeys = Object.keys(myProfiles).filter(key => {
             const p = myProfiles[key];
-            return p && p.isActive !== false;
+            return p && (p.isActive !== false);
         });
 
-        if (activeProfileKeys.length === 0) return false;
+        if (activeProfileKeys.length === 0) {
+            // If they have NO profiles, but they ARE the assigned professional, return true
+            if (job.professional && areIdsEqual(job.professional?._id || job.professional, myId)) return true;
+            return false;
+        }
 
         const jobCategoryName = job.category?.name || job.category;
         const jobSubcategoryName = job.subcategory?.name || job.subcategory;
         const jobLocation = job.location;
 
         return activeProfileKeys.some(profileCatName => {
-            if (profileCatName !== jobCategoryName) return false;
+            // Loose matching for category name
+            if (profileCatName.toLowerCase() !== String(jobCategoryName || '').toLowerCase()) return false;
 
             const profile = myProfiles[profileCatName];
 
-            // Zone Check
+            // Zone Check: If no zones defined, show everything in that category!
             const profileZones = profile.zones || [];
             if (profileZones.length > 0) {
-                const jobLocNormalized = (jobLocation || '').trim();
-                const hasZone = profileZones.some(z => z.trim() === jobLocNormalized);
+                const jobLocNormalized = (jobLocation || '').trim().toLowerCase();
+                const hasZone = profileZones.some(z => z.trim().toLowerCase() === jobLocNormalized);
                 if (!hasZone) return false;
-            } else {
-                // If no zones defined, maybe strict or loose? Assuming strict based on previous code
-                return false;
             }
 
-            // Subcategory Check
+            // Subcategory Check: If no subcategories defined, show everything in that category!
             const profileSubs = profile.subcategories || [];
             if (profileSubs.length > 0) {
-                if (jobSubcategoryName && !profileSubs.includes(jobSubcategoryName)) return false;
+                if (jobSubcategoryName && !profileSubs.some(s => s.trim().toLowerCase() === String(jobSubcategoryName).trim().toLowerCase())) return false;
             }
 
             return true;
@@ -489,9 +256,6 @@ function MainApp() {
     }, []);
 
     // --- ESTADO GLOBAL (Data) ---
-    const [allRequests, setAllRequests] = useState([]);
-    const [allChats, setAllChats] = useState([]);
-    const [refreshing, setRefreshing] = useState(false);
     const [homeMessages, setHomeMessages] = useState([]);
     const [dynamicCopy, setDynamicCopy] = useState(() => {
         // SYNCHRONOUS INITIALIZATION: Pick a random copy on mount to avoid UI flicker
@@ -520,11 +284,54 @@ function MainApp() {
     const [userMode, setUserMode] = useState('client');
     const [showAuth, setShowAuth] = useState(false);
     const [view, setView] = useState('home');
+    const { allRequests, setAllRequests, allChats, setAllChats, refreshing, setRefreshing, counts, setCounts, loadRequests, loadChats, onRefresh } = useAppData({ isLoggedIn, currentUser, userMode, view });
     const [selectedCategory, setSelectedCategory] = useState(null);
     const [selectedSubcategory, setSelectedSubcategory] = useState(null);
     const [selectedBlogPost, setSelectedBlogPost] = useState(null);
     const [selectedUser, setSelectedUser] = useState(null);
     const [selectedRequest, setSelectedRequest] = useState(null);
+    const [isOpeningRequest, setIsOpeningRequest] = useState(false);
+
+    // --- ANIMATION FOR LOADER ---
+    const spinValue = useRef(new Animated.Value(0)).current;
+    const isAnimating = useRef(false);
+
+    useEffect(() => {
+        const startAnimation = () => {
+            if (!isOpeningRequest && !isLoading) {
+                isAnimating.current = false;
+                spinValue.stopAnimation();
+                spinValue.setValue(0);
+                return;
+            }
+
+            isAnimating.current = true;
+            spinValue.setValue(0);
+            Animated.timing(spinValue, {
+                toValue: 1,
+                duration: 1200,
+                easing: Easing.linear,
+                useNativeDriver: false, // Más estable en web
+            }).start(({ finished }) => {
+                if (finished && isAnimating.current) {
+                    startAnimation();
+                }
+            });
+        };
+
+        if ((isOpeningRequest || isLoading || refreshing) && !isAnimating.current) {
+            startAnimation();
+        } else if (!isOpeningRequest && !isLoading && !refreshing) {
+            isAnimating.current = false;
+            spinValue.stopAnimation();
+            spinValue.setValue(0);
+        }
+    }, [isOpeningRequest, isLoading, refreshing]);
+
+    const spin = spinValue.interpolate({
+        inputRange: [0, 1],
+        outputRange: ['0deg', '360deg'],
+    });
     const [selectedChatRequest, setSelectedChatRequest] = useState(null);
     // --- ESTADO DATOS DINÁMICOS ---
     const [categories, setCategories] = useState(CATEGORIES_DISPLAY);
@@ -534,7 +341,6 @@ function MainApp() {
     const [proInteractions, setProInteractions] = useState({});
     const [filterCategory, setFilterCategory] = useState('Todas');
     const [filterStatus, setFilterStatus] = useState('Todas');
-    const [counts, setCounts] = useState({ client: { chats: 0, updates: 0 }, pro: { chats: 0, updates: 0 } });
 
     // --- ESTADO CLIENTE FILTROS ---
     const [clientFilterCategory, setClientFilterCategory] = useState('Todas');
@@ -548,7 +354,9 @@ function MainApp() {
     const [categoryModalVisible, setCategoryModalVisible] = useState(false);
     const [statusModalVisible, setStatusModalVisible] = useState(false);
     const [showBudgetModal, setShowBudgetModal] = useState(false);
+    const [startWithRejectForm, setStartWithRejectForm] = useState(false);
     const [showClientProfileModal, setShowClientProfileModal] = useState(false);
+    const [showProProfileModal, setShowProProfileModal] = useState(false);
 
     // --- NUEVO ESTADO FALTANTE ---
     const [selectedBudget, setSelectedBudget] = useState(null);
@@ -571,83 +379,7 @@ function MainApp() {
         // ... Logic continues ...
     }, []); // Placeholder to avoid breaking existing useEffect, but we will add the new one below
 
-    // --- NOTIFICATION & SOCKET SETUP ---
-    useEffect(() => {
-        const setupNotifications = async () => {
-            if (isLoggedIn && userInfo?._id) {
-                // 1. Register Push Token and Save to Backend
-                const token = await registerForPushNotificationsAsync();
-                if (token) {
-                    console.log("Push Token obtained:", token);
 
-                    // Delay the API call slightly to ensure AsyncStorage has finished writing the new session token
-                    // after a fresh login. Otherwise, api.js might read a null token and get a 401.
-                    setTimeout(async () => {
-                        try {
-                            // Only update if it's different or just to be safe
-                            console.log("Attempting to sync push token to backend...");
-                            await api.updateProfile({ pushToken: token });
-                            console.log("Push Token synced with backend.");
-                        } catch (e) {
-                            console.log("Error syncing push token (Safe ignore if just logged in):", e.message);
-                        }
-                    }, 1000);
-                }
-
-                // 2. Join Socket Room
-                if (socket) {
-                    socket.emit('join_user_dates', userInfo._id);
-
-                    // 3. Listen for Socket Notifications (Real-time)
-                    socket.off('notification'); // Prevent duplicates
-                    socket.on('notification', (data) => {
-                        console.log("Socket Notification:", data);
-                        // Show local notification immediately
-                        if (Platform.OS !== 'web') {
-                            Notifications.scheduleNotificationAsync({
-                                content: {
-                                    title: data.title,
-                                    body: data.body,
-                                    data: { jobId: data.jobId },
-                                    sound: 'default'
-                                },
-                                trigger: null,
-                            });
-                        }
-
-                        // Optional: Refresh data if needed
-                        setCounts(prev => {
-                            const isClient = userMode === 'client';
-                            const type = isClient ? 'client' : 'pro';
-                            return { ...prev, [type]: { ...prev[type], updates: prev[type].updates + 1 } };
-                        });
-                    });
-                }
-            }
-        };
-
-        setupNotifications();
-
-        // Listeners for Foreground/Response
-        let bgSubscription;
-        if (Platform.OS !== 'web') {
-            bgSubscription = Notifications.addNotificationResponseReceivedListener(response => {
-                const data = response.notification.request.content.data;
-                if (data?.jobId) {
-                    // Navigate to job detail
-                    console.log("Notification tapped, navigating to job:", data.jobId);
-                    // Logic to navigate can be added here if 'navigation' ref was available, 
-                    // or by setting state that triggers view change.
-                    // For now, we rely on user opening app and seeing update.
-                }
-            });
-        }
-
-        return () => {
-            if (socket) socket.off('notification');
-            if (bgSubscription) bgSubscription.remove();
-        };
-    }, [isLoggedIn, userInfo, socket, userMode]);
 
     useEffect(() => {
         const loadData = async () => {
@@ -669,36 +401,57 @@ function MainApp() {
 
     // --- COUNTERS EFFECT (MOVED UP) ---
     useEffect(() => {
-        if (!allRequests) return;
+        if (!allRequests || !currentUser) return;
 
+        const myId = currentUser?._id || currentUser?.id;
         let clientChatCount = 0;
         let clientUpdateCount = 0;
         let proChatCount = 0;
         let proUpdateCount = 0;
 
         allRequests.forEach(req => {
-            const isClientJob = !req.isVirtual; // Assuming virtual/market jobs vs user jobs
+            const isClientJob = areIdsEqual(req.clientId, myId);
 
-            if (userMode === 'client') { // Count for client view
-                if (req.offers?.some(o => o.status === 'pending')) clientUpdateCount++;
-                if (req.conversations) req.conversations.forEach(c => clientChatCount += (c.unreadCount || 0));
-            } else { // Count for pro view
-                // FILTER: Only count if it matches my profile!
-                const isMatch = isJobMatchingProfile(req, currentUser);
-                if (isMatch && req.proInteractionStatus === 'new') proUpdateCount++;
+            // Lógica de Cliente: Solo contar si yo soy el dueño de la solicitud
+            if (isClientJob) {
+                // Notificaciones de nuevas ofertas pendientes de revisar
+                if (req.offers?.some(o => o.status === 'pending' && !o.seenByClient)) {
+                    clientUpdateCount++;
+                }
 
-                // For chats, we usually only have chats on jobs we interacted with, so this is likely fine.
-                // But conceptually, if I have a chat, I should count it regardless of profile match (e.g. if I changed profile later).
-                if (req.conversations) req.conversations.forEach(c => proChatCount += (c.unreadCount || 0));
+                // Mensajes sin leer en mis solicitudes
+                if (req.conversations) {
+                    req.conversations.forEach(c => {
+                        clientChatCount += (c.unreadCount || 0);
+                    });
+                }
+            }
+
+            // Lógica de Profesional
+            // 1. Trabajos nuevos que coinciden con mi perfil (Buscador) O que tienen actualizaciones sin leer (ej: oferta aceptada)
+            const isMarketNew = isJobMatchingProfile(req, currentUser) && req.proInteractionStatus === 'new';
+            const hasUpdate = req.proInteractionHasUnread === true;
+
+            if (isMarketNew || hasUpdate) {
+                proUpdateCount++;
+            }
+
+            // 2. Mensajes sin leer en chats donde soy el profesional interactuando
+            if (req.conversations) {
+                req.conversations.forEach(c => {
+                    // Solo sumar si este chat específico me pertenece a mí como profesional
+                    if (areIdsEqual(c.proId, myId)) {
+                        proChatCount += (c.unreadCount || 0);
+                    }
+                });
             }
         });
 
-        // Simplified counts for stability
         setCounts({
             client: { chats: clientChatCount, updates: clientUpdateCount },
             pro: { chats: proChatCount, updates: proUpdateCount }
         });
-    }, [allRequests, userMode]);
+    }, [allRequests, currentUser]);
 
 
 
@@ -758,6 +511,43 @@ function MainApp() {
             }));
         } catch (e) {
             console.warn("Error updating pro status:", e);
+        }
+    };
+
+    const markAllProInteractionsAsRead = async () => {
+        if (!isLoggedIn || userMode !== 'pro') return;
+
+        // Filter jobs that are either 'new' or have unread updates
+        const marketJobIds = [];
+        const hasUnreadItems = allRequests.some(req => {
+            const isMatching = isJobMatchingProfile(req, currentUser) && req.proInteractionStatus === 'new';
+            const hasUpdate = req.proInteractionHasUnread === true;
+            if (isMatching) marketJobIds.push(req.id || req._id);
+            return isMatching || hasUpdate;
+        });
+
+        if (!hasUnreadItems) return;
+
+        try {
+            // Local update for instant response
+            setAllRequests(prev => prev.map(r => {
+                const isMatching = isJobMatchingProfile(r, currentUser) && r.proInteractionStatus === 'new';
+                const hasUpdate = r.proInteractionHasUnread === true;
+
+                if (isMatching || hasUpdate) {
+                    return {
+                        ...r,
+                        proInteractionStatus: isMatching ? 'viewed' : r.proInteractionStatus,
+                        proInteractionHasUnread: false
+                    };
+                }
+                return r;
+            }));
+
+            // Backend call
+            await api.markAllProInteractionsAsRead(marketJobIds);
+        } catch (e) {
+            console.warn("Error marking all pro interactions as read:", e);
         }
     };
 
@@ -902,268 +692,13 @@ function MainApp() {
 
 
 
-    // --- FUNCTION: LOAD CHATS (Standalone) ---
-    const loadChats = async (explicitMode = null) => {
-        if (!isLoggedIn) return;
-        try {
-            const targetMode = explicitMode || userMode;
-            // Fetch chats filtered by the current role strictly as requested
-            const chats = await api.getChats({ role: targetMode });
-            if (Array.isArray(chats)) {
-                setAllChats(chats);
-            }
-        } catch (e) {
-            console.warn("[App] Error loading chats:", e);
-        }
-    };
 
-    const onRefresh = useCallback(async () => {
-        setRefreshing(true);
-        await Promise.all([loadRequests(), loadChats()]);
-        setRefreshing(false);
-    }, [isLoggedIn]);
 
     // Legacy handleLogin and session restore removed (handled by AuthContext)
 
-    // Cargar solicitudes desde el BACKEND al iniciar la app
-    const loadRequests = async (explicitMode = null) => {
-        try {
-            // Updated logic to support explicit mode switching
-            const targetMode = explicitMode || userMode;
-            const currentUserId = currentUser?._id || currentUser?.id;
 
-            let jobs = [];
-            if (targetMode === 'pro') {
-                // Fetch BOTH Market and My History to show everything
-                const [marketJobs, myJobs] = await Promise.all([
-                    api.getJobs(),
-                    isLoggedIn ? api.getMyJobs({ role: 'pro' }) : Promise.resolve([])
-                ]);
 
-                console.log(`[DEBUG loadRequests] Market: ${marketJobs.length}, MyJobs: ${myJobs.length}`);
-                if (myJobs.length > 0) {
-                    const jobWithOffers = myJobs.find(j => j.offers && j.offers.length > 0);
-                    if (jobWithOffers) {
-                        console.log(`[DEBUG loadRequests] Found job with offers in MyJobs: ${jobWithOffers._id}`,
-                            JSON.stringify(jobWithOffers.offers.map(o => ({
-                                id: o._id, proId: o.proId, status: o.status
-                            }))));
-                    } else {
-                        console.log(`[DEBUG loadRequests] No offers found in any of the ${myJobs.length} MyJobs`);
-                    }
-                }
 
-                // Tag My Jobs correctly based on ownership
-                // GET /me returns both Created(Client) and Interacted(Pro) jobs.
-                // We must distinguish them.
-                // const currentUserId = user?._id || user?.id; // MOVED UP
-
-                const myJobsTagged = myJobs.map(j => {
-                    const cVal = j.client;
-                    const cId = (cVal && typeof cVal === 'object') ? cVal._id : cVal;
-                    // Check strict equality dealing with ObjectId/String
-                    const isCreator = currentUserId && cId && String(cId) === String(currentUserId);
-                    return { ...j, _isMyClientJob: isCreator };
-                });
-
-                // Merge unique by ID
-                const jobMap = new Map();
-                marketJobs.forEach(j => jobMap.set(j._id, j)); // Market jobs
-                myJobsTagged.forEach(j => jobMap.set(j._id, j)); // My jobs overwrite market (preserving tag)
-
-                jobs = Array.from(jobMap.values());
-
-                // --- NOTE: We DO NOT filter 'My Client Jobs' here anymore.
-                // We need them in 'allRequests' so ChatListScreen can identify ownership.
-                // We will filter them out in the VIEW (Home Screen) instead.
-                /*
-                if (currentUser) {
-                    const myId = currentUser._id || currentUser.id;
-                    jobs = jobs.filter(j => {
-                        const cId = j.client?._id || j.client;
-                        return !areIdsEqual(cId, myId);
-                    });
-                }
-                */
-            } else {
-                const allData = isLoggedIn ? await api.getMyJobs() : await api.getJobs();
-                // FIX: Only filter if we have a valid logged in user AND the API returned all jobs instead of my jobs
-                // api.getMyJobs already filters by user in backend, so client-side filtering is risky if currentUser is stale.
-                // We will trust the backend response if isLoggedIn is true.
-
-                if (isLoggedIn && currentUser && allData.length > 0) {
-                    // Verify if the backend actually returned "all jobs" (market) instead of "my jobs"
-                    // This could happen if getMyJobs fails back to getJobs or similar logic.
-                    // A simple heuristic: if ALL jobs belong to me, it's fine.
-                    // If I see jobs not mine, I should filter.
-                    const hasForeignJobs = allData.some(j => {
-                        const cId = j.client?._id || j.client;
-                        return !areIdsEqual(cId, currentUser._id);
-                    });
-
-                    /*
-                    if (hasForeignJobs) {
-                        console.log("Filtering foreign jobs from My Requests view");
-                        jobs = allData.filter(j => {
-                           const cId = j.client?._id || j.client;
-                           return areIdsEqual(cId, currentUser._id);
-                       });
-                    } else {
-                        jobs = allData;
-                    }
-                    */
-                    // BYPASS: No filtrar nada en lado cliente para "My Requests" por ahora
-                    jobs = allData;
-                } else {
-                    jobs = allData;
-                }
-            }
-            const mappedJobs = jobs.map(job => {
-                // Ensure category is an object for Consistent UI rendering
-                let catObj = { name: 'General' };
-                if (job.category && typeof job.category === 'object') {
-                    catObj = {
-                        _id: job.category._id,
-                        name: job.category.name,
-                        color: job.category.color,
-                        icon: job.category.icon
-                    };
-                } else if (typeof job.category === 'string') {
-                    catObj = { name: job.category };
-                }
-
-                return {
-                    id: job._id,
-                    _id: job._id,
-                    title: job.title,
-                    description: job.description,
-                    category: catObj,
-                    subcategory: typeof job.subcategory === 'object' ? job.subcategory.name : job.subcategory,
-                    location: job.location,
-                    status: (job.status === 'active' || job.status === 'open') ? 'Abierto' :
-                        (job.status === 'rated' || job.status === 'VALORACIÓN') ? 'TERMINADO' :
-                            (job.status === 'completed' ? 'Culminada' :
-                                (job.status === 'canceled' ? 'Cerrada' :
-                                    (job.status === 'in_progress' ? 'En Ejecución' : job.status))),
-                    budget: job.budget,
-                    images: job.images,
-                    createdAt: job.createdAt,
-                    clientName: job.client?.name || 'Usuario',
-                    clientEmail: job.client?.email,
-                    clientAvatar: job.client?.avatar,
-                    clientId: job.client?._id,
-                    professional: job.professional,
-                    trackingStatus: job.trackingStatus || 'none',
-                    workStartedOnTime: job.workStartedOnTime,
-                    workPhotos: job.workPhotos || [],
-                    clientFinished: job.clientFinished,
-                    proFinished: job.proFinished,
-                    clientRated: job.clientRated || false,
-                    proRated: job.proRated || false,
-                    proInteractionStatus: job.proInteractionStatus || 'new',
-                    proInteractionHasUnread: job.proInteractionHasUnread || false,
-                    isVirtual: job.isVirtual,
-                    _isMyClientJob: job._isMyClientJob || false,
-                    projectHistory: job.projectHistory || [],
-                    clientManagement: job.clientManagement || {},
-                    conversations: job.conversations || [],
-                    _myOfferStatus: currentUserId ? job.offers?.find(o => {
-                        const pId = o.proId?._id || o.proId;
-                        return String(pId) === String(currentUserId);
-                    })?.status : undefined,
-                    offers: job.offers?.map(o => ({
-                        ...o,
-                        proId: o.proId?._id || o.proId,
-                        proName: o.proId?.name || 'Profesional',
-                        proImage: o.proId?.avatar,
-                        proRating: o.proId?.rating || 5.0,
-                        proReviewsCount: o.proId?.reviewsCount || 0
-                    })) || []
-                };
-            });
-
-            // SORT: Active first, Closed last. Newest first within groups.
-            mappedJobs.sort((a, b) => {
-                const isClosedA = a.status === 'Culminada' || a.status === 'Cerrada' || a.status === 'TERMINADO';
-                const isClosedB = b.status === 'Culminada' || b.status === 'Cerrada' || b.status === 'TERMINADO';
-
-                if (isClosedA !== isClosedB) {
-                    return isClosedA ? 1 : -1;
-                }
-                return new Date(b.createdAt) - new Date(a.createdAt);
-            });
-
-            // Aggressive stripping of heavy data (Base64) before local storage
-            const stripHeavyData = (obj) => {
-                if (!obj || typeof obj !== 'object') return obj;
-                if (Array.isArray(obj)) return obj.map(stripHeavyData);
-
-                const newObj = { ...obj };
-                ['avatar', 'image', 'images', 'workPhotos', 'gallery', 'projectHistory', 'clientManagement'].forEach(key => {
-                    if (key in newObj) {
-                        if (key === 'images' || key === 'workPhotos' || key === 'gallery' || key === 'projectHistory') {
-                            newObj[key] = [];
-                        } else {
-                            newObj[key] = null;
-                        }
-                    }
-                });
-
-                // Recursive stripping for nested objects like offers/client/proId
-                ['client', 'professional', 'proId', 'offers'].forEach(key => {
-                    if (newObj[key]) newObj[key] = stripHeavyData(newObj[key]);
-                });
-
-                return newObj;
-            };
-
-            const lightweightJobs = stripHeavyData(mappedJobs);
-
-            try {
-                await setRequests(lightweightJobs);
-            } catch (err) {
-                console.warn("[App] Failed to save lightweight jobs, storage might be completely full.");
-            }
-
-            setAllRequests(mappedJobs);
-            return mappedJobs;
-        } catch (e) {
-            console.warn('Error cargando solicitudes desde API:', e);
-            return [];
-        }
-    };
-
-    useEffect(() => {
-        const initLoad = async () => {
-            setRefreshing(true);
-            await Promise.all([loadRequests(), loadChats()]);
-            setRefreshing(false);
-        };
-        initLoad();
-
-        // AUTO-REFRESH (Polling): Actualiza la app automáticamente cada 15 segundos
-        // Esto permite que aparezcan nuevas solicitudes y mensajes sin refrescar manualmente.
-        let interval;
-        if (isLoggedIn) {
-            console.log("[AutoRefresh] Iniciando polling cada 15s...");
-            interval = setInterval(() => {
-                // Solo recargamos si no estamos ya refrescando o editando algo crítico
-                // y si la vista NO es un formulario de creación de trabajo para evitar perder datos si estuviera escribiendo
-                // Skip polling if we are in views where a sudden refresh might be disruptive or slow down interaction
-                if (!refreshing && view !== 'create-request' && view !== 'service-form' && view !== 'chat-detail' && view !== 'chat-list') {
-                    loadRequests();
-                    loadChats();
-                }
-            }, 15000);
-        }
-
-        return () => {
-            if (interval) {
-                console.log("[AutoRefresh] Limpiando polling.");
-                clearInterval(interval);
-            }
-        };
-    }, [isLoggedIn, userMode, view]); // Eliminado 'refreshing' para evitar bucle infinito
 
     // AUTO-REDIRECT TO ADMIN PANEL
     useEffect(() => {
@@ -1177,63 +712,118 @@ function MainApp() {
         }
     }, [currentUser, view]);
 
-    const handleOpenJobDetail = async (jobId, targetView) => {
+    const mapJobData = (fullJob) => {
+        if (!fullJob) return null;
+        const currentUserId = currentUser?._id || currentUser?.id;
+
+        // Ensure we have a valid object
+        const data = fullJob.data || fullJob;
+
+        const mappedJob = {
+            id: data._id || data.id,
+            _id: data._id || data.id,
+            title: data.title,
+            description: data.description,
+            category: data.category?.name || data.category || 'General',
+            subcategory: data.subcategory?.name || data.subcategory,
+            location: data.location,
+            status: data.status === 'active' || data.status === 'open' ? 'Abierto' :
+                (data.status === 'in_progress' || data.status === 'started') ? 'En Progreso' :
+                    (data.status === 'completed' || data.status === 'finished' || data.status === 'rated') ? 'Finalizado' :
+                        (data.status === 'canceled' ? 'Cerrado' : data.status),
+            budget: data.budget,
+            images: data.images || [],
+            createdAt: data.createdAt,
+            clientName: data.client?.name || data.clientName || 'Usuario',
+            clientEmail: data.client?.email || data.clientEmail,
+            clientAvatar: data.client?.avatar || data.clientAvatar,
+            clientId: data.client?._id || data.client || data.clientId,
+            professional: data.professional,
+            trackingStatus: data.trackingStatus || 'none',
+            workStartedOnTime: data.workStartedOnTime,
+            workPhotos: data.workPhotos || [],
+            clientFinished: data.clientFinished,
+            proFinished: data.proFinished,
+            projectHistory: data.projectHistory || [],
+            clientManagement: data.clientManagement || {},
+            conversations: data.conversations || [],
+            offers: data.offers?.map(o => ({
+                ...o,
+                proId: o.proId?._id || o.proId,
+                proName: o.proId?.name || o.proName || 'Profesional',
+                proAvatar: o.proId?.avatar || o.proAvatar
+            })) || [],
+            proInteractionStatus: data.proInteraction?.status || data.proInteractionStatus || 'new'
+        };
+
+        mappedJob.proStatus = userMode === 'pro' ? getProStatus(data, currentUserId) : 'NUEVA';
+        mappedJob.clientStatus = getClientStatus(data);
+
+        return mappedJob;
+    };
+
+    const handleOpenJobDetail = async (jobId, targetView, autoOpenBudgetForProId = null) => {
+        if (!jobId) {
+            console.warn("[handleOpenJobDetail] jobId is undefined");
+            return;
+        }
+
+        // --- OPTIMISTIC UI: Transition immediately if we have local data ---
+        const localJob = allRequests.find(r => areIdsEqual(r.id || r._id, jobId));
+        if (localJob) {
+            setSelectedRequest(localJob);
+            setView(targetView);
+
+            // Handle auto-opening budget popup immediately if applicable
+            if (autoOpenBudgetForProId && localJob.offers) {
+                const offer = localJob.offers.find(o => areIdsEqual(o.proId, autoOpenBudgetForProId));
+                if (offer) {
+                    setSelectedBudget(offer);
+                    setShowBudgetModal(true);
+                }
+            }
+        } else {
+            setIsOpeningRequest(true); // Only show blocking spinner if strictly needed
+        }
+
         try {
+            console.log(`[handleOpenJobDetail] Loading job ${jobId} for view ${targetView} in background`);
             const fullJob = await api.getJob(jobId);
-
-            const mappedJob = {
-                id: fullJob._id,
-                _id: fullJob._id,
-                title: fullJob.title,
-                description: fullJob.description,
-                category: fullJob.category?.name || 'General',
-                subcategory: fullJob.subcategory,
-                location: fullJob.location,
-                status: fullJob.status === 'active' ? 'Abierto' : (fullJob.status === 'in_progress' ? 'En Progreso' : (fullJob.status === 'completed' ? 'Finalizado' : (fullJob.status === 'canceled' ? 'Cerrado' : fullJob.status))),
-                budget: fullJob.budget,
-                images: fullJob.images,
-                createdAt: fullJob.createdAt,
-                clientName: fullJob.client?.name || 'Usuario',
-                clientEmail: fullJob.client?.email,
-                clientAvatar: fullJob.client?.avatar,
-                clientId: fullJob.client?._id,
-                professional: fullJob.professional,
-                trackingStatus: fullJob.trackingStatus || 'none',
-                workStartedOnTime: fullJob.workStartedOnTime,
-                workPhotos: fullJob.workPhotos || [],
-                clientFinished: fullJob.clientFinished,
-                proFinished: fullJob.proFinished,
-                conversations: fullJob.conversations || [],
-                offers: fullJob.offers?.map(o => ({
-                    ...o,
-                    proId: o.proId?._id,
-                    proName: o.proId?.name || 'Profesional',
-                    proAvatar: o.proId?.avatar
-                })) || [],
-                proInteractionStatus: fullJob.proInteraction?.status || 'new'
-            };
-
-            // DYNAMIC STATUS CALCULATION (Sync with List View)
-            mappedJob.proStatus = userMode === 'pro' ? getProStatus(fullJob, currentUser?._id) : 'NUEVA';
-            mappedJob.clientStatus = getClientStatus(fullJob);
+            const mappedJob = mapJobData(fullJob);
 
             setSelectedRequest(mappedJob);
-            setView(targetView);
+
+            // Only transition view here if we didn't have local data
+            if (!localJob) {
+                setView(targetView);
+
+                if (autoOpenBudgetForProId && mappedJob.offers) {
+                    const offer = mappedJob.offers.find(o => areIdsEqual(o.proId, autoOpenBudgetForProId));
+                    if (offer) {
+                        setSelectedBudget(offer);
+                        setShowBudgetModal(true);
+                    }
+                }
+            }
 
             // AUTO-UPDATE STATUS TO Viewed (ABIERTA)
             if (userMode === 'pro' && targetView === 'job-detail-pro') {
-                const currentStatus = fullJob.proInteractionStatus || 'new';
+                const currentStatus = mappedJob.proInteractionStatus || 'new';
                 if (currentStatus === 'new') {
                     updateProStatus(jobId, 'ABIERTA');
                 }
                 api.markInteractionAsRead(jobId).catch(console.warn);
-            } else if (userMode === 'client' && targetView === 'request-detail-client') {
-                // Client viewed their own job. If we wanted to persistent seen status for offers, we'd do it here.
-                // For now, let's at least ensure local count is reduced if we tracking new offers specially
+            }
+
+            // CLIENT SIDE: MARK OFFERS AS SEEN
+            if (userMode === 'client' && targetView === 'request-detail-client') {
+                api.markOffersAsSeen(jobId).catch(e => console.warn("Error marking offers as seen:", e));
             }
         } catch (e) {
             console.warn("Error opening job details:", e);
             showAlert("Error", "No se pudieron cargar los detalles de la solicitud.");
+        } finally {
+            setIsOpeningRequest(false);
         }
     };
 
@@ -1469,10 +1059,11 @@ function MainApp() {
         try {
             const jobId = selectedRequest.id || selectedRequest._id;
             const res = await api.confirmStart(jobId, true);
+            const mapped = mapJobData(res);
 
             // Update local state
-            setAllRequests(prev => prev.map(r => (r._id || r.id) === jobId ? res : r));
-            setSelectedRequest(res);
+            setAllRequests(prev => prev.map(r => (r._id || r.id) === jobId ? mapped : r));
+            setSelectedRequest(mapped);
 
             showAlert('Trabajo Iniciado', 'La bitácora de trabajo ha sido activada.');
         } catch (error) {
@@ -1490,10 +1081,12 @@ function MainApp() {
             const res = await api.finishJobByStatus(jId);
 
             // Update local state
-            const updatedJob = res.data || res;
-            setAllRequests(prev => prev.map(r => (r._id || r.id) === jId ? updatedJob : r));
-            if (selectedRequest && (selectedRequest.id === jId || selectedRequest._id === jId)) {
-                setSelectedRequest(updatedJob);
+            const updatedJobRaw = res.data || res;
+            const mapped = mapJobData(updatedJobRaw);
+
+            setAllRequests(prev => prev.map(r => (r._id || r.id) === jId ? mapped : r));
+            if (selectedRequest && areIdsEqual(selectedRequest.id || selectedRequest._id, jId)) {
+                setSelectedRequest(mapped);
             }
 
             showAlert('Trabajo Finalizado', 'Notifica al cliente para que revise y cierre la solicitud.');
@@ -1509,9 +1102,10 @@ function MainApp() {
 
             // Refresh
             const res = await api.getJob(jobId);
-            const updatedJob = res.data || res;
-            setAllRequests(prev => prev.map(r => (r._id || r.id) === jobId ? updatedJob : r));
-            setSelectedRequest(updatedJob);
+            const mapped = mapJobData(res);
+
+            setAllRequests(prev => prev.map(r => (r._id || r.id) === jobId ? mapped : r));
+            setSelectedRequest(mapped);
             showAlert("Foto subida", "La evidencia ha sido guardada.");
         } catch (e) {
             console.error(e);
@@ -1542,12 +1136,16 @@ function MainApp() {
                 };
 
                 const res = await api.addTimelineEvent(jobId, newEvent);
-                setSelectedRequest(res);
+                const mapped = mapJobData(res);
+                setSelectedRequest(mapped);
+                setAllRequests(prev => prev.map(r => (r._id || r.id) === jobId ? mapped : r));
                 return;
             }
 
             const res = await api.addTimelineEvent(jobId, eventData);
-            setSelectedRequest(res);
+            const mapped = mapJobData(res);
+            setSelectedRequest(mapped);
+            setAllRequests(prev => prev.map(r => (r._id || r.id) === jobId ? mapped : r));
         } catch (error) {
             console.error("Error adding timeline event:", error);
             showAlert("Error", "No se pudo agregar el evento.");
@@ -1619,32 +1217,43 @@ function MainApp() {
 
     const handleProSendQuote = async (jobId, quoteData, isUpdating = false) => {
         try {
+            // 1. Mostrar estado de carga (opcional si ya hay un loader global)
+            console.log("[handleProSendQuote] Iniciando envío de oferta...");
+
+            // 2. Ejecutar la acción principal (Crear o Actualizar)
             if (isUpdating) {
                 await api.updateOffer(jobId, quoteData);
-                // Sync interaction status on update as well
-                updateProStatus(jobId, 'PRESUPUESTADA');
-                showAlert("Actualizado", "Tu oferta ha sido actualizada.");
             } else {
                 await api.createOffer(jobId, quoteData);
-                // First interaction, set status to Offered/Presupuestada
-                updateProStatus(jobId, 'PRESUPUESTADA');
-                showAlert("Enviado", "Tu oferta ha sido enviada.");
-            }
-            // Recargar datos COMPLETOS
-            await loadRequests();
-            // Recargar perfil del usuario para actualizar contadores (Chats, Ofertas, etc)
-            try {
-                const freshUser = await api.getMe();
-                await updateUser(freshUser);
-            } catch (err) {
-                console.warn("Could not reload user profile:", err);
             }
 
-            // RESET FILTERS so the new status 'PRESUPUESTADO' is visible
+            // 3. Actualizar estado de interacción localmente de inmediato (Optimista)
+            // Esto evita esperar al loadRequests para ver el cambio
+            updateProStatus(jobId, 'PRESUPUESTADA');
+
+            // 4. Refrescar datos en PARALELO para ahorrar tiempo
+            // No esperamos uno por uno, sino que lanzamos todos y esperamos al conjunto
+            console.log("[handleProSendQuote] Refrescando datos en paralelo...");
+
+            Promise.all([
+                loadRequests(), // Recargar solicitudes
+                loadChats(),    // Recargar chats (por si la oferta activó uno)
+                api.getMe().then(usr => updateUser(usr)).catch(err => console.warn("Error refreshing user:", err))
+            ]).catch(err => console.warn("Error in parallel refresh:", err));
+
+            // 5. Mostrar éxito y navegar rápido
+            showAlert(
+                isUpdating ? "Actualizado" : "Enviado",
+                isUpdating ? "Tu oferta ha sido actualizada." : "Tu oferta ha sido enviada."
+            );
+
+            // RESET FILTERS
             setFilterStatus('Todas');
             setFilterCategory('Todas');
 
+            // Volvemos al home de inmediato sin esperar a los refrescos pesados si es posible
             setView('home');
+
         } catch (e) {
             console.warn('Error enviando oferta:', e);
             showAlert('Error', e.message || 'No se pudo enviar la oferta.');
@@ -1732,73 +1341,103 @@ function MainApp() {
 
 
 
-    const myClientRequests = allRequests.filter(r => {
-        // STRICT filter for "My Requests" screen
-        if (r.clientId && currentUser?._id) return areIdsEqual(r.clientId, currentUser._id);
-        const emailMatch = r.clientEmail && currentUser?.email ? r.clientEmail === currentUser.email : false;
-        return emailMatch || r.clientName === currentUser?.name;
-    });
+    const myClientRequests = useMemo(() => {
+        const filtered = allRequests.filter(r => {
+            // STRICT filter for "My Requests" screen
+            if (r.clientId && currentUser?._id) return areIdsEqual(r.clientId, currentUser._id);
+            const emailMatch = r.clientEmail && currentUser?.email ? r.clientEmail === currentUser.email : false;
+            return emailMatch || r.clientName === currentUser?.name;
+        });
+        console.log(`[DEBUG] allRequests: ${allRequests.length}, myClientRequests: ${filtered.length}`);
+        return filtered;
+    }, [allRequests, currentUser]);
 
     // --- LOGICA DE FILTRADO AVANZADO PARA PRO ---
     // Only calculate active categories if we are in PRO mode or checking pro capabilities
-    const activeCategories = (userMode === 'pro' && currentUser?.profiles)
-        ? Object.keys(currentUser.profiles).filter(k => currentUser.profiles[k].isActive !== false)
-        : [];
+    const activeCategories = useMemo(() => {
+        return (userMode === 'pro' && currentUser?.profiles)
+            ? Object.keys(currentUser.profiles).filter(k => currentUser.profiles[k].isActive !== false)
+            : [];
+    }, [userMode, currentUser]);
 
     // 1. Filtrar base - SIN FILTROS (RAW)
-    const matchingJobs = allRequests.filter(r => {
-        // TEMPORAL: Retornar todo para verificar flujo de datos
-        // Ya no filtramos por "My Own Job", "Profile Categories", "Zones" ni "Closed Status"
-        return true;
-    });
+    const matchingJobs = useMemo(() => {
+        return allRequests.filter(r => {
+            // TEMPORAL: Retornar todo para verificar flujo de datos
+            // Ya no filtramos por "My Own Job", "Profile Categories", "Zones" ni "Closed Status"
+            return true;
+        });
+    }, [allRequests]);
 
 
 
     // 2. Enriquecer con estado local/backend del pro (DYNAMIC CALCULATION)
-    const jobsWithStatus = matchingJobs.map(job => {
-        const myId = currentUser?._id;
-        const uiStatus = getProStatus(job, myId);
+    const jobsWithStatus = useMemo(() => {
+        return matchingJobs.map(job => {
+            const myId = currentUser?._id;
+            const uiStatus = getProStatus(job, myId);
 
-        // LOGIC FIX: Check local state first, then fallback to backend state
-        const localInteraction = proInteractions[job.id];
-        const computedHasUnread = localInteraction ? localInteraction.hasUnread : (job.proInteractionHasUnread || false);
+            // LOGIC FIX: Check local state first, then fallback to backend state
+            const localInteraction = proInteractions?.[job.id];
+            const computedHasUnread = localInteraction ? localInteraction.hasUnread : (job.proInteractionHasUnread || false);
 
-        return {
-            ...job,
-            proStatus: uiStatus,
-            hasUnread: computedHasUnread
-        };
-    });
+            return {
+                ...job,
+                proStatus: uiStatus,
+                hasUnread: computedHasUnread
+            };
+        });
+    }, [matchingJobs, currentUser, proInteractions]);
 
     // 3. Aplicar filtros de UI y Lógica de "Ofertas Anteriores"
-    const availableJobsForPro = jobsWithStatus.filter(job => {
-        // --- 1. FILTROS DE UI (Categoría y Archivados) ---
-        const catMatch = filterCategory === 'Todas' || (job.category?.name || job.category) === filterCategory;
-        const isArchived = job.proStatus === 'Archivada' ||
-            job.proStatus === 'TERMINADO' ||
-            job.status === 'canceled' ||
-            job.status === 'closed' ||
-            job.status === 'TERMINADO' ||
-            job.status === 'Culminada' ||
-            job.status === 'rated';
+    const availableJobsForPro = useMemo(() => {
+        return jobsWithStatus.filter(job => {
+            // --- 1. FILTROS DE UI (Categoría y Archivados) ---
+            const catMatch = filterCategory === 'Todas' || (job.category?.name || job.category) === filterCategory;
+            const isArchived = job.proStatus === 'Archivada' ||
+                job.proStatus === 'TERMINADO' ||
+                job.proStatus === 'PERDIDA' ||
+                job.status === 'canceled' ||
+                job.status === 'closed' ||
+                job.status === 'TERMINADO' ||
+                job.status === 'Culminada' ||
+                job.status === 'rated';
 
-        if (showArchivedOffers) {
-            if (!isArchived) return false;
-        } else {
-            if (isArchived) return false;
-        }
-        if (!catMatch) return false;
+            if (showArchivedOffers) {
+                if (!isArchived) return false;
+            } else {
+                if (isArchived) return false;
+            }
+            if (!catMatch) return false;
 
-        // --- 2. FILTROS DE NEGOCIO (Matching de Perfil) ---
-        return isJobMatchingProfile(job, currentUser);
-    });
+            // --- 2. FILTROS DE NEGOCIO (Matching de Perfil) ---
+            // SIEMPRE mostrar si ya estoy involucrado o soy el profesional asignado
+            if (job.isVirtual || job.professional || (job.offers && job.offers.some(o => areIdsEqual(o.proId, currentUser?._id)))) return true;
+
+            return isJobMatchingProfile(job, currentUser);
+        });
+    }, [jobsWithStatus, filterCategory, showArchivedOffers, currentUser, isJobMatchingProfile]);
 
 
 
     if (isLoading) {
         return (
             <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'white' }}>
-                <ActivityIndicator size="large" color="#EA580C" />
+                <Animated.View style={{ transform: [{ rotate: spin }] }}>
+                    <View style={{ width: 60, height: 60, justifyContent: 'center', alignItems: 'center' }}>
+                        {/* Círculo Bicolor Base */}
+                        <View style={{
+                            width: 50, height: 50, borderRadius: 25,
+                            borderWidth: 5, borderColor: '#2563EB',
+                            borderTopColor: '#EA580C', borderRightColor: '#EA580C',
+                            transform: [{ rotate: '-45deg' }]
+                        }} />
+                        {/* Cabezas de Flecha */}
+                        <FontAwesome5 name="caret-right" size={16} color="#EA580C" style={{ position: 'absolute', top: 1, right: 10 }} />
+                        <FontAwesome5 name="caret-left" size={16} color="#2563EB" style={{ position: 'absolute', bottom: 1, left: 10 }} />
+                    </View>
+                </Animated.View>
+                <Text style={{ marginTop: 25, color: '#1E293B', fontWeight: 'bold', fontSize: 18, letterSpacing: 0.5 }}>Iniciando ProFix...</Text>
             </View>
         );
     }
@@ -1900,6 +1539,27 @@ function MainApp() {
                     </ScrollView>
                 )}
 
+                {/* GLOBAL OVERLAY LOADER FOR OPENING DETAILS */}
+                {isOpeningRequest && (
+                    <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(255,255,255,0.7)', zIndex: 10000, justifyContent: 'center', alignItems: 'center' }}>
+                        <Animated.View style={{ transform: [{ rotate: spin }] }}>
+                            <View style={{ width: 60, height: 60, justifyContent: 'center', alignItems: 'center' }}>
+                                {/* Círculo Bicolor Base */}
+                                <View style={{
+                                    width: 50, height: 50, borderRadius: 25,
+                                    borderWidth: 5, borderColor: '#2563EB',
+                                    borderTopColor: '#EA580C', borderRightColor: '#EA580C',
+                                    transform: [{ rotate: '-45deg' }]
+                                }} />
+                                {/* Cabezas de Flecha */}
+                                <FontAwesome5 name="caret-right" size={16} color="#EA580C" style={{ position: 'absolute', top: 1, right: 10 }} />
+                                <FontAwesome5 name="caret-left" size={16} color="#2563EB" style={{ position: 'absolute', bottom: 1, left: 10 }} />
+                            </View>
+                        </Animated.View>
+                        <Text style={{ marginTop: 20, color: '#1E293B', fontWeight: 'bold', fontSize: 18, letterSpacing: 0.5 }}>Cargando detalles...</Text>
+                    </View>
+                )}
+
                 {/* CLIENTE CATEGORY DETAIL */}
                 {userMode === 'client' && view === 'category-detail' && selectedCategory && (
                     <CategoryDetailScreen
@@ -1967,7 +1627,7 @@ function MainApp() {
                             // 1. Set basic info immediately for quick navigation
                             const basicUser = { ...user, _id: user.id || user._id };
                             setSelectedUser(basicUser);
-                            setView('professional-profile-public');
+                            setShowProProfileModal(true);
 
                             // 2. Fetch full profile (profiles, stats, etc) in background
                             api.getPublicProfile(basicUser._id)
@@ -1985,6 +1645,8 @@ function MainApp() {
                         setSelectedBudget={setSelectedBudget}
                         showBudgetModal={showBudgetModal}
                         setShowBudgetModal={setShowBudgetModal}
+                        startWithRejectForm={startWithRejectForm}
+                        setStartWithRejectForm={setStartWithRejectForm}
                         onRejectOffer={handleRejectOffer}
                         onConfirmStart={handleConfirmStart}
                         onAddWorkPhoto={handleAddWorkPhoto}
@@ -2007,293 +1669,25 @@ function MainApp() {
 
                 {/* PRO HOME */}
                 {userMode === 'pro' && view === 'home' && (
-                    <View style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
-                        {/* HEADER AZUL */}
-                        <View style={{ backgroundColor: '#2563EB', paddingVertical: 18, borderBottomLeftRadius: 32, borderBottomRightRadius: 32, elevation: 0, marginBottom: 0, paddingHorizontal: 24 }}>
-                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: showFilterBar && activeCategories.length > 1 ? 8 : 0 }}>
-                                <Text style={{ fontSize: 24, fontWeight: 'bold', color: 'white' }}>Ofertas</Text>
-                                <View style={{ flexDirection: 'row', gap: 10 }}>
-                                    {activeCategories.length > 1 && (
-                                        <TouchableOpacity
-                                            onPress={() => setShowFilterBar(!showFilterBar)}
-                                            style={{
-                                                width: 48, height: 48, borderRadius: 24,
-                                                backgroundColor: showFilterBar ? 'white' : 'rgba(255,255,255,0.2)',
-                                                justifyContent: 'center', alignItems: 'center'
-                                            }}
-                                        >
-                                            <Feather name="filter" size={24} color={showFilterBar ? '#2563EB' : 'white'} />
-                                        </TouchableOpacity>
-                                    )}
-                                    <TouchableOpacity
-                                        onPress={() => setShowArchivedOffers(!showArchivedOffers)}
-                                        style={{
-                                            width: 48, height: 48, borderRadius: 24,
-                                            backgroundColor: showArchivedOffers ? 'white' : 'rgba(255,255,255,0.2)',
-                                            justifyContent: 'center', alignItems: 'center'
-                                        }}
-                                    >
-                                        <Feather name="archive" size={24} color={showArchivedOffers ? '#2563EB' : 'white'} />
-                                    </TouchableOpacity>
-                                </View>
-                            </View>
-
-                            {/* FILTERS - CATEGORY ONLY */}
-                            {showFilterBar && activeCategories.length > 1 && (
-                                <View style={{ flexDirection: 'row', paddingHorizontal: 0, gap: 10, marginTop: 8 }}>
-                                    <View style={{ flex: 1 }}>
-                                        <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12, marginBottom: 4, fontWeight: 'bold' }}>Categoría</Text>
-                                        <TouchableOpacity
-                                            onPress={() => setCategoryModalVisible(true)}
-                                            style={styles.dropdownButton}
-                                        >
-                                            <Text style={styles.dropdownButtonText} numberOfLines={1}>{filterCategory}</Text>
-                                            <Feather name="chevron-down" size={16} color="white" />
-                                        </TouchableOpacity>
-                                    </View>
-                                </View>
-                            )}
-
-                            {/* MODALS */}
-                            <Modal
-                                visible={categoryModalVisible}
-                                transparent={true}
-                                animationType="fade"
-                                onRequestClose={() => setCategoryModalVisible(false)}
-                            >
-                                <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setCategoryModalVisible(false)}>
-                                    <View style={styles.modalContent}>
-                                        <Text style={styles.modalTitle}>Filtrar por Categoría</Text>
-                                        <ScrollView style={{ maxHeight: 300 }}>
-                                            <TouchableOpacity
-                                                style={[styles.modalOption, filterCategory === 'Todas' && styles.modalOptionSelected]}
-                                                onPress={() => {
-                                                    setFilterCategory('Todas');
-                                                    setCategoryModalVisible(false);
-                                                }}
-                                            >
-                                                <Text style={[styles.modalOptionText, filterCategory === 'Todas' && styles.modalOptionTextSelected]}>Todas</Text>
-                                                {filterCategory === 'Todas' && <Feather name="check" size={16} color="#2563EB" />}
-                                            </TouchableOpacity>
-                                            {[...new Set(jobsWithStatus.map(j => j.category))].sort().map((cat, index) => (
-                                                <TouchableOpacity
-                                                    key={index}
-                                                    style={[styles.modalOption, filterCategory === cat && styles.modalOptionSelected]}
-                                                    onPress={() => {
-                                                        setFilterCategory(cat);
-                                                        setCategoryModalVisible(false);
-                                                    }}
-                                                >
-                                                    <Text style={[styles.modalOptionText, filterCategory === cat && styles.modalOptionTextSelected]}>{cat}</Text>
-                                                    {filterCategory === cat && <Feather name="check" size={16} color="#2563EB" />}
-                                                </TouchableOpacity>
-                                            ))}
-                                        </ScrollView>
-                                    </View>
-                                </TouchableOpacity>
-                            </Modal>
-                        </View>
-
-                        <ScrollView
-                            style={{ flex: 1 }}
-                            contentContainerStyle={{ paddingHorizontal: 4, paddingTop: 8, paddingBottom: 100 }}
-                            refreshControl={
-                                <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#2563EB']} />
-                            }
-                        >
-                            {availableJobsForPro.length === 0 ? (
-                                activeCategories.length === 0 ? (
-                                    <View style={{ marginHorizontal: 4, marginTop: 20, padding: 25, backgroundColor: '#FFFFFF', borderRadius: 20, borderWidth: 1, borderColor: '#BFDBFE', alignItems: 'center', shadowColor: '#2563EB', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 10, elevation: 5 }}>
-                                        <Image
-                                            source={require('./assets/images/plomero.png')}
-                                            style={{ width: 140, height: 140, marginBottom: 15 }}
-                                            resizeMode="contain"
-                                        />
-
-                                        <Text style={{ fontSize: 22, fontWeight: '800', color: '#1E3A8A', textAlign: 'center', marginBottom: 10 }}>
-                                            ¡Empieza a Ganar Dinero!
-                                        </Text>
-
-                                        <Text style={{ fontSize: 15, color: '#4B5563', textAlign: 'center', marginBottom: 25, lineHeight: 22, paddingHorizontal: 10 }}>
-                                            No tienes categorías activas en tu perfil. Activa las categorías en las que eres experto para ver las
-                                            <Text style={{ fontWeight: 'bold', color: '#2563EB' }}> Ofertas Disponibles</Text> y comenzar a trabajar.
-                                        </Text>
-
-                                        <View style={{ width: '100%', marginBottom: 25 }}>
-                                            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
-                                                <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: '#DCFCE7', justifyContent: 'center', alignItems: 'center', marginRight: 12 }}>
-                                                    <Feather name="check" size={18} color="#166534" />
-                                                </View>
-                                                <Text style={{ fontSize: 14, color: '#374151', flex: 1 }}>Accede a trabajos en tiempo real</Text>
-                                            </View>
-                                            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
-                                                <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: '#DCFCE7', justifyContent: 'center', alignItems: 'center', marginRight: 12 }}>
-                                                    <Feather name="check" size={18} color="#166534" />
-                                                </View>
-                                                <Text style={{ fontSize: 14, color: '#374151', flex: 1 }}>Envía presupuestos y chatea directo</Text>
-                                            </View>
-                                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                                <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: '#DCFCE7', justifyContent: 'center', alignItems: 'center', marginRight: 12 }}>
-                                                    <Feather name="check" size={18} color="#166534" />
-                                                </View>
-                                                <Text style={{ fontSize: 14, color: '#374151', flex: 1 }}>Construye tu reputación y cartera</Text>
-                                            </View>
-                                        </View>
-
-                                        <TouchableOpacity
-                                            style={{
-                                                backgroundColor: '#2563EB',
-                                                width: '100%',
-                                                paddingVertical: 16,
-                                                borderRadius: 16,
-                                                shadowColor: '#2563EB',
-                                                shadowOffset: { width: 0, height: 4 },
-                                                shadowOpacity: 0.3,
-                                                shadowRadius: 8,
-                                                elevation: 4,
-                                                flexDirection: 'row',
-                                                justifyContent: 'center',
-                                                alignItems: 'center'
-                                            }}
-                                            onPress={() => setView('profile')}
-                                        >
-                                            <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 16, marginRight: 8 }}>Activar Mi Perfil</Text>
-                                            <Feather name="arrow-right" size={20} color="white" />
-                                        </TouchableOpacity>
-                                    </View>
-                                ) : (
-                                    <View style={{ marginHorizontal: 4, alignItems: 'center', marginTop: 40, padding: 25, backgroundColor: '#F8FAFC', borderRadius: 20, borderStyle: 'dashed', borderWidth: 2, borderColor: '#CBD5E1' }}>
-                                        <View style={{ width: 64, height: 64, backgroundColor: '#F1F5F9', borderRadius: 32, justifyContent: 'center', alignItems: 'center', marginBottom: 15 }}>
-                                            <Feather name="search" size={32} color="#94A3B8" />
-                                        </View>
-                                        <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#475569', marginBottom: 8 }}>Sin ofertas por ahora</Text>
-                                        <Text style={{ fontSize: 14, color: '#64748B', textAlign: 'center', marginBottom: 20, lineHeight: 20 }}>
-                                            No encontramos trabajos nuevos en tus categorías. {"\n"}Intenta ampliar tus zonas de cobertura.
-                                        </Text>
-                                        <TouchableOpacity
-                                            onPress={() => setView('profile')}
-                                            style={{ flexDirection: 'row', alignItems: 'center' }}
-                                        >
-                                            <Text style={{ color: '#2563EB', fontWeight: 'bold', fontSize: 14, marginRight: 4 }}>Revisar Perfil</Text>
-                                            <Feather name="arrow-right" size={14} color="#2563EB" />
-                                        </TouchableOpacity>
-                                    </View>
-                                )
-                            ) : null}
-
-                            {/* Helper to get colors for Pro Statuses moved to top level as getProStatusColor */}
-                            {(() => {
-                                return availableJobsForPro.map(job => {
-                                    const totalUnread = (job.conversations || []).reduce((acc, c) => acc + (c.unreadCount || 0), 0);
-                                    const isNewJob = job.proInteractionStatus === 'new';
-
-                                    return (
-                                        <TouchableOpacity
-                                            key={job.id}
-                                            style={{
-                                                backgroundColor: 'white',
-                                                borderRadius: 24,
-                                                padding: 20,
-                                                marginHorizontal: 4,
-                                                marginTop: 0,
-                                                marginBottom: 12,
-                                                elevation: 8,
-                                                ...Platform.select({
-                                                    web: { boxShadow: '0px 4px 12px rgba(37, 99, 235, 0.1)' },
-                                                    default: {
-                                                        shadowColor: '#2563EB',
-                                                        shadowOffset: { width: 0, height: 4 },
-                                                        shadowOpacity: 0.1,
-                                                        shadowRadius: 10,
-                                                    }
-                                                }),
-                                                borderWidth: 1,
-                                                borderColor: isNewJob ? '#DBEAFE' : '#F1F5F9',
-                                                position: 'relative'
-                                            }}
-                                            onPress={() => handleOpenJobDetail(job.id, 'job-detail-pro')}
-                                        >
-                                            {/* BADGE: NEW JOB INDICATOR */}
-                                            {isNewJob && (
-                                                <View style={{
-                                                    position: 'absolute', top: -6, right: 20,
-                                                    backgroundColor: '#EF4444', paddingHorizontal: 10, paddingVertical: 4,
-                                                    borderRadius: 10, zIndex: 10, elevation: 5,
-                                                    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 3
-                                                }}>
-                                                    <Text style={{ color: 'white', fontSize: 10, fontWeight: 'bold' }}>NUEVO</Text>
-                                                </View>
-                                            )}
-
-                                            {/* MAIN TITLE */}
-                                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 15 }}>
-                                                <Text style={{ fontSize: 18, fontWeight: '800', color: '#1E3A8A', flex: 1, marginRight: 10 }} numberOfLines={1}>
-                                                    {job.title}
-                                                </Text>
-                                            </View>
-
-                                            {/* CONTENT ROW: AVATAR & METADATA */}
-                                            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 15 }}>
-                                                <View style={{
-                                                    width: 54, height: 54, borderRadius: 27,
-                                                    backgroundColor: '#F3F4F6', borderWidth: 2, borderColor: '#EFF6FF',
-                                                    overflow: 'hidden', alignItems: 'center', justifyContent: 'center'
-                                                }}>
-                                                    {job.clientAvatar ? (
-                                                        <Image source={{ uri: job.clientAvatar }} style={{ width: '100%', height: '100%' }} />
-                                                    ) : (
-                                                        <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#2563EB' }}>
-                                                            {job.clientName ? job.clientName.substring(0, 1).toUpperCase() : 'C'}
-                                                        </Text>
-                                                    )}
-                                                </View>
-
-                                                <View style={{ flex: 1, marginLeft: 15 }}>
-                                                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 3 }}>
-                                                        <Feather name="user" size={12} color="#6B7280" />
-                                                        <Text style={{ fontSize: 14, fontWeight: '700', color: '#374151', marginLeft: 6 }}>{job.clientName || 'Cliente'}</Text>
-                                                    </View>
-                                                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 3 }}>
-                                                        <Feather name="map-pin" size={12} color="#6B7280" />
-                                                        <Text style={{ fontSize: 13, color: '#6B7280', marginLeft: 6 }}>{job.location || 'Sin ubicación'}</Text>
-                                                    </View>
-                                                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                                        <Feather name="tag" size={12} color="#9CA3AF" />
-                                                        <Text style={{ fontSize: 12, color: '#9CA3AF', marginLeft: 6 }} numberOfLines={1}>
-                                                            {job.category?.name || job.category} {job.subcategory ? `> ${job.subcategory}` : ''}
-                                                        </Text>
-                                                    </View>
-                                                </View>
-                                            </View>
-
-                                            {/* FOOTER: DATE & STATUS BADGE */}
-                                            <View style={{
-                                                flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-                                                borderTopWidth: 1, borderTopColor: '#F1F5F9', paddingTop: 15, marginTop: 5
-                                            }}>
-                                                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                                    <Feather name="calendar" size={12} color="#9CA3AF" style={{ marginRight: 6 }} />
-                                                    <Text style={{ fontSize: 12, color: '#9CA3AF' }}>{new Date(job.createdAt).toLocaleDateString()}</Text>
-                                                </View>
-
-                                                <View style={{
-                                                    backgroundColor: getProStatusColor(job.proStatus).bg,
-                                                    paddingHorizontal: 12, paddingVertical: 4, borderRadius: 20
-                                                }}>
-                                                    <Text style={{
-                                                        fontSize: 10, fontWeight: 'bold',
-                                                        color: getProStatusColor(job.proStatus).text
-                                                    }}>
-                                                        {job.proStatus?.toUpperCase() || 'NUEVA'}
-                                                    </Text>
-                                                </View>
-                                            </View>
-                                        </TouchableOpacity>
-                                    );
-                                });
-                            })()}
-                        </ScrollView>
-                    </View>
+                    <ProHomeScreen
+                        activeCategories={activeCategories}
+                        showFilterBar={showFilterBar}
+                        setShowFilterBar={setShowFilterBar}
+                        showArchivedOffers={showArchivedOffers}
+                        setShowArchivedOffers={setShowArchivedOffers}
+                        filterCategory={filterCategory}
+                        setFilterCategory={setFilterCategory}
+                        categoryModalVisible={categoryModalVisible}
+                        setCategoryModalVisible={setCategoryModalVisible}
+                        jobsWithStatus={jobsWithStatus}
+                        refreshing={refreshing}
+                        onRefresh={onRefresh}
+                        availableJobsForPro={availableJobsForPro}
+                        spin={spin}
+                        setView={setView}
+                        getProStatusColor={getProStatusColor}
+                        handleOpenJobDetail={handleOpenJobDetail}
+                    />
                 )}
 
                 {/* DETALLE PRO */}
@@ -2321,6 +1715,7 @@ function MainApp() {
                     />
                 )}
 
+
                 {/* CREAR OFERTA */}
                 {view === 'create-quote' && selectedRequest && (
                     <CreateQuoteScreen
@@ -2333,26 +1728,22 @@ function MainApp() {
 
 
 
-                {/* PERFIL PRO PÚBLICO */}
-                {view === 'professional-profile-public' && selectedUser && (
-                    <ProfessionalProfileScreen
-                        user={selectedUser}
-                        onViewImage={setFullscreenImage}
-                        isOwner={false}
-                        categories={categories}
-                        allSubcategories={
-                            categories.reduce((acc, cat) => ({ ...acc, [cat.name]: cat.subcategories }), {})
-                        }
-                        onBack={() => {
-                            // Si venimos de home (buscador) o request
-                            if (selectedRequest && userMode === 'client') {
-                                setView('request-detail-client');
-                            } else {
-                                setView('home');
+                {/* PERFIL PRO PÚBLICO (MODAL) */}
+                <Modal visible={showProProfileModal} transparent animationType="slide" onRequestClose={() => setShowProProfileModal(false)}>
+                    {selectedUser && (
+                        <ProfessionalProfileScreen
+                            user={selectedUser}
+                            onViewImage={setFullscreenImage}
+                            isOwner={false}
+                            categories={categories}
+                            requestedCategoryName={selectedRequest?.category?.name || selectedRequest?.category}
+                            allSubcategories={
+                                categories.reduce((acc, cat) => ({ ...acc, [cat.name]: cat.subcategories }), {})
                             }
-                        }}
-                    />
-                )}
+                            onBack={() => setShowProProfileModal(false)}
+                        />
+                    )}
+                </Modal>
 
                 {/* CHAT LIST */}
                 {view === 'chat-list' && (
@@ -2365,6 +1756,7 @@ function MainApp() {
                         onBack={() => setView('home')}
                         onRefresh={onRefresh} // NEW: Allow pull-to-refresh
                         refreshing={refreshing}
+                        onGoToProfile={() => setView('professional-profile')}
                     />
                 )}
 
@@ -2377,12 +1769,34 @@ function MainApp() {
                         onBack={() => setView(previousView || 'chat-list')}
                         onSend={handleSendMessage}
                         onViewJob={(req) => {
-                            setSelectedRequest(req);
-                            if (userMode === 'client') setView('request-detail');
-                            else setView('job-detail-pro');
+                            const jobId = req.id || req._id;
+                            const isClient = userMode === 'client';
+
+                            if (isClient) {
+                                // If we are in a conversation, try to find the Pro's ID
+                                let proIdToOpen = null;
+                                if (req.conversations && req.conversations.length > 0) {
+                                    // Normally the first conv in this context is the active one
+                                    proIdToOpen = req.conversations[0].proId;
+                                }
+                                handleOpenJobDetail(jobId, 'request-detail-client', proIdToOpen);
+                            } else {
+                                handleOpenJobDetail(jobId, 'job-detail-pro');
+                            }
                         }}
                     />
                 )}
+
+                {/* GLOBAL BUDGET POPUP */}
+                <BudgetPopup
+                    visible={showBudgetModal}
+                    budget={selectedBudget}
+                    request={selectedRequest}
+                    onClose={() => { setShowBudgetModal(false); setStartWithRejectForm(false); }}
+                    onAccept={handleAcceptOffer}
+                    onReject={handleRejectOffer}
+                    startWithRejectForm={startWithRejectForm}
+                />
 
                 {/* PERFIL (CLIENTE O PRO) */}
                 {view === 'profile' && (
@@ -2440,73 +1854,17 @@ function MainApp() {
                 </View>
             </Modal>
 
-            {/* NAV INFERIOR (CON FIX DE PADDING PARA ANDROID, OCULTO EN ADMIN) */}
-            {
-                view !== 'admin' && (
-                    <View style={styles.bottomNav}>
-                        <TouchableOpacity style={styles.navItem} onPress={() => {
-                            if (view === 'home' && isLoggedIn) loadRequests();
-                            setView('home');
-                        }}>
-                            {userMode === 'client' ? (
-                                <Feather name="search" size={24} color={view === 'home' ? '#EA580C' : '#ccc'} />
-                            ) : (
-                                <View>
-                                    <Feather name="home" size={24} color={view === 'home' ? '#2563EB' : '#ccc'} />
-                                    {counts.pro.updates > 0 && (
-                                        <View style={styles.badgeContainer}>
-                                            <Text style={styles.badgeText}>{counts.pro.updates}</Text>
-                                        </View>
-                                    )}
-                                </View>
-                            )}
-                            <Text style={{ fontSize: 10, color: '#666' }}>
-                                {userMode === 'client' ? 'Buscar' : 'Ofertas'}
-                            </Text>
-                        </TouchableOpacity>
-                        {userMode === 'client' && (
-                            <TouchableOpacity style={styles.navItem} onPress={() => {
-                                if (!isLoggedIn) setShowAuth(true);
-                                else {
-                                    if (view === 'my-requests' || view === 'request-detail-client') loadRequests();
-                                    setView('my-requests');
-                                }
-                            }}>
-                                <View>
-                                    <FontAwesome5 name="clipboard-list" size={24} color={view === 'my-requests' || view === 'request-detail-client' ? '#EA580C' : '#ccc'} />
-                                    {counts.client.updates > 0 && (
-                                        <View style={styles.badgeContainer}>
-                                            <Text style={styles.badgeText}>{counts.client.updates}</Text>
-                                        </View>
-                                    )}
-                                </View>
-                                <Text style={{ fontSize: 10, color: '#666' }}>Solicitudes</Text>
-                            </TouchableOpacity>
-                        )}
-                        <TouchableOpacity style={styles.navItem} onPress={() => {
-                            if (!isLoggedIn) setShowAuth(true);
-                            else {
-                                if (view === 'chat-list' || view === 'chat-detail') loadRequests();
-                                setView('chat-list');
-                            }
-                        }}>
-                            <View>
-                                <Feather name="message-square" size={24} color={view === 'chat-list' || view === 'chat-detail' ? (userMode === 'client' ? '#EA580C' : '#2563EB') : '#ccc'} />
-                                {(userMode === 'client' ? counts.client.chats : counts.pro.chats) > 0 && (
-                                    <View style={styles.badgeContainer}>
-                                        <Text style={styles.badgeText}>{userMode === 'client' ? counts.client.chats : counts.pro.chats}</Text>
-                                    </View>
-                                )}
-                            </View>
-                            <Text style={{ fontSize: 10, color: '#666' }}>Chat</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.navItem} onPress={() => { if (!isLoggedIn) setShowAuth(true); else setView('profile'); }}>
-                            <Feather name="user" size={24} color={view === 'profile' ? (userMode === 'client' ? '#EA580C' : '#2563EB') : '#ccc'} />
-                            <Text style={{ fontSize: 10, color: '#666' }}>Perfil</Text>
-                        </TouchableOpacity>
-                    </View>
-                )
-            }
+            {/* NAV INFERIOR */}
+            <BottomNav
+                view={view}
+                userMode={userMode}
+                isLoggedIn={isLoggedIn}
+                counts={counts}
+                setView={setView}
+                loadRequests={loadRequests}
+                setShowAuth={setShowAuth}
+                markAllProInteractionsAsRead={markAllProInteractionsAsRead}
+            />
 
             <CloseRequestModal
                 visible={showCloseModal}

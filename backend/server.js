@@ -22,12 +22,26 @@ app.use(cors());
 app.use(express.json({ limit: '50mb' })); // Aumentar límite para imágenes Base64
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
-// Log request size
+// Log request size and time
 app.use((req, res, next) => {
-    if (req.method === 'POST' || req.method === 'PUT') {
-        const contentLength = req.headers['content-length'];
-        console.log(`[Server] ${req.method} ${req.path} - Content-Length: ${contentLength}`);
-    }
+    const start = Date.now();
+    const { method, path } = req;
+
+    // Log start
+    try {
+        const fs = require('fs');
+        fs.appendFileSync('access.log', `[${new Date().toISOString()}] START ${method} ${path}\n`);
+    } catch (e) { }
+
+    res.on('finish', () => {
+        const duration = Date.now() - start;
+        const size = res.get('Content-Length') || 'unknown';
+        const userInfo = req.user ? `[User: ${req.user._id} / ${req.user.email}]` : '[No User]';
+        try {
+            const fs = require('fs');
+            fs.appendFileSync('access.log', `[${new Date().toISOString()}] END ${method} ${path} - Status: ${res.statusCode} (${duration}ms) Size: ${size} bytes ${userInfo}\n`);
+        } catch (e) { }
+    });
     next();
 });
 

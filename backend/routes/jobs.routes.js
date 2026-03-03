@@ -64,8 +64,10 @@ const calculateJobStatuses = (job, userId) => {
 
     // 1. CANCELED
     if (job.status === 'canceled') clientStatus = 'ELIMINADA';
-    // 2. TERMINADO (Rated, Completed, or Client explicitly finished)
-    else if (job.status === 'rated' || job.status === 'completed' || job.status === 'Culminada' || job.clientFinished) clientStatus = 'TERMINADO';
+    // 2. TERMINADO (Rated, Completed)
+    else if (job.status === 'rated' || job.status === 'completed' || job.status === 'Culminada' || job.rating > 0 || job.proRating > 0) clientStatus = 'TERMINADO';
+    // 2.5 VALORACIÓN
+    else if (job.proFinished && job.clientFinished) clientStatus = 'VALORACIÓN';
     // 3. VALIDATING (Pro finished, Client pending)
     else if (job.proFinished && !job.clientFinished) clientStatus = 'VALIDANDO';
     // 4. IN PROGRESS (Started)
@@ -995,16 +997,16 @@ router.get('/me', protect, async (req, res) => {
         if (!req.user || !req.user._id) {
             return res.status(401).json({ message: 'Usuario no autenticado o no encontrado en DB.' });
         }
-
         const clientJobs = await Job.find({ client: req.user._id })
-            .select('-images -workPhotos -clientManagement')
+            .select('-images -workPhotos -clientManagement -projectHistory -conversations')
             .populate('client', 'name avatar email')
             .populate('category', 'name color icon')
             .populate('offers.proId', 'name email avatar rating reviewsCount')
             .populate('professional', 'name email avatar rating reviewsCount')
-            .populate('projectHistory.actor', 'name avatar email role')
             .sort({ createdAt: -1 })
             .lean();
+
+        console.log(`[DEBUG /me] Found ${clientJobs.length} client jobs for user ${req.user._id}`);
 
         console.log(`[GET /me] User ${req.user ? req.user.name : 'Unknown'} [${req.user ? req.user._id : 'Unknown'}] has ${clientJobs.length} client jobs.`);
 
@@ -1124,12 +1126,12 @@ router.get('/me', protect, async (req, res) => {
             console.log(`[GET /me DEBUG] Fetching ${uniqueJobIdsToFetch.length} extra jobs:`, uniqueJobIdsToFetch);
             try {
                 const fetchedJobs = await Job.find({ _id: { $in: uniqueJobIdsToFetch } })
-                    .select('-images -workPhotos -clientManagement') // Restored avatar
+                    .select('-images -workPhotos -clientManagement -projectHistory -conversations')
                     .populate('category', 'name color icon')
-                    .populate('client', 'name email avatar') // Restored avatar
-                    .populate('offers.proId', 'name email avatar rating reviewsCount') // Restored avatar
-                    .populate('professional', 'name email avatar rating reviewsCount') // Restored avatar
-                    .lean(); // Removed .maxTimeMS(5000)
+                    .populate('client', 'name email avatar')
+                    .populate('offers.proId', 'name email avatar rating reviewsCount')
+                    .populate('professional', 'name email avatar rating reviewsCount')
+                    .lean();
 
                 console.log(`[GET /me DEBUG] Successfully fetched ${fetchedJobs.length} extra jobs`);
 
@@ -1532,12 +1534,18 @@ router.post('/:id/rate-mutual', protect, async (req, res) => {
         const jobId = req.params.id;
         const reviewerId = req.user._id;
 
+        const job = await Job.findById(jobId);
+        let actualReviewerRole = 'client'; // Default to client
+        if (job && job.client.toString() !== reviewerId.toString()) {
+            actualReviewerRole = 'pro';
+        }
+
         // Crear la reseña
         const review = new Review({
             job: jobId,
             reviewer: reviewerId,
             reviewee: revieweeId,
-            reviewerRole: (req.user.role === 'professional' || req.user.role === 'admin') ? 'pro' : req.user.role,
+            reviewerRole: actualReviewerRole,
             rating,
             comment,
             answers
@@ -1547,15 +1555,14 @@ router.post('/:id/rate-mutual', protect, async (req, res) => {
 
         const reviewee = await User.findById(revieweeId);
 
-        // Actualizar el trabajo si es necesario
-        const job = await Job.findById(jobId);
+        // Actualizar el trabajo si es necesario (ya buscado más arriba)
         if (job) {
             // Agregar al historial
             job.projectHistory.push({
                 eventType: 'note_added', // Usamos note_added para la reseña
                 actor: reviewerId,
-                actorRole: req.user.role === 'admin' ? 'pro' : req.user.role,
-                title: (req.user.role === 'client' || req.user.role === 'admin') ? 'Cliente Valoró el Trabajo' : 'Profesional Valoró al Cliente',
+                actorRole: actualReviewerRole,
+                title: actualReviewerRole === 'client' ? 'Cliente Valoró el Trabajo' : 'Profesional Valoró al Cliente',
                 description: `Calificación: ${rating} estrellas. "${comment || 'Sin comentarios'}"`,
                 timestamp: new Date()
             });
@@ -1793,6 +1800,48 @@ router.post('/:id/timeline', protect, async (req, res) => {
         res.json(populatedJob);
     } catch (error) {
         console.error("Error adding timeline event:", error);
+        res.status(500).json({ message: error.message });
+    }
+});
+
+// @desc    Cambiar privacidad de evento de historial
+// @route   PUT /api/jobs/:id/timeline/privacy
+// @access  Private (Propietario del evento)
+router.put('/:id/timeline/privacy', protect, async (req, res) => {
+    try {
+        const { timestamp } = req.body;
+        const job = await Job.findById(req.params.id);
+
+        if (!job) return res.status(404).json({ message: 'Solicitud no encontrada' });
+
+        // Find the specific event by timestamp (since index might change if sorted differently)
+        const eventItem = job.projectHistory.find(e => new Date(e.timestamp).getTime() === new Date(timestamp).getTime());
+
+        if (!eventItem) return res.status(404).json({ message: 'Evento no encontrado' });
+
+        // Verify ownership
+        const actorId = eventItem.actor._id || eventItem.actor;
+        if (actorId.toString() !== req.user._id.toString()) {
+            return res.status(403).json({ message: 'No tienes permiso para modificar este evento' });
+        }
+
+        // Toggle privacy
+        eventItem.isPrivate = !eventItem.isPrivate;
+
+        await job.save();
+
+        // Return the FULLY populated job to refresh UI immediately
+        const populatedJob = await Job.findById(job._id)
+            .populate('client', 'name phone avatar email')
+            .populate('category', 'name')
+            .populate('offers.proId', 'name avatar rating reviewsCount')
+            .populate('professional', 'name avatar email rating reviewsCount')
+            .populate('projectHistory.actor', 'name avatar email role');
+
+        res.json(populatedJob);
+
+    } catch (error) {
+        console.error("Error updating timeline event privacy:", error);
         res.status(500).json({ message: error.message });
     }
 });

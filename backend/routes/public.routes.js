@@ -41,7 +41,8 @@ router.get('/businesses', async (req, res) => {
 // 4. Obtener reviews de un usuario (Genérico, usado por Perfiles)
 router.get('/users/:id/reviews', async (req, res) => {
     try {
-        const reviews = await Review.find({ reviewee: req.params.id })
+        // Para clientes, buscar reseñas donde el profesional los evaluó ('pro')
+        const reviews = await Review.find({ reviewee: req.params.id, reviewerRole: 'pro' })
             .populate('reviewer', 'name avatar') // Populate básico del autor
             .sort({ createdAt: -1 });
         res.json(reviews);
@@ -53,7 +54,8 @@ router.get('/users/:id/reviews', async (req, res) => {
 // 5. Obtener reviews de un profesional (Alias para compatibilidad)
 router.get('/professionals/:id/reviews', async (req, res) => {
     try {
-        const reviews = await Review.find({ reviewee: req.params.id })
+        // Para profesionales, buscar reseñas donde el cliente los evaluó ('client')
+        const reviews = await Review.find({ reviewee: req.params.id, reviewerRole: 'client' })
             .populate('reviewer', 'name avatar')
             .sort({ createdAt: -1 });
         res.json(reviews);

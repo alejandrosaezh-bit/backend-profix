@@ -1,7 +1,8 @@
 import { Feather } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useState } from 'react';
-import { ActivityIndicator, Image, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { api } from '../utils/api';
 import RatingForm from './RatingForm';
 
 
@@ -17,12 +18,33 @@ const ProjectTimeline = ({ job, userMode, currentUser, onConfirmStart, onAddTime
 
     const [loading, setLoading] = useState(false);
 
+    const handleTogglePrivacy = async (event) => {
+        try {
+            setLoading(true);
+            const updatedJob = await api.toggleTimelineEventPrivacy(job._id || job.id, event.timestamp);
+            if (onAddTimelineEvent) {
+                // To force a refresh we can just call an empty update or relies on polling/sockets
+                // But since job state is usually maintained by the parent, we might need a prop like onUpdateJob
+                // Since we don't have it explicitly, we can show an alert that it was changed
+                Alert.alert("Éxito", `El evento ahora es ${!event.isPrivate ? 'Privado' : 'Público'}. Los cambios se verán reflejados en breve.`);
+            }
+        } catch (error) {
+            console.error("Error toggling privacy:", error);
+            Alert.alert("Error", error.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     // ... rest of state
     const [note, setNote] = useState('');
     const [isPrivate, setIsPrivate] = useState(false);
     const [showNoteModal, setShowNoteModal] = useState(false);
     const [showDatePicker, setShowDatePicker] = useState(false);
     const [date, setDate] = useState(new Date());
+
+    const [showMediaModal, setShowMediaModal] = useState(false);
+    const [pendingMediaType, setPendingMediaType] = useState(null);
 
     // Get user's current portfolio for this specific category
     const categoryTitle = typeof job.category === 'string' ? job.category : (job.category?.name || 'General');
@@ -59,7 +81,16 @@ const ProjectTimeline = ({ job, userMode, currentUser, onConfirmStart, onAddTime
 
     const stageNames = ['Antes', 'Durante', 'Después', 'Valoración'];
 
-    const handlePickMedia = async (type) => {
+    const handlePickMedia = (type) => {
+        setPendingMediaType(type);
+        setShowMediaModal(true);
+    };
+
+    const executePickMedia = async (isMediaPrivate) => {
+        setShowMediaModal(false);
+        const type = pendingMediaType;
+        if (!type) return;
+
         let result;
         const options = {
             mediaTypes: type === 'video' ? ImagePicker.MediaTypeOptions.Videos : ImagePicker.MediaTypeOptions.Images,
@@ -86,12 +117,15 @@ const ProjectTimeline = ({ job, userMode, currentUser, onConfirmStart, onAddTime
                         title: photoType,
                         description: `Evidencia visual de la etapa: ${stageNames[currentStage]}`,
                         mediaUrl: asset.base64 ? `data:image/jpeg;base64,${asset.base64}` : asset.uri,
-                        isPrivate
+                        isPrivate: isMediaPrivate
                     });
                 }
             } finally {
                 setLoading(false);
+                setPendingMediaType(null);
             }
+        } else {
+            setPendingMediaType(null);
         }
     };
 
@@ -243,16 +277,6 @@ const ProjectTimeline = ({ job, userMode, currentUser, onConfirmStart, onAddTime
                             <Text style={[styles.managementTitle, !isAccepted && { color: '#94A3B8' }]}>
                                 {userMode === 'pro' ? 'Gestión de Avances' : 'Gestión de Avance'}
                             </Text>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
-                                <View style={{
-                                    width: 8, height: 8, borderRadius: 4,
-                                    backgroundColor: !isAccepted ? '#CBD5E1' : (job.trackingStatus === 'started' ? '#3B82F6' : (job.trackingStatus === 'finished' ? '#10B981' : (userMode === 'pro' ? '#2563EB' : '#EA580C'))),
-                                    marginRight: 6
-                                }} />
-                                <Text style={[styles.statusLabel, !isAccepted && { color: '#94A3B8' }]}>
-                                    {!isAccepted ? 'No Iniciado' : (job.trackingStatus === 'started' ? 'En Progreso' : (job.trackingStatus === 'finished' ? 'Finalizado' : 'Esperando Inicio'))}
-                                </Text>
-                            </View>
                         </View>
                     </View>
 
@@ -294,7 +318,7 @@ const ProjectTimeline = ({ job, userMode, currentUser, onConfirmStart, onAddTime
                                 ) : (
                                     currentStage === 0 ? "El profesional está preparando el inicio de la labor." :
                                         currentStage === 1 ? "El trabajo está en curso. Revisa el historial para ver fotos del avance." :
-                                            currentStage === 2 ? "El profesional ha marcado el trabajo como listo para tu revisión." :
+                                            currentStage === 2 ? "Recuerda subir fotos del trabajo final para tu control y portafolio de trabajos realizados." :
                                                 "¡Trabajo finalizado! No olvides calificar el servicio."
                                 )}
                             </Text>
@@ -357,6 +381,57 @@ const ProjectTimeline = ({ job, userMode, currentUser, onConfirmStart, onAddTime
                             )}
                         </TouchableOpacity>
                     )}
+
+                    {/* MODAL PARA ELEGIR PRIVACIDAD DE MEDIOS */}
+                    <Modal
+                        visible={showMediaModal}
+                        transparent
+                        animationType="fade"
+                        onRequestClose={() => setShowMediaModal(false)}
+                    >
+                        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 24 }}>
+                            <View style={{ backgroundColor: 'white', borderRadius: 28, padding: 24, width: '100%', elevation: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.15, shadowRadius: 10 }}>
+                                <Text style={{ fontSize: 20, fontWeight: '900', color: '#1E293B', marginBottom: 8, textAlign: 'center' }}>
+                                    Visibilidad del Archivo
+                                </Text>
+                                <Text style={{ fontSize: 13, color: '#64748B', textAlign: 'center', marginBottom: 28, paddingHorizontal: 10, lineHeight: 18 }}>
+                                    Selecciona quién podrá ver los archivos que vas a subir al historial.
+                                </Text>
+
+                                <View style={{ gap: 14 }}>
+                                    <TouchableOpacity
+                                        onPress={() => executePickMedia(false)}
+                                        style={{ backgroundColor: '#F0F9FF', borderColor: '#E0F2FE', borderWidth: 1, padding: 18, borderRadius: 20, flexDirection: 'row', alignItems: 'center' }}
+                                    >
+                                        <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: 'white', alignItems: 'center', justifyContent: 'center', marginRight: 16 }}>
+                                            <Feather name="eye" size={22} color="#0284C7" />
+                                        </View>
+                                        <View style={{ flex: 1 }}>
+                                            <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#0369A1' }}>Completamente Público</Text>
+                                            <Text style={{ fontSize: 12, color: '#0284C7', marginTop: 3 }}>Será visible para ambas partes.</Text>
+                                        </View>
+                                    </TouchableOpacity>
+
+                                    <TouchableOpacity
+                                        onPress={() => executePickMedia(true)}
+                                        style={{ backgroundColor: '#F8FAFC', borderColor: '#E2E8F0', borderWidth: 1, padding: 18, borderRadius: 20, flexDirection: 'row', alignItems: 'center' }}
+                                    >
+                                        <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: 'white', alignItems: 'center', justifyContent: 'center', marginRight: 16 }}>
+                                            <Feather name="lock" size={22} color="#475569" />
+                                        </View>
+                                        <View style={{ flex: 1 }}>
+                                            <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#334155' }}>Solo para mí (Privado)</Text>
+                                            <Text style={{ fontSize: 12, color: '#475569', marginTop: 3 }}>Para bitácora interna, uso personal.</Text>
+                                        </View>
+                                    </TouchableOpacity>
+                                </View>
+
+                                <TouchableOpacity onPress={() => setShowMediaModal(false)} style={{ marginTop: 24, alignItems: 'center', paddingVertical: 12 }}>
+                                    <Text style={{ fontSize: 15, fontWeight: 'bold', color: '#64748B' }}>Cancelar</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                    </Modal>
 
                     {/* MODAL PARA AGREGAR NOTA */}
                     <Modal
@@ -499,7 +574,7 @@ const ProjectTimeline = ({ job, userMode, currentUser, onConfirmStart, onAddTime
 
             {/* SECCIÓN DE VALORACIÓN (Always visible, but disabled if not finished) */}
             {(showSection === 'all' || showSection === 'rating') && (
-                <View style={[styles.managementCard, !isFinished && { opacity: 0.5 }]}>
+                <View style={[styles.managementCard, !isFinished && { backgroundColor: '#F8FAFC', borderColor: '#E2E8F0' }]}>
                     <Text style={styles.managementTitle}>{customTitle || 'Valoración del Servicio'}</Text>
                     {!isFinished && (
                         <View style={{
@@ -519,7 +594,7 @@ const ProjectTimeline = ({ job, userMode, currentUser, onConfirmStart, onAddTime
                             </Text>
                         </View>
                     )}
-                    <View style={{ marginTop: 15, pointerEvents: isFinished ? 'auto' : 'none' }}>
+                    <View style={{ marginTop: 15, pointerEvents: isFinished ? 'auto' : 'none', opacity: isFinished ? 1 : 0.4 }}>
                         <RatingForm
                             onSubmit={handleRatingSubmit}
                             revieweeName={revieweeName}
@@ -532,55 +607,96 @@ const ProjectTimeline = ({ job, userMode, currentUser, onConfirmStart, onAddTime
             {/* FEED DE EVENTOS */}
             {(showSection === 'all' || showSection === 'timeline') && (
                 <View style={{ marginTop: showSection === 'timeline' ? 0 : 20 }}>
-                    {customTitle && <Text style={[styles.managementTitle, { marginBottom: 20, paddingHorizontal: 5 }]}>{customTitle}</Text>}
-                    {visibleEvents.length === 0 ? (
-                        <Text style={{ textAlign: 'center', color: '#9CA3AF', fontStyle: 'italic', fontSize: 13, marginTop: 20 }}>No hay eventos registrados aún.</Text>
-                    ) : (
-                        visibleEvents.map((e, i) => {
-                            const isMe = (e.actor?._id || e.actor)?.toString() === currentUser?._id?.toString();
-                            return (
-                                <View key={i} style={{ flexDirection: 'row', marginBottom: 24 }}>
-                                    <View style={{ alignItems: 'center', marginRight: 12, width: 30 }}>
-                                        <View style={{ position: 'absolute', top: 30, bottom: -24, width: 2, backgroundColor: '#E2E8F0', zIndex: -1 }} />
-                                        <View style={{
-                                            width: 32, height: 32, borderRadius: 16,
-                                            backgroundColor: isMe ? '#DBEAFE' : '#FFFFFF',
-                                            justifyContent: 'center', alignItems: 'center',
-                                            borderWidth: 2, borderColor: isMe ? '#2563EB' : '#94A3B8'
-                                        }}>
-                                            <Feather
-                                                name={
-                                                    e.eventType === 'photo_uploaded' ? 'camera' :
-                                                        e.eventType === 'job_finished' ? 'check' :
-                                                            e.eventType === 'job_created' ? 'file-text' :
-                                                                e.eventType === 'work_started' ? 'play' :
-                                                                    e.eventType === 'offer_sent' ? 'dollar-sign' :
-                                                                        e.eventType === 'offer_accepted' ? 'user-check' :
-                                                                            e.eventType === 'offer_rejected' ? 'user-x' : 'message-square'
-                                                }
-                                                size={14}
-                                                color={isMe ? '#2563EB' : '#64748B'}
-                                            />
+                    <Text style={[styles.managementTitle, { marginBottom: 20, paddingHorizontal: 5 }]}>
+                        {customTitle === 'Histórico' ? 'Historial de Actividad' : (customTitle || 'Historial de Actividad')}
+                    </Text>
+                    <View style={{ paddingHorizontal: 4 }}>
+                        {visibleEvents.length === 0 ? (
+                            <Text style={{ textAlign: 'center', color: '#9CA3AF', fontStyle: 'italic', fontSize: 13, marginTop: 20 }}>No hay eventos registrados aún.</Text>
+                        ) : (
+                            visibleEvents.map((e, i) => {
+                                const isMe = (e.actor?._id || e.actor)?.toString() === currentUser?._id?.toString();
+                                return (
+                                    <View key={i} style={{ flexDirection: 'row', marginBottom: 24 }}>
+                                        <View style={{ alignItems: 'center', marginRight: 12, width: 30 }}>
+                                            <View style={{ position: 'absolute', top: 30, bottom: -24, width: 2, backgroundColor: '#E2E8F0', zIndex: -1 }} />
+                                            <View style={{
+                                                width: 32, height: 32, borderRadius: 16,
+                                                backgroundColor: isMe ? '#DBEAFE' : '#FFFFFF',
+                                                justifyContent: 'center', alignItems: 'center',
+                                                borderWidth: 2, borderColor: isMe ? '#2563EB' : '#94A3B8'
+                                            }}>
+                                                <Feather
+                                                    name={
+                                                        e.eventType === 'photo_uploaded' ? 'camera' :
+                                                            e.eventType === 'job_finished' ? 'check' :
+                                                                e.eventType === 'job_created' ? 'file-text' :
+                                                                    e.eventType === 'work_started' ? 'play' :
+                                                                        e.eventType === 'offer_sent' ? 'dollar-sign' :
+                                                                            e.eventType === 'offer_accepted' ? 'user-check' :
+                                                                                e.eventType === 'offer_rejected' ? 'user-x' : 'message-square'
+                                                    }
+                                                    size={14}
+                                                    color={isMe ? '#2563EB' : '#64748B'}
+                                                />
+                                            </View>
+                                        </View>
+                                        <View style={{ flex: 1, backgroundColor: 'white', padding: 12, borderRadius: 16, borderWidth: 1, borderColor: '#F1F5F9' }}>
+                                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+                                                <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#1E2937' }}>
+                                                    {e.title} {e.isPrivate && <Feather name="lock" size={12} color="#EF4444" />}
+                                                </Text>
+                                                <Text style={{ fontSize: 10, color: '#94A3B8' }}>
+                                                    {new Date(e.timestamp).toLocaleDateString()} {new Date(e.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                </Text>
+                                            </View>
+                                            <Text style={{ fontSize: 13, color: '#4B5563', lineHeight: 18 }}>{e.description}</Text>
+
+                                            {isMe && e.eventType !== 'offer_sent' && e.eventType !== 'offer_accepted' && e.eventType !== 'offer_rejected' && e.eventType !== 'job_created' && (
+                                                <TouchableOpacity
+                                                    onPress={() => handleTogglePrivacy(e)}
+                                                    style={{ alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', marginTop: 8, backgroundColor: e.isPrivate ? '#FEE2E2' : '#F1F5F9', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 }}
+                                                >
+                                                    <Feather name={e.isPrivate ? "lock" : "unlock"} size={10} color={e.isPrivate ? "#EF4444" : "#64748B"} style={{ marginRight: 4 }} />
+                                                    <Text style={{ fontSize: 10, fontWeight: 'bold', color: e.isPrivate ? "#EF4444" : "#64748B" }}>
+                                                        {e.isPrivate ? 'Privado' : 'Hacer Privado'}
+                                                    </Text>
+                                                </TouchableOpacity>
+                                            )}
+                                            {e.mediaUrl && (
+                                                <View style={{ marginTop: 10 }}>
+                                                    <TouchableOpacity onPress={() => onViewImage(e.mediaUrl)}>
+                                                        <Image source={{ uri: e.mediaUrl }} style={{ width: '100%', height: 180, borderRadius: 12 }} />
+                                                    </TouchableOpacity>
+                                                    {isMe && onTogglePortfolio && (
+                                                        <TouchableOpacity
+                                                            onPress={() => onTogglePortfolio(e.mediaUrl, categoryTitle)}
+                                                            style={{
+                                                                position: 'absolute',
+                                                                bottom: 8,
+                                                                right: 8,
+                                                                backgroundColor: portfolioGallery.includes(e.mediaUrl) ? '#10B981' : 'rgba(0,0,0,0.6)',
+                                                                paddingVertical: 6,
+                                                                paddingHorizontal: 12,
+                                                                borderRadius: 16,
+                                                                flexDirection: 'row',
+                                                                alignItems: 'center'
+                                                            }}
+                                                        >
+                                                            <Feather name={portfolioGallery.includes(e.mediaUrl) ? "check" : "image"} size={12} color="white" style={{ marginRight: 6 }} />
+                                                            <Text style={{ color: 'white', fontSize: 11, fontWeight: 'bold' }}>
+                                                                {portfolioGallery.includes(e.mediaUrl) ? "En Portafolio" : "Añadir a Portafolio"}
+                                                            </Text>
+                                                        </TouchableOpacity>
+                                                    )}
+                                                </View>
+                                            )}
                                         </View>
                                     </View>
-                                    <View style={{ flex: 1, backgroundColor: 'white', padding: 12, borderRadius: 16, borderWidth: 1, borderColor: '#F1F5F9' }}>
-                                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
-                                            <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#1E2937' }}>{e.title}</Text>
-                                            <Text style={{ fontSize: 10, color: '#94A3B8' }}>
-                                                {new Date(e.timestamp).toLocaleDateString()} {new Date(e.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                            </Text>
-                                        </View>
-                                        <Text style={{ fontSize: 13, color: '#4B5563', lineHeight: 18 }}>{e.description}</Text>
-                                        {e.mediaUrl && (
-                                            <TouchableOpacity onPress={() => onViewImage(e.mediaUrl)} style={{ marginTop: 10 }}>
-                                                <Image source={{ uri: e.mediaUrl }} style={{ width: '100%', height: 180, borderRadius: 12 }} />
-                                            </TouchableOpacity>
-                                        )}
-                                    </View>
-                                </View>
-                            );
-                        })
-                    )}
+                                );
+                            })
+                        )}
+                    </View>
                 </View>
             )}
         </View>
@@ -625,7 +741,7 @@ const styles = StyleSheet.create({
     journeyContainer: {
         flexDirection: 'row',
         marginBottom: 25,
-        height: 44,
+        height: 32,
         paddingRight: 15,
     },
     journeyStep: {
@@ -648,13 +764,13 @@ const styles = StyleSheet.create({
     },
     rightPoint: {
         position: 'absolute',
-        right: -14,
+        right: -12,
         top: 0,
         width: 0,
         height: 0,
-        borderTopWidth: 22,
-        borderBottomWidth: 22,
-        borderLeftWidth: 14,
+        borderTopWidth: 16,
+        borderBottomWidth: 16,
+        borderLeftWidth: 12,
         borderTopColor: 'transparent',
         borderBottomColor: 'transparent',
         zIndex: 10,
@@ -665,9 +781,9 @@ const styles = StyleSheet.create({
         top: 0,
         width: 0,
         height: 0,
-        borderTopWidth: 22,
-        borderBottomWidth: 22,
-        borderLeftWidth: 14,
+        borderTopWidth: 16,
+        borderBottomWidth: 16,
+        borderLeftWidth: 12,
         borderTopColor: 'transparent',
         borderBottomColor: 'transparent',
         borderLeftColor: 'white',

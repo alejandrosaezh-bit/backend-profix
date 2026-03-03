@@ -18,9 +18,9 @@ router.get('/', protect, async (req, res) => {
         // OPTIMIZACIÓN: Excluimos el array de mensajes que puede ser enorme. 
         // Usaremos slice para traer solo el primer y último mensaje si es necesario, 
         // o mejor, usaremos los campos desnormalizados lastMessage/lastMessageDate.
-        let chats = await Chat.find({ participants: req.user._id }, { messages: { $slice: 1 } })
-            .populate('participants', 'name email role avatar')
-            .populate('job', 'title client status offers')
+        let chats = await Chat.find({ participants: req.user._id }, { messages: { $slice: -1 } })
+            .populate('participants', 'name email avatar')
+            .populate('job', 'title client status') // Excluded offers which could be heavy
             .sort({ lastMessageDate: -1 })
             .lean();
 
@@ -40,18 +40,9 @@ router.get('/', protect, async (req, res) => {
         // 3. Procesar según las reglas del usuario
         const meId = req.user._id.toString();
         let processedChats = chats.filter(c => !!c.job).map(c => {
-            // REGLA: Iniciador (el que escribió primero) es el Profesional. El receptor es el Cliente.
-            const firstMsg = c.messages && c.messages[0];
-
-            let chatRole = 'client';
-            if (firstMsg) {
-                const initiatorId = firstMsg.sender ? firstMsg.sender.toString() : '';
-                chatRole = (initiatorId === meId) ? 'pro' : 'client';
-            } else {
-                // Fallback: si soy el dueño del job, soy cliente
-                const jobClientId = c.job && c.job.client ? (c.job.client._id || c.job.client).toString() : '';
-                chatRole = (jobClientId === meId) ? 'client' : 'pro';
-            }
+            // REGLA: El cliente del chat es el cliente del trabajo.
+            const jobClientId = c.job && c.job.client ? (c.job.client._id || c.job.client).toString() : '';
+            const chatRole = (jobClientId === meId) ? 'client' : 'pro';
 
             // REGLA: Archivado = Solicitud u Oferta NO ACTIVA
             const jobStatus = (c.job.status || '').toLowerCase();

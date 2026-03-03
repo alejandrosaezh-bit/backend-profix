@@ -9,6 +9,7 @@ import { CATEGORY_EXAMPLES, FLAT_ZONES_SUGGESTIONS, HOME_COPY_OPTIONS } from '..
 import { ChevronDown, ChevronRight, MapPin } from '../constants/icons';
 import styles from '../styles/globalStyles';
 import { showAlert } from '../utils/helpers';
+import { compressImage } from '../utils/imageCompressor';
 
 const ServiceForm = ({ onSubmit, isLoggedIn, onTriggerLogin, initialCategory, initialSubcategory, categories = [], allSubcategories = {}, currentUser, dynamicCopy }) => {
     const copy = dynamicCopy || HOME_COPY_OPTIONS[0];
@@ -105,8 +106,8 @@ const ServiceForm = ({ onSubmit, isLoggedIn, onTriggerLogin, initialCategory, in
         });
 
         if (!result.canceled) {
-            const base64Img = `data:image/jpeg;base64,${result.assets[0].base64}`;
-            setImages([...images, base64Img]);
+            const compressedBase64 = await compressImage(result.assets[0].uri);
+            setImages([...images, compressedBase64]);
         }
     };
 
@@ -138,6 +139,7 @@ const ServiceForm = ({ onSubmit, isLoggedIn, onTriggerLogin, initialCategory, in
 
         let result = await ImagePicker.launchCameraAsync({
             mediaTypes: ImagePicker.MediaTypeOptions.Videos,
+            videoMaxDuration: 15, // Limitar videos grabados a 15 segundos
         });
 
         if (!result.canceled) {
@@ -159,8 +161,8 @@ const ServiceForm = ({ onSubmit, isLoggedIn, onTriggerLogin, initialCategory, in
         });
 
         if (!result.canceled) {
-            const base64Img = `data:image/jpeg;base64,${result.assets[0].base64}`;
-            setImages([...images, base64Img]);
+            const compressedBase64 = await compressImage(result.assets[0].uri);
+            setImages([...images, compressedBase64]);
         }
     };
 

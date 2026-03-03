@@ -28,10 +28,12 @@ const getHeaders = async () => {
     };
 };
 
-const fetchWithTimeout = async (url, options = {}, timeout = 120000) => {
+const fetchWithTimeout = async (url, options = {}, timeout = 150000) => {
     const controller = new AbortController();
+    let isTimeout = false;
     const id = setTimeout(() => {
-        console.warn(`[API] Timeout reached for ${url} after ${timeout}ms. Aborting.`);
+        isTimeout = true;
+        console.warn(`[API] Timeout reaching ${url} after ${timeout}ms. AC Aborting.`);
         controller.abort();
     }, timeout);
 
@@ -43,16 +45,20 @@ const fetchWithTimeout = async (url, options = {}, timeout = 120000) => {
         });
         clearTimeout(id);
         const duration = Date.now() - start;
-        // console.log(`[API] Success ${url} (${duration}ms)`);
         return response;
     } catch (error) {
         clearTimeout(id);
         const duration = Date.now() - start;
         let msg = error.message;
+
+        if (isTimeout) msg = `Timeout de ${timeout / 1000}s alcanzado (${url})`;
+        else if (msg.toLowerCase().includes('abort')) msg = `La petición fue abortada externamente (${url})`;
+
         if (msg.toLowerCase().includes('network request failed')) {
-            msg += ` (Verifica que tu celular y PC estén en la misma red Wi-Fi y que la IP ${url} sea correcta).`;
+            msg += ` (Verifica tu IP ${LOCAL_IP} y Wi-Fi).`;
         }
-        console.error(`[API] Error for ${url} after ${duration}ms:`, error.name, msg);
+
+        console.error(`[API] Fetch Error after ${duration}ms:`, error.name, msg);
         throw new Error(msg);
     }
 };
@@ -247,6 +253,16 @@ export const api = {
             body: JSON.stringify(eventData)
         });
         if (!res.ok) throw new Error('Error adding timeline event');
+        return res.json();
+    },
+    toggleTimelineEventPrivacy: async (jobId, timestamp) => {
+        const headers = await getHeaders();
+        const res = await fetchWithTimeout(`${API_URL}/jobs/${jobId}/timeline/privacy`, {
+            method: 'PUT',
+            headers,
+            body: JSON.stringify({ timestamp })
+        });
+        if (!res.ok) throw new Error('Error actualizando privacidad del evento');
         return res.json();
     },
     getJobs: async (filters = {}) => {

@@ -1,9 +1,12 @@
-import { Feather } from '@expo/vector-icons';
+import { Feather, FontAwesome5 } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
 import { useEffect, useState } from 'react';
 import {
     Alert,
+    Dimensions,
+    Image,
+    Modal,
     Platform,
     ScrollView,
     StyleSheet,
@@ -13,15 +16,15 @@ import {
 } from 'react-native';
 import {
     ProAccountSettings,
-    ProCategoryConfig,
-    ProCategorySelector,
-    ProPersonalInfoCard,
-    ProProfileHeader
+    ProCategorySelector
 } from '../components/profile/ProProfileComponents';
 import { ProCategorySelectionModal, ProPersonalEditModal, ProProfileEditModal } from '../components/profile/ProProfileModals';
 import { api } from '../utils/api';
 import { getProStatus } from '../utils/helpers';
+import { compressAvatar, compressImage } from '../utils/imageCompressor';
 import { clearRequests } from '../utils/requests';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 // --- MOCK DATA REMOVED ---
 
@@ -59,13 +62,15 @@ export default function ProfessionalProfileScreen({
     onUpdate,
     onLogout,
     onSwitchMode,
-    onViewImage
+    onViewImage,
+    requestedCategoryName
 }) {
     const [isEditing, setIsEditing] = useState(false); // Professional Profile Editing
     const [isCategorySelectionVisible, setIsCategorySelectionVisible] = useState(false); // Category Selection Modal
     const [isEditingPersonal, setIsEditingPersonal] = useState(false); // Personal Data Editing
     const [personalData, setPersonalData] = useState({}); // Temp state for personal data editing
     const [reviews, setReviews] = useState([]);
+    const [selectedGallery, setSelectedGallery] = useState(null);
 
     // Location Selector State
     const [expandedStates, setExpandedStates] = useState({});
@@ -104,27 +109,36 @@ export default function ProfessionalProfileScreen({
                 if (Array.isArray(allJobs)) {
                     setJobsList(allJobs);
 
-                    let activeCount = 0;
-                    let completedCount = 0;
-                    let cancelledCount = 0;
+                    let offeredCount = 0;
+                    let wonCount = 0;
 
                     allJobs.forEach(j => {
                         const status = getProStatus(j, user._id);
-                        if (['GANADA', 'EN EJECUCIÓN', 'ACEPTADO', 'VALIDANDO', 'PRESUPUESTADA', 'CONTACTADA'].includes(status)) {
-                            activeCount++;
-                        } else if (['TERMINADO', 'VALORACIÓN', 'FINALIZADA'].includes(status)) {
-                            completedCount++;
-                        } else if (['PERDIDA', 'RECHAZADA', 'Cerrada'].includes(status)) {
-                            cancelledCount++;
+                        // Ofertados = todos los que tengan interacción/presupuestada + los ganados/terminados + perdidos/rechazados
+                        // Básicamente, todo el timeline donde el pro ha mandado una oferta.
+                        // Para simplificar: comprobaremos si existe una oferta de este pro
+                        const hasOffered = j.offers?.some(o => o.proId?._id === user._id || o.proId === user._id);
+                        if (hasOffered) {
+                            offeredCount++;
+                        }
+
+                        // Ganados = los que se aceptó la oferta y pasó a in_progress/completed/etc
+                        const isWon = ['GANADA', 'EN EJECUCIÓN', 'ACEPTADO', 'VALIDANDO', 'TERMINADO', 'VALORACIÓN', 'FINALIZADA'].includes(status);
+                        if (isWon) {
+                            wonCount++;
                         }
                     });
 
-                    const totalFinished = completedCount + cancelledCount;
                     let successRate = 100;
-                    if (totalFinished > 0) {
-                        successRate = Math.round((completedCount / totalFinished) * 100);
+                    if (offeredCount > 0) {
+                        successRate = Math.round((wonCount / offeredCount) * 100);
                     }
 
+                    setCategoryStats({
+                        jobs: offeredCount,
+                        rating: wonCount, // using 'rating' var name for 'ganados' to touch less layout for now, or we can just rename it in render
+                        success: `${successRate}%`
+                    });
                 }
             } catch (error) {
                 console.error("Error fetching pro data:", error);
@@ -152,7 +166,16 @@ export default function ProfessionalProfileScreen({
     // Inicializar con la primera categoría activa si existe, sino la primera de la lista
     // Seleccionar la primera categoría que tenga un perfil activo, respetando el orden de la lista original
     const [selectedCategory, setSelectedCategory] = useState(() => {
-        // Buscamos en el orden de 'categories' cuál tiene perfil activo
+        // 1. Si venimos de una solicitud específica, mostrar esa categoría primero si la tiene activa
+        if (requestedCategoryName) {
+            const requestedCat = categories.find(c => (c.fullName || c.name) === requestedCategoryName);
+            const reqKey = requestedCat?.fullName || requestedCat?.name || requestedCategoryName;
+            if (requestedCat && user?.profiles?.[reqKey] && user.profiles[reqKey].isActive !== false) {
+                return requestedCat;
+            }
+        }
+
+        // 2. Buscamos en el orden de 'categories' cuál tiene perfil activo
         const firstActive = categories.find(c => {
             const key = c.fullName || c.name;
             return user?.profiles?.[key] && user.profiles[key].isActive !== false;
@@ -404,11 +427,11 @@ export default function ProfessionalProfileScreen({
         });
 
         if (!result.canceled) {
-            const base64Img = `data:image/jpeg;base64,${result.assets[0].base64}`;
+            const compressedBase64Img = await compressAvatar(result.assets[0].uri);
             if (isEditingPersonal) {
-                setPersonalData(prev => ({ ...prev, avatar: base64Img }));
+                setPersonalData(prev => ({ ...prev, avatar: compressedBase64Img }));
             } else {
-                setProfileData(prev => ({ ...prev, avatar: base64Img }));
+                setProfileData(prev => ({ ...prev, avatar: compressedBase64Img }));
             }
         }
     };
@@ -430,8 +453,9 @@ export default function ProfessionalProfileScreen({
         });
 
         if (!result.canceled) {
-            // Convertir a array de base64 strings
-            const newImages = result.assets.map(asset => `data:image/jpeg;base64,${asset.base64}`);
+            // Comprimir todas y convertir a array de base64 strings optimizados
+            const compressedImagesPromises = result.assets.map(asset => compressImage(asset.uri));
+            const newImages = await Promise.all(compressedImagesPromises);
             const currentGallery = currentCatProfile.gallery || [];
             updateCurrentProfile({ gallery: [...currentGallery, ...newImages] });
         }
@@ -449,16 +473,29 @@ export default function ProfessionalProfileScreen({
         return jCat === categoryKey;
     });
 
-    const catCompletedCount = filteredJobs.filter(j => ['Finalizada', 'Cerrado', 'Cerrada', 'TERMINADO', 'completed', 'rated', 'Culminada'].includes(j.status) || j.proFinished).length;
-    const catTotalFinished = catCompletedCount + filteredJobs.filter(j => j.status === 'canceled' || j.status === 'Cancelada').length;
+    let catOfferedCount = 0;
+    let catWonCount = 0;
 
-    let catSuccessRate = 0;
-    if (catTotalFinished > 0) {
-        catSuccessRate = Math.round((catCompletedCount / catTotalFinished) * 100);
+    filteredJobs.forEach(j => {
+        const status = getProStatus(j, user._id);
+        const hasOffered = j.offers?.some(o => o.proId?._id === user._id || o.proId === user._id);
+        if (hasOffered) {
+            catOfferedCount++;
+        }
+
+        const isWon = ['GANADA', 'EN EJECUCIÓN', 'ACEPTADO', 'VALIDANDO', 'TERMINADO', 'VALORACIÓN', 'FINALIZADA'].includes(status);
+        if (isWon) {
+            catWonCount++;
+        }
+    });
+
+    let catSuccessRate = 100;
+    if (catOfferedCount > 0) {
+        catSuccessRate = Math.round((catWonCount / catOfferedCount) * 100);
     }
 
-    // Rating específico si hay reviews, sino el global
-    const catReviews = reviews.filter(rev => {
+    // Filter reviews specific to this category
+    const catReviews = (reviews || []).filter(rev => {
         const revCat = (typeof rev.jobCategory === 'object') ? rev.jobCategory.name : rev.jobCategory;
         return !revCat || revCat === categoryKey;
     });
@@ -467,79 +504,462 @@ export default function ProfessionalProfileScreen({
     if (catReviews.length > 0) {
         const sum = catReviews.reduce((acc, r) => acc + (r.rating || 0), 0);
         catRating = (sum / catReviews.length).toFixed(1);
-    } else if (catCompletedCount > 0) {
-        // Si tiene trabajos completados pero no reviews, usamos la global
-        catRating = (user.rating || 5.0);
+    } else if (catWonCount > 0) {
+        // Si tiene trabajos ganados/completados pero no reviews, usamos la global
+        catRating = user.rating ? user.rating.toFixed(1) : "0.0";
     } else {
         // 0 trabajos y 0 reviews = 0 valoración en esta categoría
         catRating = "0.0";
     }
 
     const categoryStats = {
-        jobs: catCompletedCount, // "Ganados" suele referirse a terminados exitosamente
-        rating: catRating,
+        jobs: catOfferedCount,
+        rating: catWonCount, // Usamos la misma variable para mantener compatibilidad en renderizado
         success: `${catSuccessRate}%`
     };
 
     if (!user) return null;
 
+    if (!isOwner) {
+        return (
+            <>
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContentPublic}>
+                        <View style={styles.dragHandle} />
+
+                        <ScrollView contentContainerStyle={{ paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
+                            <View style={styles.blueHeader}>
+                                <View style={styles.headerTop}>
+                                    <Text style={styles.headerTitle}>Perfil Profesional</Text>
+                                    <TouchableOpacity onPress={onBack} style={styles.closeButton}>
+                                        <Feather name="x" size={24} color="white" />
+                                    </TouchableOpacity>
+                                </View>
+
+                                <View style={styles.headerMain}>
+                                    <View style={styles.avatarContainerPublic}>
+                                        <Image source={{ uri: personalData.mainImage }} style={styles.avatarPublic} />
+                                        <View style={styles.verifiedBadgePublic}>
+                                            <Feather name="shield" size={12} color="white" />
+                                        </View>
+                                    </View>
+                                    <View style={{ marginLeft: 20, flex: 1 }}>
+                                        <Text style={styles.headerNamePublic} numberOfLines={1}>{profileData.name || 'Profesional'}</Text>
+                                        <View style={styles.headerRatingPublic}>
+                                            <FontAwesome5 name="star" solid size={14} color="#FBBF24" />
+                                            <Text style={styles.headerRatingTextPublic}>{(user?.reviewCount || 0) > 0 ? (user.rating ? user.rating.toFixed(1) : '5.0') : '0.0'} • {user?.reviewCount || 0} reseñas</Text>
+                                        </View>
+                                    </View>
+                                </View>
+                            </View>
+
+                            <View style={styles.cardContainerPublic}>
+                                {/* ACTIVIDAD */}
+                                <View style={{ backgroundColor: 'white', borderRadius: 24, padding: 20, marginBottom: 16, elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8 }}>
+                                    <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#64748B', marginBottom: 20 }}>{`CATEGORÍA (${selectedCategory?.name?.toUpperCase()})`}</Text>
+                                    <View style={{ flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center' }}>
+                                        <View style={{ alignItems: 'center' }}>
+                                            <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#2563EB' }}>{categoryStats.jobs}</Text>
+                                            <Text style={{ fontSize: 13, color: '#64748B', marginTop: 4 }}>Cotizados</Text>
+                                        </View>
+                                        <View style={{ width: 1, height: 40, backgroundColor: '#F1F5F9' }} />
+                                        <View style={{ alignItems: 'center' }}>
+                                            <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#2563EB' }}>{categoryStats.rating}</Text>
+                                            <Text style={{ fontSize: 13, color: '#64748B', marginTop: 4 }}>Ganados</Text>
+                                        </View>
+                                        <View style={{ width: 1, height: 40, backgroundColor: '#F1F5F9' }} />
+                                        <View style={{ alignItems: 'center' }}>
+                                            <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#2563EB' }}>{categoryStats.success}</Text>
+                                            <Text style={{ fontSize: 13, color: '#64748B', marginTop: 4 }}>Éxito</Text>
+                                        </View>
+                                    </View>
+                                </View>
+
+                                {/* BIO Y DETALLES */}
+                                <View style={{ backgroundColor: 'white', borderRadius: 24, padding: 20, marginBottom: 16, elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, marginHorizontal: -10 }}>
+                                    <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#64748B', marginBottom: 15 }}>INFORMACIÓN PROFESIONAL</Text>
+                                    {currentCatProfile?.bio ? (
+                                        <Text style={{ fontSize: 15, color: '#334155', fontStyle: 'italic', marginBottom: 16, lineHeight: 22 }}>"{currentCatProfile.bio}"</Text>
+                                    ) : null}
+
+                                    <Text style={{ fontSize: 14, color: '#4B5563', lineHeight: 22, marginTop: 4 }}>
+                                        <Text style={{ fontWeight: 'bold', color: '#1E293B' }}>Especialista en: </Text>
+                                        {currentCatProfile?.subcategories?.length ? currentCatProfile.subcategories.join(', ') : 'Servicios generales.'}
+                                    </Text>
+
+                                    <Text style={{ fontSize: 14, color: '#4B5563', lineHeight: 22, marginTop: 12 }}>
+                                        <Text style={{ fontWeight: 'bold', color: '#1E293B' }}>Zonas de servicio: </Text>
+                                        {currentCatProfile?.zones?.length ? currentCatProfile.zones.join(', ') : 'No especificadas.'}
+                                    </Text>
+                                </View>
+
+                                {/* RESEÑAS */}
+                                <View style={{ backgroundColor: 'white', borderRadius: 24, padding: 20, marginBottom: 16, elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8 }}>
+                                    <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#64748B', marginBottom: 20 }}>OPINIONES RECIENTES</Text>
+                                    {catReviews && catReviews.length > 0 ? (
+                                        catReviews.slice(0, 3).map((r, i) => (
+                                            <View key={i} style={{ backgroundColor: '#F8FAFC', padding: 16, borderRadius: 16, marginBottom: 12 }}>
+                                                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+                                                    <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: '#E2E8F0', justifyContent: 'center', alignItems: 'center', marginRight: 10 }}>
+                                                        <Feather name="user" size={16} color="#94A3B8" />
+                                                    </View>
+                                                    <Text style={{ fontWeight: 'bold', fontSize: 14, color: '#1E293B' }}>{r.reviewer?.name || 'Cliente'}</Text>
+                                                </View>
+                                                <Text style={{ fontSize: 13, color: '#4B5563', lineHeight: 20, paddingLeft: 42 }}>{r.comment}</Text>
+                                            </View>
+                                        ))
+                                    ) : (
+                                        <View style={{ alignItems: 'center', paddingVertical: 20 }}>
+                                            <Feather name="message-square" size={32} color="#E2E8F0" />
+                                            <Text style={{ color: '#94A3B8', fontSize: 13, textAlign: 'center', marginTop: 12 }}>No hay opiniones aún.</Text>
+                                        </View>
+                                    )}
+                                </View>
+
+                                <View style={{ backgroundColor: 'white', borderRadius: 24, padding: 20, marginBottom: 16, elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8 }}>
+                                    <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#64748B', marginBottom: 20 }}>PORTAFOLIO DE TRABAJOS</Text>
+                                    {(() => {
+                                        const portfolioFolders = [];
+                                        const categoryFullName = selectedCategory?.fullName || selectedCategory?.name || '';
+                                        const currentProfileGallery = currentCatProfile?.gallery || [];
+
+                                        if (currentProfileGallery.length > 0 && Array.isArray(jobsList)) {
+                                            jobsList.forEach(job => {
+                                                const jobCat = typeof job.category === 'string' ? job.category : (job.category?.name || job.category?.fullName || '');
+                                                if (jobCat && jobCat.toLowerCase() === categoryFullName.toLowerCase()) {
+                                                    const jobImagesInPortfolio = [];
+                                                    const jobMedia = [];
+                                                    if (job.images) jobMedia.push(...job.images);
+                                                    if (job.workPhotos) jobMedia.push(...job.workPhotos);
+                                                    if (job.projectHistory) {
+                                                        job.projectHistory.forEach(ev => { if (ev.mediaUrl) jobMedia.push(ev.mediaUrl); });
+                                                    }
+                                                    if (job.clientManagement?.beforePhotos) {
+                                                        job.clientManagement.beforePhotos.forEach(p => { if (p.url) jobMedia.push(p.url); });
+                                                    }
+                                                    if (job.clientManagement?.payments) {
+                                                        job.clientManagement.payments.forEach(p => { if (p.evidenceUrl) jobMedia.push(p.evidenceUrl); });
+                                                    }
+                                                    const uniqueJobMedia = [...new Set(jobMedia)];
+                                                    uniqueJobMedia.forEach(url => {
+                                                        if (currentProfileGallery.includes(url)) {
+                                                            jobImagesInPortfolio.push(url);
+                                                        }
+                                                    });
+
+                                                    if (jobImagesInPortfolio.length > 0) {
+                                                        portfolioFolders.push({
+                                                            jobId: job._id || job.id,
+                                                            title: job.title || 'Trabajo completado',
+                                                            subcategories: [job.subCategory].filter(Boolean),
+                                                            images: jobImagesInPortfolio
+                                                        });
+                                                    }
+                                                }
+                                            });
+                                        }
+
+                                        if (portfolioFolders.length === 0) {
+                                            return (
+                                                <View style={{ alignItems: 'center', paddingVertical: 20 }}>
+                                                    <Feather name="folder" size={40} color="#E2E8F0" />
+                                                    <Text style={{ color: '#94A3B8', fontSize: 13, textAlign: 'center', marginTop: 15 }}>No hay trabajos en el portafolio.</Text>
+                                                </View>
+                                            );
+                                        }
+
+                                        return (
+                                            <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }}>
+                                                {portfolioFolders.map((folder, index) => (
+                                                    <TouchableOpacity key={index} style={styles.folderCard} onPress={() => setSelectedGallery(folder)}>
+                                                        <View style={styles.folderTab} />
+                                                        <View style={styles.folderContent}>
+                                                            <Image source={{ uri: folder.images[0] }} style={styles.folderImage} />
+                                                            <View style={styles.folderInfo}>
+                                                                <Text style={styles.folderTitle} numberOfLines={1}>{folder.title}</Text>
+                                                                <Text style={{ fontSize: 11, color: '#64748B', marginTop: 2, marginBottom: 2 }} numberOfLines={1}>
+                                                                    {folder.subcategories.length > 0 ? folder.subcategories.join(', ') : 'Servicios generales'}
+                                                                </Text>
+                                                                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
+                                                                    <Feather name="image" size={10} color="#94A3B8" />
+                                                                    <Text style={styles.folderCount}>{folder.images.length} fotos</Text>
+                                                                </View>
+                                                            </View>
+                                                        </View>
+                                                    </TouchableOpacity>
+                                                ))}
+                                            </View>
+                                        );
+                                    })()}
+                                </View>
+                            </View>
+
+                            {/* BOTÓN CERRAR FOOTER */}
+                            <View style={{ paddingHorizontal: 20 }}>
+                                <TouchableOpacity onPress={onBack} style={{ backgroundColor: '#F1F5F9', paddingVertical: 16, borderRadius: 16, alignItems: 'center', marginTop: 10 }}>
+                                    <Text style={{ color: '#64748B', fontWeight: 'bold', fontSize: 15 }}>Cerrar Perfil</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </ScrollView>
+                    </View >
+                </View >
+
+                {/* GALLERY MODAL */}
+                <Modal visible={!!selectedGallery} transparent={true} animationType="fade" onRequestClose={() => setSelectedGallery(null)}>
+                    <View style={{ flex: 1, backgroundColor: '#F8FAFC', paddingTop: 50 }}>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingBottom: 15, borderBottomWidth: 1, borderBottomColor: '#E2E8F0' }}>
+                            <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#1E293B' }} numberOfLines={1}>{selectedGallery?.title || 'Fotos del Trabajo'}</Text>
+                            <TouchableOpacity
+                                style={{ padding: 10, backgroundColor: 'rgba(0,0,0,0.05)', borderRadius: 20 }}
+                                onPress={() => setSelectedGallery(null)}
+                            >
+                                <Feather name="x" size={24} color="#1E293B" />
+                            </TouchableOpacity>
+                        </View>
+                        <ScrollView contentContainerStyle={{ padding: 15 }}>
+                            <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }}>
+                                {selectedGallery?.images?.map((img, i) => (
+                                    <View key={i} style={{ width: '48%', marginBottom: 15, borderRadius: 12, overflow: 'hidden', borderWidth: 1, borderColor: '#E2E8F0' }}>
+                                        <Image source={{ uri: img }} style={{ width: '100%', height: 150, resizeMode: 'cover' }} />
+                                    </View>
+                                ))}
+                            </View>
+                        </ScrollView>
+
+                        <View style={{ padding: 20, borderTopWidth: 1, borderTopColor: '#E2E8F0', backgroundColor: 'white' }}>
+                            <TouchableOpacity
+                                style={{ backgroundColor: '#2563EB', paddingVertical: 14, borderRadius: 12, alignItems: 'center', flexDirection: 'row', justifyContent: 'center' }}
+                                onPress={() => {
+                                    const jobId = selectedGallery?.jobId;
+                                    setSelectedGallery(null);
+                                    if (jobId) {
+                                        alert('Navegando a la Oferta: ' + jobId);
+                                    } else {
+                                        alert('No se pudo encontrar la oferta asociada.');
+                                    }
+                                }}
+                            >
+                                <Feather name="external-link" size={16} color="white" style={{ marginRight: 8 }} />
+                                <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 16 }}>Ir a la Oferta</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </Modal>
+            </>
+        );
+    }
+
     return (
         <View style={styles.container}>
-            <ProProfileHeader onLogout={onLogout} />
-
-            <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-                <ProPersonalInfoCard
-                    isEditingPersonal={isEditingPersonal}
-                    personalData={personalData}
-                    profileData={profileData}
-                    user={user}
-                    pickMainImage={pickMainImage}
-                />
-
-                <View style={[styles.sectionContainer, { marginTop: 10, shadowColor: '#2563EB', shadowOpacity: 0.1, shadowRadius: 10, elevation: 5 }]}>
-                    <View style={{ flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', marginBottom: 15, paddingRight: 10 }}>
-                        <TouchableOpacity
-                            onPress={() => setIsCategorySelectionVisible(true)}
-                            style={{
-                                flexDirection: 'row',
-                                alignItems: 'center',
-                                backgroundColor: '#EFF6FF',
-                                paddingHorizontal: 16,
-                                paddingVertical: 10,
-                                borderRadius: 14,
-                                borderWidth: 1,
-                                borderColor: '#DBEAFE'
-                            }}
-                        >
-                            <Feather name="plus-circle" size={16} color="#2563EB" style={{ marginRight: 8 }} />
-                            <Text style={{ color: '#2563EB', fontWeight: 'bold', fontSize: 13 }}>Configurar mis Servicios</Text>
-                        </TouchableOpacity>
+            <ScrollView contentContainerStyle={{ paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
+                <View style={[styles.blueHeader, { borderBottomLeftRadius: 32, borderBottomRightRadius: 32, paddingBottom: 25 }]}>
+                    <View style={[styles.headerTop, { paddingTop: Platform.OS === 'ios' ? 44 : 10 }]}>
+                        <Text style={styles.headerTitle}>Perfil Profesional</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            <TouchableOpacity onPress={onLogout} style={[styles.logoutIconButtonHeader, { marginLeft: 10 }]}>
+                                <Feather name="log-out" size={18} color="white" />
+                            </TouchableOpacity>
+                        </View>
                     </View>
 
-                    <ProCategorySelector
-                        sortedCategories={sortedCategories}
-                        profileData={profileData}
-                        selectedCategory={selectedCategory}
-                        setSelectedCategory={setSelectedCategory}
-                        ICON_MAP={ICON_MAP}
-                    />
-
-                    <ProCategoryConfig
-                        isCategoryActive={isCategoryActive}
-                        categoryStats={categoryStats}
-                        currentCatProfile={currentCatProfile}
-                        catReviews={catReviews}
-                        selectedCategory={selectedCategory}
-                        setIsEditing={setIsEditing}
-                        onViewImage={onViewImage}
-                    />
+                    <View style={styles.headerMain}>
+                        <View style={styles.avatarContainerPublic}>
+                            <TouchableOpacity onPress={pickMainImage}>
+                                <Image source={{ uri: profileData.avatar || profileData.image }} style={styles.avatarPublic} />
+                            </TouchableOpacity>
+                            <View style={styles.verifiedBadgePublic}>
+                                <Feather name="shield" size={12} color="white" />
+                            </View>
+                            <TouchableOpacity style={[styles.editBadge, { right: -5, bottom: -5, width: 28, height: 28, borderRadius: 14, justifyContent: 'center', alignItems: 'center', padding: 0 }]} onPress={pickMainImage}>
+                                <Feather name="camera" size={12} color="white" />
+                            </TouchableOpacity>
+                        </View>
+                        <View style={{ marginLeft: 20, flex: 1, justifyContent: 'center' }}>
+                            <Text style={styles.headerNamePublic} numberOfLines={1}>{profileData.name || 'Profesional'}</Text>
+                            <View style={styles.headerRatingPublic}>
+                                <FontAwesome5 name="star" solid size={14} color="#FBBF24" />
+                                <Text style={styles.headerRatingTextPublic}>{(user?.reviewCount || 0) > 0 ? (user.rating ? user.rating.toFixed(1) : '5.0') : '0.0'} • {user?.reviewCount || 0} reseñas</Text>
+                            </View>
+                        </View>
+                    </View>
                 </View>
 
-                <ProAccountSettings
-                    startEditingPersonal={startEditingPersonal}
-                    handleResetApplicationData={handleResetApplicationData}
-                    onSwitchMode={onSwitchMode}
-                />
+                {/* CONTENIDO PRINCIPAL (TARJETAS) */}
+                <View style={styles.cardContainerPublic}>
+
+                    {/* ACTIVIDAD (STATS) */}
+                    {isCategoryActive && (
+                        <View style={{ backgroundColor: 'white', borderRadius: 24, padding: 20, marginBottom: 16, elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8 }}>
+                            <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#64748B', marginBottom: 20 }}>{`CATEGORÍA (${selectedCategory?.name?.toUpperCase()})`}</Text>
+                            <View style={{ flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center' }}>
+                                <View style={{ alignItems: 'center' }}>
+                                    <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#2563EB' }}>{categoryStats.jobs}</Text>
+                                    <Text style={{ fontSize: 13, color: '#64748B', marginTop: 4 }}>Cotizados</Text>
+                                </View>
+                                <View style={{ width: 1, height: 40, backgroundColor: '#F1F5F9' }} />
+                                <View style={{ alignItems: 'center' }}>
+                                    <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#2563EB' }}>{categoryStats.rating}</Text>
+                                    <Text style={{ fontSize: 13, color: '#64748B', marginTop: 4 }}>Ganados</Text>
+                                </View>
+                                <View style={{ width: 1, height: 40, backgroundColor: '#F1F5F9' }} />
+                                <View style={{ alignItems: 'center' }}>
+                                    <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#2563EB' }}>{categoryStats.success}</Text>
+                                    <Text style={{ fontSize: 13, color: '#64748B', marginTop: 4 }}>Éxito</Text>
+                                </View>
+                            </View>
+                        </View>
+                    )}
+
+                    {/* BOTONES DE CATEGORIAS */}
+                    <View style={{ marginBottom: 4 }}>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, paddingHorizontal: 4 }}>
+                            <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#64748B' }}>MIS SERVICIOS</Text>
+                            <TouchableOpacity
+                                onPress={() => setIsCategorySelectionVisible(true)}
+                                style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#EFF6FF', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12, borderWidth: 1, borderColor: '#DBEAFE' }}
+                            >
+                                <Feather name="settings" size={12} color="#2563EB" style={{ marginRight: 6 }} />
+                                <Text style={{ color: '#2563EB', fontWeight: 'bold', fontSize: 12 }}>Configurar</Text>
+                            </TouchableOpacity>
+                        </View>
+
+                        <ProCategorySelector
+                            sortedCategories={sortedCategories}
+                            profileData={profileData}
+                            selectedCategory={selectedCategory}
+                            setSelectedCategory={setSelectedCategory}
+                            ICON_MAP={ICON_MAP}
+                            isOwner={isOwner}
+                        />
+                    </View>
+
+                    {/* BIO Y DETALLES */}
+                    <View style={{ backgroundColor: 'white', borderRadius: 24, padding: 20, marginBottom: 16, elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, marginHorizontal: -10 }}>
+                        <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#64748B', marginBottom: 15 }}>INFORMACIÓN PROFESIONAL</Text>
+                        {currentCatProfile?.bio ? (
+                            <Text style={{ fontSize: 15, color: '#334155', fontStyle: 'italic', marginBottom: 16, lineHeight: 22 }}>"{currentCatProfile.bio}"</Text>
+                        ) : null}
+
+                        <Text style={{ fontSize: 14, color: '#4B5563', lineHeight: 22, marginTop: 4 }}>
+                            <Text style={{ fontWeight: 'bold', color: '#1E293B' }}>Especialista en: </Text>
+                            {currentCatProfile?.subcategories?.length ? currentCatProfile.subcategories.join(', ') : 'Servicios generales.'}
+                        </Text>
+
+                        <Text style={{ fontSize: 14, color: '#4B5563', lineHeight: 22, marginTop: 12 }}>
+                            <Text style={{ fontWeight: 'bold', color: '#1E293B' }}>Zonas de servicio: </Text>
+                            {currentCatProfile?.zones?.length ? currentCatProfile.zones.join(', ') : 'No especificadas.'}
+                        </Text>
+                    </View>
+
+                    {/* PORTAFOLIO DE TRABAJOS GLOBAL */}
+                    <View style={{ backgroundColor: 'white', borderRadius: 24, padding: 20, marginBottom: 16, elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8 }}>
+                        <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#64748B', marginBottom: 20 }}>PORTAFOLIO DE TRABAJOS</Text>
+                        {(() => {
+                            const portfolioFolders = [];
+                            const categoryFullName = selectedCategory?.fullName || selectedCategory?.name || '';
+                            const currentProfileGallery = currentCatProfile?.gallery || [];
+
+                            if (currentProfileGallery.length > 0 && Array.isArray(jobsList)) {
+                                jobsList.forEach(job => {
+                                    const jobCat = typeof job.category === 'string' ? job.category : (job.category?.name || job.category?.fullName || '');
+                                    if (jobCat && jobCat.toLowerCase() === categoryFullName.toLowerCase()) {
+                                        const jobImagesInPortfolio = [];
+                                        const jobMedia = [];
+                                        if (job.images) jobMedia.push(...job.images);
+                                        if (job.workPhotos) jobMedia.push(...job.workPhotos);
+                                        if (job.projectHistory) {
+                                            job.projectHistory.forEach(ev => { if (ev.mediaUrl) jobMedia.push(ev.mediaUrl); });
+                                        }
+                                        if (job.clientManagement?.beforePhotos) {
+                                            job.clientManagement.beforePhotos.forEach(p => { if (p.url) jobMedia.push(p.url); });
+                                        }
+                                        if (job.clientManagement?.payments) {
+                                            job.clientManagement.payments.forEach(p => { if (p.evidenceUrl) jobMedia.push(p.evidenceUrl); });
+                                        }
+                                        const uniqueJobMedia = [...new Set(jobMedia)];
+                                        uniqueJobMedia.forEach(url => {
+                                            if (currentProfileGallery.includes(url)) {
+                                                jobImagesInPortfolio.push(url);
+                                            }
+                                        });
+
+                                        if (jobImagesInPortfolio.length > 0) {
+                                            portfolioFolders.push({
+                                                jobId: job._id || job.id,
+                                                title: job.title || 'Trabajo completado',
+                                                subcategories: [job.subCategory].filter(Boolean),
+                                                images: jobImagesInPortfolio
+                                            });
+                                        }
+                                    }
+                                });
+                            }
+
+                            if (portfolioFolders.length === 0) {
+                                return (
+                                    <View style={{ alignItems: 'center', paddingVertical: 20 }}>
+                                        <Feather name="folder" size={40} color="#E2E8F0" />
+                                        <Text style={{ color: '#94A3B8', fontSize: 13, textAlign: 'center', marginTop: 15 }}>No hay trabajos en el portafolio.</Text>
+                                    </View>
+                                );
+                            }
+
+                            return (
+                                <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }}>
+                                    {portfolioFolders.map((folder, index) => (
+                                        <TouchableOpacity key={index} style={styles.folderCard} onPress={() => setSelectedGallery(folder)}>
+                                            <View style={styles.folderTab} />
+                                            <View style={styles.folderContent}>
+                                                <Image source={{ uri: folder.images[0] }} style={styles.folderImage} />
+                                                <View style={styles.folderInfo}>
+                                                    <Text style={styles.folderTitle} numberOfLines={1}>{folder.title}</Text>
+                                                    <Text style={{ fontSize: 11, color: '#64748B', marginTop: 2, marginBottom: 2 }} numberOfLines={1}>
+                                                        {folder.subcategories.length > 0 ? folder.subcategories.join(', ') : 'Servicios generales'}
+                                                    </Text>
+                                                    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
+                                                        <Feather name="image" size={10} color="#94A3B8" />
+                                                        <Text style={styles.folderCount}>{folder.images.length} fotos</Text>
+                                                    </View>
+                                                </View>
+                                            </View>
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
+                            );
+                        })()}
+                    </View>
+
+                    {/* RESEÑAS */}
+                    <View style={{ backgroundColor: 'white', borderRadius: 24, padding: 20, marginBottom: 16, elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8 }}>
+                        <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#64748B', marginBottom: 20 }}>OPINIONES RECIENTES</Text>
+                        {catReviews && catReviews.length > 0 ? (
+                            catReviews.slice(0, 3).map((r, i) => (
+                                <View key={i} style={{ backgroundColor: '#F8FAFC', padding: 16, borderRadius: 16, marginBottom: 12 }}>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+                                        <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: '#E2E8F0', justifyContent: 'center', alignItems: 'center', marginRight: 10 }}>
+                                            <Feather name="user" size={16} color="#94A3B8" />
+                                        </View>
+                                        <Text style={{ fontWeight: 'bold', fontSize: 14, color: '#1E293B' }}>{r.reviewer?.name || 'Cliente'}</Text>
+                                    </View>
+                                    <Text style={{ fontSize: 13, color: '#4B5563', lineHeight: 20, paddingLeft: 42 }}>{r.comment}</Text>
+                                </View>
+                            ))
+                        ) : (
+                            <View style={{ alignItems: 'center', paddingVertical: 20 }}>
+                                <Feather name="message-square" size={32} color="#E2E8F0" />
+                                <Text style={{ color: '#94A3B8', fontSize: 13, textAlign: 'center', marginTop: 12 }}>No hay opiniones aún.</Text>
+                            </View>
+                        )}
+                    </View>
+                </View>
+
+                {isOwner && (
+                    <ProAccountSettings
+                        startEditingPersonal={startEditingPersonal}
+                        handleResetApplicationData={handleResetApplicationData}
+                        onSwitchMode={onSwitchMode}
+                    />
+                )}
 
                 {/* MODAL 1: SELECTOR DE CATEGORÍAS REDISEÑADO */}
                 <ProCategorySelectionModal
@@ -586,6 +1006,48 @@ export default function ProfessionalProfileScreen({
                     handleSavePersonal={handleSavePersonal}
                 />
             </ScrollView>
+
+            {/* TEXT & GALLERY MODAL OWNER */}
+            <Modal visible={!!selectedGallery} transparent={true} animationType="fade" onRequestClose={() => setSelectedGallery(null)}>
+                <View style={{ flex: 1, backgroundColor: '#F8FAFC', paddingTop: 50 }}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingBottom: 15, borderBottomWidth: 1, borderBottomColor: '#E2E8F0' }}>
+                        <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#1E293B' }} numberOfLines={1}>{selectedGallery?.title || 'Fotos del Trabajo'}</Text>
+                        <TouchableOpacity
+                            style={{ padding: 10, backgroundColor: 'rgba(0,0,0,0.05)', borderRadius: 20 }}
+                            onPress={() => setSelectedGallery(null)}
+                        >
+                            <Feather name="x" size={24} color="#1E293B" />
+                        </TouchableOpacity>
+                    </View>
+                    <ScrollView contentContainerStyle={{ padding: 15 }}>
+                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }}>
+                            {selectedGallery?.images?.map((img, i) => (
+                                <View key={i} style={{ width: '48%', marginBottom: 15, borderRadius: 12, overflow: 'hidden', borderWidth: 1, borderColor: '#E2E8F0' }}>
+                                    <Image source={{ uri: img }} style={{ width: '100%', height: 150, resizeMode: 'cover' }} />
+                                </View>
+                            ))}
+                        </View>
+                    </ScrollView>
+
+                    <View style={{ padding: 20, borderTopWidth: 1, borderTopColor: '#E2E8F0', backgroundColor: 'white' }}>
+                        <TouchableOpacity
+                            style={{ backgroundColor: '#2563EB', paddingVertical: 14, borderRadius: 12, alignItems: 'center', flexDirection: 'row', justifyContent: 'center' }}
+                            onPress={() => {
+                                const jobId = selectedGallery?.jobId;
+                                setSelectedGallery(null);
+                                if (jobId) {
+                                    alert('Navegando a la Oferta: ' + jobId);
+                                } else {
+                                    alert('No se pudo encontrar la oferta asociada.');
+                                }
+                            }}
+                        >
+                            <Feather name="external-link" size={16} color="white" style={{ marginRight: 8 }} />
+                            <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 16 }}>Ir a la Oferta</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
         </View>
     );
 }
@@ -1109,5 +1571,69 @@ const styles = StyleSheet.create({
         fontWeight: '600',
         fontSize: 14,
         marginRight: 6
-    }
+    },
+    folderCard: {
+        width: '48%',
+        marginBottom: 16,
+        position: 'relative',
+        marginTop: 10,
+    },
+    folderTab: {
+        width: '45%',
+        height: 12,
+        backgroundColor: '#2563EB',
+        borderTopLeftRadius: 8,
+        borderTopRightRadius: 8,
+        position: 'absolute',
+        top: -10,
+        left: 0,
+        zIndex: 1
+    },
+    folderContent: {
+        backgroundColor: 'white',
+        borderTopRightRadius: 12,
+        borderBottomLeftRadius: 12,
+        borderBottomRightRadius: 12,
+        borderTopLeftRadius: 0,
+        borderColor: '#E2E8F0',
+        borderWidth: 1.5,
+        overflow: 'hidden',
+        zIndex: 2,
+    },
+    folderImage: {
+        width: '100%',
+        height: 80,
+        borderTopRightRadius: 10,
+        borderBottomWidth: 1,
+        borderBottomColor: '#F1F5F9',
+    },
+    folderInfo: {
+        padding: 8,
+    },
+    folderTitle: {
+        fontSize: 11,
+        fontWeight: 'bold',
+        color: '#1E293B',
+    },
+    folderCount: {
+        fontSize: 10,
+        color: '#94A3B8',
+        marginLeft: 4,
+        fontWeight: '600',
+    },
+    modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
+    modalContentPublic: { backgroundColor: '#F8FAFC', borderTopLeftRadius: 36, borderTopRightRadius: 36, height: '92%', width: '100%', overflow: 'hidden' },
+    dragHandle: { width: 40, height: 5, backgroundColor: 'rgba(255,255,255,0.3)', borderRadius: 3, alignSelf: 'center', marginTop: 10, position: 'absolute', zIndex: 10 },
+    blueHeader: { backgroundColor: '#2563EB', paddingTop: Platform.OS === 'ios' ? 44 : 5, paddingBottom: 25, paddingHorizontal: 24, borderBottomLeftRadius: 36, borderBottomRightRadius: 36, elevation: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 10 },
+    headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15, marginTop: 0 },
+    headerTitle: { fontSize: 18, fontWeight: 'bold', color: 'white' },
+    closeButton: { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.2)', justifyContent: 'center', alignItems: 'center' },
+    headerMain: { flexDirection: 'row', alignItems: 'center' },
+    avatarContainerPublic: { width: 80, height: 80, borderRadius: 40, backgroundColor: 'white', padding: 3, elevation: 5, position: 'relative' },
+    avatarPublic: { width: '100%', height: '100%', borderRadius: 37 },
+    verifiedBadgePublic: { position: 'absolute', bottom: 0, right: 0, backgroundColor: '#10B981', width: 24, height: 24, borderRadius: 12, borderWidth: 3, borderColor: 'white', justifyContent: 'center', alignItems: 'center' },
+    headerNamePublic: { fontSize: 22, fontWeight: 'bold', color: 'white' },
+    headerRatingPublic: { flexDirection: 'row', alignItems: 'center', marginTop: 5 },
+    headerRatingTextPublic: { color: 'rgba(255,255,255,0.9)', fontSize: 13, marginLeft: 8 },
+    cardContainerPublic: { paddingHorizontal: 20, marginTop: -20 }
 });

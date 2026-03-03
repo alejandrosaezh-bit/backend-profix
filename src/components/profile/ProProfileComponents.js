@@ -1,18 +1,29 @@
 import { Feather } from '@expo/vector-icons';
 import { Image, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
-export const ProProfileHeader = ({ onLogout }) => (
+export const ProProfileHeader = ({ onLogout, onBack, isOwner = true }) => (
     <View style={styles.header}>
         <View style={styles.headerTop}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                {!isOwner && onBack && (
+                    <TouchableOpacity onPress={onBack} style={{ marginRight: 15 }}>
+                        <Feather name="arrow-left" size={24} color="white" />
+                    </TouchableOpacity>
+                )}
                 <Text style={styles.headerTitle}>Perfil Profesional</Text>
-                <View style={styles.versionBadge}>
-                    <Text style={styles.versionText}>V36.0</Text>
-                </View>
+                {isOwner && (
+                    <View style={styles.versionBadge}>
+                        <Text style={styles.versionText}>V36.0</Text>
+                    </View>
+                )}
             </View>
-            <TouchableOpacity onPress={onLogout} style={styles.logoutIconButtonHeader}>
-                <Feather name="log-out" size={20} color="white" />
-            </TouchableOpacity>
+            {isOwner && onLogout ? (
+                <TouchableOpacity onPress={onLogout} style={styles.logoutIconButtonHeader}>
+                    <Feather name="log-out" size={20} color="white" />
+                </TouchableOpacity>
+            ) : (
+                <View style={{ width: 44 }} />
+            )}
         </View>
     </View>
 );
@@ -22,7 +33,8 @@ export const ProPersonalInfoCard = ({
     personalData,
     profileData,
     user,
-    pickMainImage
+    pickMainImage,
+    isOwner
 }) => {
     const avatarUri = isEditingPersonal ? personalData.avatar : (profileData.avatar || profileData.image);
 
@@ -46,11 +58,10 @@ export const ProPersonalInfoCard = ({
             </View>
             <>
                 <Text style={styles.userName}>{profileData.name || 'Profesional'}</Text>
-                <Text style={styles.userEmail}>{profileData.email}</Text>
                 <View style={styles.ratingContainer}>
                     <Feather name="star" size={14} color="#D97706" style={{ marginRight: 4 }} />
                     <Text style={styles.ratingText}>
-                        {(user.rating && user.rating > 0) ? `${user.rating} (General)` : "Sin valoraciones aún"}
+                        {(user?.reviewCount || 0) > 0 ? (user.rating ? user.rating.toFixed(1) : '5.0') : '0.0'} • {user.reviewCount || 0} reseñas
                     </Text>
                 </View>
             </>
@@ -63,7 +74,8 @@ export const ProCategorySelector = ({
     profileData,
     selectedCategory,
     setSelectedCategory,
-    ICON_MAP
+    ICON_MAP,
+    isOwner
 }) => {
     const hasActiveProfiles = Object.keys(profileData.profiles || {}).some(k => profileData.profiles[k]?.isActive !== false);
 
@@ -89,11 +101,11 @@ export const ProCategorySelector = ({
                         >
                             <View style={styles.categoryIcon}>
                                 {typeof cat.icon === 'function' ? (
-                                    <cat.icon size={24} color={isSelected ? '#2563EB' : '#16A34A'} />
+                                    <cat.icon size={20} color={isSelected ? '#2563EB' : '#16A34A'} />
                                 ) : (
                                     <Feather
                                         name={typeof cat.icon === 'string' ? cat.icon : (ICON_MAP[cat.name] || 'grid')}
-                                        size={24}
+                                        size={20}
                                         color={isSelected ? '#2563EB' : '#16A34A'}
                                     />
                                 )}
@@ -103,7 +115,7 @@ export const ProCategorySelector = ({
                     );
                 })}
 
-                {!hasActiveProfiles && (
+                {!hasActiveProfiles && isOwner && (
                     <View style={{ padding: 10 }}>
                         <Text style={{ color: '#9CA3AF', fontSize: 12 }}>No tienes perfiles activos. Pulsa Gestionar para empezar.</Text>
                     </View>
@@ -120,9 +132,20 @@ export const ProCategoryConfig = ({
     catReviews,
     selectedCategory,
     setIsEditing,
-    onViewImage
+    onViewImage,
+    isOwner
 }) => {
     if (!isCategoryActive) {
+        if (!isOwner) {
+            return (
+                <View style={styles.emptyState}>
+                    <Feather name="briefcase" size={40} color="#CBD5E1" />
+                    <Text style={styles.emptyStateText}>Perfil no disponible</Text>
+                    <Text style={styles.emptyStateSubtext}>Este profesional no ofrece servicios en {selectedCategory.name} actualmente.</Text>
+                </View>
+            );
+        }
+
         return (
             <View style={styles.emptyState}>
                 <Feather name="briefcase" size={40} color="#CBD5E1" />
@@ -140,62 +163,23 @@ export const ProCategoryConfig = ({
 
     return (
         <View>
-            {/* Stats */}
-            <View style={styles.statsGrid}>
-                <View style={styles.statBox}>
-                    <Text style={styles.statNumber}>{categoryStats.jobs}</Text>
-                    <Text style={styles.statLabelSmall}>Trabajos</Text>
-                </View>
-                <View style={styles.statBox}>
-                    <Text style={styles.statNumber}>{categoryStats.rating}</Text>
-                    <Text style={styles.statLabelSmall}>Valoración</Text>
-                </View>
-                <View style={styles.statBox}>
-                    <Text style={styles.statNumber}>{categoryStats.success}</Text>
-                    <Text style={styles.statLabelSmall}>Éxito</Text>
-                </View>
-            </View>
-
             {/* Info Sections */}
-            <View style={styles.infoSection}>
-                <Text style={styles.infoLabel}>Bio</Text>
-                <Text style={styles.infoText}>{currentCatProfile.bio || 'Sin información.'}</Text>
+            <View style={[styles.infoSection, { backgroundColor: '#F8FAFC', padding: 18, borderRadius: 16, borderWidth: 1, borderColor: '#EFF6FF', marginBottom: 20 }]}>
+                {currentCatProfile.bio ? (
+                    <Text style={[styles.infoText, { marginBottom: 16, fontStyle: 'italic', color: '#334155' }]}>"{currentCatProfile.bio}"</Text>
+                ) : null}
+
+                <Text style={styles.infoText}>
+                    <Text style={{ fontWeight: 'bold', color: '#1E293B' }}>Especialista en: </Text>
+                    {currentCatProfile.subcategories?.length ? currentCatProfile.subcategories.join(', ') : 'Servicios generales.'}
+                </Text>
+
+                <Text style={[styles.infoText, { marginTop: 10 }]}>
+                    <Text style={{ fontWeight: 'bold', color: '#1E293B' }}>Zonas de servicio: </Text>
+                    {currentCatProfile.zones?.length ? currentCatProfile.zones.join(', ') : 'No especificadas.'}
+                </Text>
             </View>
 
-            <View style={styles.infoSection}>
-                <Text style={styles.infoLabel}>Cobertura</Text>
-                <View style={styles.gridContainer}>
-                    {(currentCatProfile.zones || []).map((zone, i) => (
-                        <View key={i} style={styles.zoneTag}>
-                            <Text style={styles.zoneTagText} numberOfLines={1}>{zone}</Text>
-                        </View>
-                    ))}
-                    {(!currentCatProfile.zones?.length) && <Text style={{ color: '#9CA3AF' }}>Sin zonas definidas</Text>}
-                </View>
-            </View>
-
-            <View style={styles.infoSection}>
-                <Text style={styles.infoLabel}>Especialidades</Text>
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, justifyContent: 'center' }}>
-                    {(currentCatProfile.subcategories || []).map((sub, i) => (
-                        <View key={i} style={styles.chip}>
-                            <Text style={styles.chipText} numberOfLines={1}>{sub}</Text>
-                        </View>
-                    ))}
-                    {(!currentCatProfile.subcategories?.length) && <Text style={{ color: '#9CA3AF' }}>Sin especialidades</Text>}
-                </View>
-            </View>
-
-            {/* Portfolio */}
-            <Text style={styles.infoLabel}>Portafolio</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 20 }}>
-                {(currentCatProfile.gallery || []).map((img, i) => (
-                    <TouchableOpacity key={i} onPress={() => onViewImage && onViewImage(img)}>
-                        <Image source={{ uri: img }} style={styles.galleryImage} />
-                    </TouchableOpacity>
-                ))}
-                {(!currentCatProfile.gallery?.length) && <Text style={{ color: '#9CA3AF' }}>Sin fotos.</Text>}
-            </ScrollView>
 
             {/* Reviews */}
             <Text style={styles.infoLabel}>Reseñas Recientes</Text>
@@ -251,15 +235,7 @@ export const ProAccountSettings = ({
                 <Feather name="chevron-right" size={18} color="#9CA3AF" />
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.settingRow} onPress={handleResetApplicationData}>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <View style={[styles.iconBox, { backgroundColor: '#FEF2F2' }]}>
-                        <Feather name="trash-2" size={18} color="#EF4444" />
-                    </View>
-                    <Text style={styles.settingText}>Limpiar Historial Local</Text>
-                </View>
-                <Feather name="chevron-right" size={18} color="#9CA3AF" />
-            </TouchableOpacity>
+
 
             <TouchableOpacity
                 style={styles.switchModeButton}
@@ -268,7 +244,7 @@ export const ProAccountSettings = ({
                 <Feather name="repeat" size={16} color="white" style={{ marginRight: 10 }} />
                 <Text style={styles.switchModeButtonText}>Cambiar al Perfil de Cliente</Text>
             </TouchableOpacity>
-        </View>
+        </View >
     );
 };
 
@@ -298,10 +274,10 @@ const styles = StyleSheet.create({
     sectionContainer: { paddingHorizontal: 16, marginBottom: 20 },
     sectionTitle: { fontSize: 24, fontWeight: 'bold', color: '#111827', marginBottom: 16, paddingHorizontal: 16 },
     categoryList: { paddingBottom: 10 },
-    categoryCard: { width: 100, height: 100, backgroundColor: 'white', borderRadius: 24, justifyContent: 'center', alignItems: 'center', marginHorizontal: 4, marginTop: 8, marginBottom: 8, borderWidth: 1, borderColor: '#EFF6FF', shadowColor: '#2563EB', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 10, elevation: 5 },
+    categoryCard: { width: 90, height: 75, backgroundColor: 'white', borderRadius: 20, justifyContent: 'center', alignItems: 'center', marginHorizontal: 4, marginTop: 8, marginBottom: 8, borderWidth: 1, borderColor: '#EFF6FF', shadowColor: '#2563EB', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 10, elevation: 5 },
     categoryCardSelected: { backgroundColor: '#EFF6FF', borderColor: '#2563EB', borderWidth: 2 },
-    categoryIcon: { marginBottom: 8 },
-    categoryName: { fontSize: 12, fontWeight: '600', color: '#4B5563', textAlign: 'center' },
+    categoryIcon: { marginBottom: 6 },
+    categoryName: { fontSize: 11, fontWeight: '600', color: '#4B5563', textAlign: 'center', paddingHorizontal: 2 },
     categoryNameSelected: { color: '#2563EB', fontWeight: 'bold' },
     emptyState: { alignItems: 'center', padding: 30, backgroundColor: '#F9FAFB', borderRadius: 16, borderStyle: 'dashed', borderWidth: 1, borderColor: '#D1D5DB' },
     emptyStateText: { marginTop: 15, fontSize: 16, fontWeight: 'bold', color: '#1F2937' },
