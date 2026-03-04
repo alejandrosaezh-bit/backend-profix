@@ -727,6 +727,10 @@ function MainApp() {
         // Ensure we have a valid object
         const data = fullJob.data || fullJob;
 
+        if (data.title === 'Revisión de cortocircuito') {
+            console.log(`[App.js mapJobData] incoming calculatedClientStatus: ${data.calculatedClientStatus}`);
+        }
+
         const mappedJob = {
             id: data._id || data.id,
             _id: data._id || data.id,
@@ -763,11 +767,13 @@ function MainApp() {
                 proName: o.proId?.name || o.proName || 'Profesional',
                 proAvatar: o.proId?.avatar || o.proAvatar
             })) || [],
-            proInteractionStatus: data.proInteraction?.status || data.proInteractionStatus || 'new'
+            proInteractionStatus: data.proInteraction?.status || data.proInteractionStatus || 'new',
+            calculatedClientStatus: data.calculatedClientStatus,
+            calculatedProStatus: data.calculatedProStatus
         };
 
         mappedJob.proStatus = userMode === 'pro' ? getProStatus(data, currentUserId) : 'NUEVA';
-        mappedJob.clientStatus = getClientStatus(data);
+        mappedJob.clientStatus = getClientStatus(mappedJob); // pass mappedJob so it sees calculatedClientStatus
 
         return mappedJob;
     };
@@ -1066,21 +1072,27 @@ function MainApp() {
 
     const handleStartJob = async () => {
         if (!selectedRequest) return;
+        const jobId = selectedRequest.id || selectedRequest._id;
         try {
-            const jobId = selectedRequest.id || selectedRequest._id;
-            await api.confirmStart(jobId, true);
-
-            const deepJob = await api.getJob(jobId);
-            const mapped = mapJobData(deepJob);
-
-            // Update local state
-            setAllRequests(prev => prev.map(r => (r._id || r.id) === jobId ? mapped : r));
-            setSelectedRequest(mapped);
-
+            // 1. Optimistic UI update
+            const optimisticJob = { ...selectedRequest, proStatus: 'EN EJECUCIÓN', trackingStatus: 'started' };
+            setAllRequests(prev => prev.map(r => (r._id || r.id) === jobId ? optimisticJob : r));
+            setSelectedRequest(optimisticJob);
             showAlert('Trabajo Iniciado', 'La bitácora de trabajo ha sido activada.');
+
+            // 2. Background Sync
+            api.confirmStart(jobId, true).then(() => {
+                return api.getJob(jobId);
+            }).then(deepJob => {
+                const mapped = mapJobData(deepJob);
+                setAllRequests(prev => prev.map(r => (r._id || r.id) === jobId ? mapped : r));
+                // Only update if still looking at the same job
+                setSelectedRequest(current => current && areIdsEqual(current.id || current._id, jobId) ? mapped : current);
+            }).catch(error => {
+                console.error("Error syncing start job:", error);
+            });
         } catch (error) {
-            console.error("Error starting job:", error);
-            showAlert('Error', 'No se pudo iniciar el trabajo.');
+            console.error("Error UI start job:", error);
         }
     };
 
@@ -1089,22 +1101,27 @@ function MainApp() {
         if (!jId) return;
 
         try {
-            // Call PUT /:id/finish
-            await api.finishJobByStatus(jId);
-
-            // Fetch populated job to prevent disappearing UI details
-            const deepJob = await api.getJob(jId);
-            const mapped = mapJobData(deepJob);
-
-            setAllRequests(prev => prev.map(r => (r._id || r.id) === jId ? mapped : r));
+            // 1. Optimistic UI update
+            const reqToUpdate = selectedRequest && areIdsEqual(selectedRequest.id || selectedRequest._id, jId) ? selectedRequest : allRequests.find(r => areIdsEqual(r.id || r._id, jId));
+            const optimisticJob = { ...reqToUpdate, proStatus: 'VALIDANDO', status: 'completed' };
+            setAllRequests(prev => prev.map(r => (r._id || r.id) === jId ? optimisticJob : r));
             if (selectedRequest && areIdsEqual(selectedRequest.id || selectedRequest._id, jId)) {
-                setSelectedRequest(mapped);
+                setSelectedRequest(optimisticJob);
             }
-
             showAlert('Trabajo Finalizado', 'Notifica al cliente para que revise y cierre la solicitud.');
+
+            // 2. Background Sync
+            api.finishJobByStatus(jId).then(() => {
+                return api.getJob(jId);
+            }).then(deepJob => {
+                const mapped = mapJobData(deepJob);
+                setAllRequests(prev => prev.map(r => (r._id || r.id) === jId ? mapped : r));
+                setSelectedRequest(current => current && areIdsEqual(current.id || current._id, jId) ? mapped : current);
+            }).catch(error => {
+                console.error("Error syncing finish job:", error);
+            });
         } catch (error) {
-            console.error("Error finishing job:", error);
-            showAlert('Error', 'No se pudo finalizar el trabajo.');
+            console.error("Error UI finish job:", error);
         }
     };
 
@@ -1138,28 +1155,49 @@ function MainApp() {
                 });
 
                 if (result.canceled) return;
+                showAlert("Subiendo Foto", "La evidencia se está guardando...");
 
                 const newEvent = {
                     eventType: 'photo_uploaded',
                     title: 'Foto de Evidencia',
                     description: 'Foto cargada durante el trabajo.',
                     mediaUrl: `data:image/jpeg;base64,${result.assets[0].base64}`,
-                    isPrivate: eventData.isPrivate || false
+                    isPrivate: eventData.isPrivate || false,
+                    date: new Date().toISOString()
                 };
 
-                await api.addTimelineEvent(jobId, newEvent);
-                const deepJob = await api.getJob(jobId);
-                const mapped = mapJobData(deepJob);
-                setSelectedRequest(mapped);
-                setAllRequests(prev => prev.map(r => (r._id || r.id) === jobId ? mapped : r));
+                // 1. Optimistic UI update
+                const optimisticJob = { ...selectedRequest, projectHistory: [...(selectedRequest.projectHistory || []), newEvent] };
+                setSelectedRequest(optimisticJob);
+                setAllRequests(prev => prev.map(r => (r._id || r.id) === jobId ? optimisticJob : r));
+
+                // 2. Background Sync
+                api.addTimelineEvent(jobId, newEvent).then(() => {
+                    return api.getJob(jobId);
+                }).then(deepJob => {
+                    const mapped = mapJobData(deepJob);
+                    setAllRequests(prev => prev.map(r => (r._id || r.id) === jobId ? mapped : r));
+                    setSelectedRequest(current => current && areIdsEqual(current.id || current._id, jobId) ? mapped : current);
+                }).catch(error => console.error("Error syncing timeline photo:", error));
+
                 return;
             }
 
-            await api.addTimelineEvent(jobId, eventData);
-            const deepJob = await api.getJob(jobId);
-            const mapped = mapJobData(deepJob);
-            setSelectedRequest(mapped);
-            setAllRequests(prev => prev.map(r => (r._id || r.id) === jobId ? mapped : r));
+            // Text Event Optimistic Update
+            const textEvent = { ...eventData, date: new Date().toISOString() };
+            const optimisticJob = { ...selectedRequest, projectHistory: [...(selectedRequest.projectHistory || []), textEvent] };
+            setSelectedRequest(optimisticJob);
+            setAllRequests(prev => prev.map(r => (r._id || r.id) === jobId ? optimisticJob : r));
+
+            // Background Sync
+            api.addTimelineEvent(jobId, eventData).then(() => {
+                return api.getJob(jobId);
+            }).then(deepJob => {
+                const mapped = mapJobData(deepJob);
+                setAllRequests(prev => prev.map(r => (r._id || r.id) === jobId ? mapped : r));
+                setSelectedRequest(current => current && areIdsEqual(current.id || current._id, jobId) ? mapped : current);
+            }).catch(error => console.error("Error syncing timeline text:", error));
+
         } catch (error) {
             console.error("Error adding timeline event:", error);
             showAlert("Error", "No se pudo agregar el evento.");
@@ -1371,7 +1409,7 @@ function MainApp() {
             const emailMatch = r.clientEmail && currentUser?.email ? r.clientEmail === currentUser.email : false;
             return emailMatch || r.clientName === currentUser?.name;
         });
-        console.log(`[DEBUG] allRequests: ${allRequests.length}, myClientRequests: ${filtered.length}`);
+        console.log(`[DEBUG] allRequests: ${allRequests.length}, myClientRequests: ${filtered.length}. Job 0 status: ${filtered[0]?.calculatedClientStatus}`);
         return filtered;
     }, [allRequests, currentUser]);
 

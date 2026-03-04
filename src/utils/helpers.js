@@ -43,6 +43,7 @@ export const areIdsEqual = (id1, id2) => {
 };
 
 export const getClientStatus = (request) => {
+    if (request.calculatedClientStatus) return request.calculatedClientStatus;
     // PRIORITY ORDER: TERMINADO > VALORACIÓN > VALIDANDO > EN EJECUCIÓN > PRESUPUESTADA > CONTACTADA > ABIERTA > NUEVA
     if (request.status === 'canceled' || request.status === 'Cerrada') return 'ELIMINADA';
 
@@ -97,7 +98,7 @@ export const getProStatusColor = (status) => {
     switch (status) {
         case 'GANADA': return { bg: '#DCFCE7', text: '#15803D' };
         case 'EN EJECUCIÓN': return { bg: '#D1FAE5', text: '#065F46' };
-        case 'ACEPTADO': return { bg: '#DCFCE7', text: '#15803D' };
+        case 'ACEPTADO': return { bg: '#4B5320', text: '#FFFFFF' };
         case 'VALIDANDO': return { bg: '#FFEDD5', text: '#C2410C' };
         case 'VALORACIÓN': return { bg: '#E0E7FF', text: '#4338CA' };
         case 'TERMINADO': return { bg: '#1F2937', text: '#F9FAFB' };

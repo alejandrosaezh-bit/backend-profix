@@ -213,7 +213,7 @@ export default function MyRequestsScreen({ navigation, allRequests: propsAllRequ
       case 'FINALIZADA': return { bg: '#1F2937', text: '#F9FAFB' }; // Black
       case 'TERMINADO': return { bg: '#1F2937', text: '#F9FAFB' }; // Black Legacy
       case 'RECHAZADA': return { bg: '#FEF2F2', text: '#EF4444' }; // Red
-      case 'ACEPTADO': return { bg: '#F0FDF4', text: '#16A34A' }; // Green
+      case 'ACEPTADO': return { bg: '#4B5320', text: '#FFFFFF' }; // Verde Militar
 
       case 'ELIMINADA': return { bg: '#FEF2F2', text: '#EF4444' }; // Red
       case 'Cerrada': return { bg: '#FEF2F2', text: '#EF4444' };
@@ -227,6 +227,10 @@ export default function MyRequestsScreen({ navigation, allRequests: propsAllRequ
     const hasPendingOffers = item.offers?.some(o => o.status === 'pending' && !o.seenByClient);
     const statusLabel = getClientStatus(item);
     const colors = getStatusColors(statusLabel);
+
+    if (item.title === 'Revisión de cortocircuito') {
+      console.log("[MyRequestsScreen] Rendering:", item.title, " calculatedClientStatus:", item.calculatedClientStatus, " clientStatus:", item.clientStatus);
+    }
 
     return (
       <TouchableOpacity

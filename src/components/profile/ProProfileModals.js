@@ -373,7 +373,7 @@ export function ProProfileEditModal({
                     </ScrollView>
 
                     {/* Sticky Footer */}
-                    <View style={{ flexDirection: 'row', gap: 12, paddingTop: 15, borderTopWidth: 1, borderTopColor: '#F3F4F6' }}>
+                    <View style={{ flexDirection: 'row', gap: 12, paddingTop: 15, paddingBottom: Platform.OS === 'android' ? 20 : 0, borderTopWidth: 1, borderTopColor: '#F3F4F6' }}>
                         <TouchableOpacity
                             style={[styles.btnCancel, { backgroundColor: '#F1F5F9' }]}
                             onPress={onClose}
@@ -456,25 +456,25 @@ const styles = StyleSheet.create({
         gap: 10
     },
     chip: {
-        width: '30%',
-        paddingVertical: 8,
+        paddingHorizontal: 16,
+        paddingVertical: 10,
         borderRadius: 20,
         backgroundColor: '#EFF6FF',
         borderWidth: 1,
         borderColor: '#DBEAFE',
         justifyContent: 'center',
-        alignItems: 'center'
+        alignItems: 'center',
+        alignSelf: 'flex-start'
     },
     chipSelected: {
         backgroundColor: '#DBEAFE',
         borderColor: '#2563EB'
     },
     chipText: {
-        fontSize: 11,
+        fontSize: 12,
         color: '#2563EB',
         fontWeight: '600',
         textAlign: 'center',
-        paddingHorizontal: 4
     },
     chipTextSelected: {
         color: '#2563EB',

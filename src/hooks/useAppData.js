@@ -5,7 +5,7 @@ import { useSocket } from '../context/SocketContext';
 import { api } from '../utils/api';
 import { areIdsEqual } from '../utils/helpers';
 import { registerForPushNotificationsAsync } from '../utils/push';
-import { setRequests } from '../utils/requests';
+import { getChats, getRequests, setChats, setRequests } from '../utils/requests';
 
 export function useAppData({ isLoggedIn, currentUser, userMode, view }) {
     const { socket } = useSocket();
@@ -15,6 +15,26 @@ export function useAppData({ isLoggedIn, currentUser, userMode, view }) {
     const [refreshing, setRefreshing] = useState(false);
     const [counts, setCounts] = useState({ client: { chats: 0, updates: 0 }, pro: { chats: 0, updates: 0 } });
 
+    // --- FUNCTION: RESTORE CACHE AHEAD OF NETWORK ---
+    useEffect(() => {
+        const restoreCache = async () => {
+            try {
+                const cached = await getRequests();
+                if (cached && cached.length > 0) {
+                    setAllRequests(prev => prev.length === 0 ? cached : prev);
+                }
+
+                const cachedChats = await getChats();
+                if (cachedChats && cachedChats.length > 0) {
+                    setAllChats(prev => prev.length === 0 ? cachedChats : prev);
+                }
+            } catch (e) {
+                console.warn("[useAppData] Error restoring offline cache:", e);
+            }
+        };
+        restoreCache();
+    }, []);
+
     // --- FUNCTION: LOAD CHATS ---
     const loadChats = useCallback(async (explicitMode = null) => {
         if (!isLoggedIn) return;
@@ -23,6 +43,7 @@ export function useAppData({ isLoggedIn, currentUser, userMode, view }) {
             const chats = await api.getChats({ role: targetMode });
             if (Array.isArray(chats)) {
                 setAllChats(chats);
+                setChats(chats).catch(e => console.warn('Failed to cache chats', e));
             }
         } catch (e) {
             console.warn("[useAppData] Error loading chats:", e);
@@ -41,19 +62,18 @@ export function useAppData({ isLoggedIn, currentUser, userMode, view }) {
                 let myJobs = [];
 
                 try {
-                    const marketRes = await api.getJobs();
-                    marketJobs = marketRes || [];
-                } catch (err) {
-                    console.warn("[loadRequests] Failed to fetch market jobs:", err);
-                }
+                    const fetchMarket = api.getJobs();
+                    const fetchMy = isLoggedIn ? api.getMyJobs({ role: 'pro' }) : Promise.resolve([]);
 
-                try {
-                    if (isLoggedIn) {
-                        const myRes = await api.getMyJobs({ role: 'pro' });
-                        myJobs = myRes || [];
-                    }
+                    const [marketResult, myResult] = await Promise.allSettled([fetchMarket, fetchMy]);
+
+                    if (marketResult.status === 'fulfilled') marketJobs = marketResult.value || [];
+                    else console.warn("[loadRequests] Failed to fetch market jobs:", marketResult.reason);
+
+                    if (myResult.status === 'fulfilled') myJobs = myResult.value || [];
+                    else console.warn("[loadRequests] Failed to fetch my pro jobs:", myResult.reason);
                 } catch (err) {
-                    console.warn("[loadRequests] Failed to fetch my pro jobs:", err);
+                    console.warn("[loadRequests] Parallel fetch failed:", err);
                 }
 
                 const myJobsTagged = myJobs.map(j => {
@@ -72,6 +92,7 @@ export function useAppData({ isLoggedIn, currentUser, userMode, view }) {
                 const allData = isLoggedIn ? await api.getMyJobs({ role: 'client' }) : await api.getJobs();
                 if (isLoggedIn && currentUser && allData.length > 0) {
                     jobs = allData;
+                    console.log(`[useAppData] Loaded from API (Client). Job 0 status: ${jobs[0].calculatedClientStatus}, title: ${jobs[0].title}`);
                 } else {
                     jobs = allData;
                 }
@@ -136,9 +157,15 @@ export function useAppData({ isLoggedIn, currentUser, userMode, view }) {
                         proImage: o.proId?.avatar,
                         proRating: o.proId?.rating || 5.0,
                         proReviewsCount: o.proId?.reviewsCount || 0
-                    })) || []
+                    })) || [],
+                    calculatedClientStatus: job.calculatedClientStatus,
+                    calculatedProStatus: job.calculatedProStatus
                 };
             });
+
+            if (mappedJobs.length > 0) {
+                console.log(`[useAppData] mappedJobs Job 0 status: ${mappedJobs[0].calculatedClientStatus}, title: ${mappedJobs[0].title}`);
+            }
 
             mappedJobs.sort((a, b) => {
                 const isClosedA = a.status === 'Culminada' || a.status === 'Cerrada' || a.status === 'TERMINADO';

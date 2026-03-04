@@ -81,7 +81,7 @@ const calculateJobStatuses = (job, userId) => {
 
 
     // ---- PRO STATUS ----
-    let proStatus = 'ABIERTA'; // Default for market
+    let proStatus = 'NUEVA'; // Default for market
 
     // HELPER: Check if I am the winner
     const amIWinner = (job.professional && (job.professional._id?.toString() === userIdStr || job.professional.toString() === userIdStr)) ||
@@ -881,9 +881,9 @@ router.get('/', async (req, res) => {
         const page = Math.max(1, parseInt(req.query.page) || 1);
         const skip = (page - 1) * limit;
 
-        let jobs = await Job.find(query)
+        const startFind = Date.now(); let jobs = await Job.find(query)
             .select('-images -workPhotos -clientManagement -projectHistory') // Restored avatar
-            .populate('client', 'name avatar') // Restored avatar
+            .populate('client', 'name') // Temporarily removed avatar for performance testing
             .populate('category', 'name color icon')
             //.populate('projectHistory.actor', 'name avatar email role') // Removed for list view
             .sort({ createdAt: -1 })
@@ -908,7 +908,7 @@ router.get('/', async (req, res) => {
                 });
 
                 // --- NEW: Populate chats for this user (Optimized) ---
-                const chats = await Chat.find({ participants: userId })
+                const startChat = Date.now(); const chats = await Chat.find({ participants: userId })
                     .select('_id job participants lastMessage lastMessageDate messages.read messages.sender messages.content') // Optimized fields
                     .populate('participants', 'name email avatar role')
                     .lean();
@@ -960,7 +960,7 @@ router.get('/', async (req, res) => {
                     });
 
                     // Calculate Statuses
-                    let clientStatus = 'NUEVA', proStatus = 'ABIERTA';
+                    let clientStatus = 'NUEVA', proStatus = 'NUEVA';
                     try {
                         const statuses = calculateJobStatuses(j, userId);
                         clientStatus = statuses.clientStatus;
@@ -1018,11 +1018,7 @@ router.get('/me', protect, async (req, res) => {
 
         let jobs = clientJobs;
 
-        // If only client jobs are needed, return immediately
-        if (role === 'client') {
-            console.log(`[GET /me] Returning ${jobs.length} client jobs only.`);
-            return res.json(jobs);
-        }
+        // Removed early return. Client logic processed downwards to populate conversations.
 
         if (jobs.length > 0) {
             console.log("[GET /me] First Job Fetched ID:", jobs[0]._id);
@@ -1040,41 +1036,20 @@ router.get('/me', protect, async (req, res) => {
         const userObjectId = new mongoose.Types.ObjectId(req.user._id);
 
         console.log(`[GET /me] Searching for user chats...`);
-        const allUserChatsRaw = await Chat.aggregate([
-            { $match: { participants: userObjectId } },
-            {
-                $project: {
-                    _id: 1,
-                    job: 1,
-                    participants: 1,
-                    lastMessage: 1,
-                    lastMessageDate: 1,
-                    // Count messages where sender != me and read == false
-                    unreadCount: {
-                        $size: {
-                            $filter: {
-                                input: { $ifNull: ["$messages", []] },
-                                as: "msg",
-                                cond: {
-                                    $and: [
-                                        { $ne: ["$$msg.sender", userObjectId] },
-                                        { $eq: ["$$msg.read", false] }
-                                    ]
-                                }
-                            }
-                        }
-                    }
-                }
-            },
-            { $sort: { lastMessageDate: -1 } }
-        ]); // Removed invalid .maxTimeMS(5000)
+        const allUserChats = await Chat.find({ participants: req.user._id })
+            .select('_id job participants lastMessage lastMessageDate messages.read messages.sender messages.content')
+            .populate('participants', 'name email role avatar')
+            .populate('job', '_id client')
+            .sort({ lastMessageDate: -1 })
+            .lean();
 
-        console.log(`[GET /me] Aggregated chats, now populating...`);
-        // Manually populate since aggregate doesn't do it easily
-        const allUserChats = await Chat.populate(allUserChatsRaw, [
-            { path: 'participants', select: 'name email role avatar' }, // Restored avatar
-            { path: 'job', select: '_id client' }
-        ]);
+        // Calculate unread count manually and omit full messages array to save bandwidth
+        allUserChats.forEach(chat => {
+            chat.unreadCount = (chat.messages || []).filter(m =>
+                m.sender && m.sender.toString() !== req.user._id.toString() && !m.read
+            ).length;
+            delete chat.messages; // Optimization
+        });
 
         console.log(`[GET /me] Found ${allUserChats.length} chats for user ${req.user.name}`);
 
@@ -1206,6 +1181,9 @@ router.get('/me', protect, async (req, res) => {
 
         const jobsWithChats = await Promise.all(jobs.map(async job => {
             let jobChats = chatsByJobId[job._id.toString()] || [];
+            if (job.client && job.client._id && String(job.client._id) === String(req.user._id)) {
+                try { require('fs').appendFileSync('backend_debug.log', `[${new Date().toISOString()}] Job ${job._id} has ${jobChats.length} chats in chatsByJobId\n`); } catch (e) { }
+            }
 
             // Add Interaction Summary depending on cached Map
             let interactionsSummary = { viewed: 0, contacted: 0, offered: 0, total: 0 };
@@ -1266,11 +1244,14 @@ router.get('/me', protect, async (req, res) => {
             }
 
             // CALCULATE FORMAL STATUSES
-            let clientStatus = 'NUEVA', proStatus = 'ABIERTA';
+            let clientStatus = 'NUEVA', proStatus = 'NUEVA';
             try {
                 const statuses = calculateJobStatuses(job, req.user._id);
                 clientStatus = statuses.clientStatus;
                 proStatus = statuses.proStatus;
+                if (String(req.user._id) === String(job.client?._id || job.client)) {
+                    require('fs').appendFileSync('backend_debug.log', `[${new Date().toISOString()}] Job ${job._id} evaluated: convs=${job.conversations?.length}, interactions=${JSON.stringify(job.interactionsSummary)}, finalClientStatus=${clientStatus}\n`);
+                }
             } catch (e) {
                 console.error(`Error calculating job status for job ${job._id} in GET /me:`, e);
             }
@@ -1292,6 +1273,16 @@ router.get('/me', protect, async (req, res) => {
                     const clientObj = job.client || {};
                     const clientId = (clientObj._id || clientObj);
                     return !clientId || String(clientId) !== String(req.user._id);
+                } catch (e) {
+                    return true;
+                }
+            });
+        } else if (role === 'client') {
+            finalJobs = formattedJobs.filter(job => {
+                try {
+                    const clientObj = job.client || {};
+                    const clientId = (clientObj._id || clientObj);
+                    return clientId && String(clientId) === String(req.user._id);
                 } catch (e) {
                     return true;
                 }
@@ -1416,7 +1407,7 @@ router.get('/:id', async (req, res) => {
 
         // CALCULATE FORMAL STATUSES
         let calculatedClientStatus = 'NUEVA';
-        let calculatedProStatus = 'ABIERTA';
+        let calculatedProStatus = 'NUEVA';
 
         if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
             try {

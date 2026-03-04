@@ -1,6 +1,29 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const REQUESTS_KEY = 'profesional_cercano_requests_v1';
+const CHATS_KEY = 'profesional_cercano_chats_v1';
+
+export async function getChats() {
+  try {
+    const raw = await AsyncStorage.getItem(CHATS_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return parsed;
+  } catch (err) {
+    console.warn('Error leyendo chats:', err);
+    return [];
+  }
+}
+
+export async function setChats(chatsArray) {
+  try {
+    await AsyncStorage.setItem(CHATS_KEY, JSON.stringify(chatsArray));
+    return true;
+  } catch (err) {
+    console.warn('Error reemplazando chats:', err);
+    return false;
+  }
+}
 
 export async function getRequests() {
   try {

@@ -39,7 +39,7 @@ const RequestDetailClient = ({ request, onBack, onAcceptOffer, onOpenChat, onUpd
         onRate(request._id || request.id, reviewData);
     };
 
-    const handleSave = async () => {
+    const handleSave = async (imagesOverride = null) => {
         try {
             // Resolver ID de categoría si es un nombre
             let categoryId = data.category;
@@ -53,17 +53,21 @@ const RequestDetailClient = ({ request, onBack, onAcceptOffer, onOpenChat, onUpd
 
             console.log("Saving job:", { ...data, category: categoryId });
 
+            const imagesToSave = Array.isArray(imagesOverride) ? imagesOverride : data.images;
+
             await api.updateJob(data._id || data.id, {
                 title: data.title,
                 description: data.description,
                 category: categoryId,
                 subcategory: data.subcategory,
                 location: data.location,
-                images: data.images
+                images: imagesToSave
             });
             setIsEditing(false);
-            if (onUpdateRequest) onUpdateRequest(data);
-            showAlert("Actualizado", "Los cambios han sido guardados.");
+            if (onUpdateRequest) onUpdateRequest({ ...data, images: imagesToSave });
+            if (!Array.isArray(imagesOverride)) {
+                showAlert("Actualizado", "Los cambios han sido guardados.");
+            }
         } catch (e) {
             showAlert("Error", "No se pudo actualizar: " + e.message);
         }
@@ -108,6 +112,10 @@ const RequestDetailClient = ({ request, onBack, onAcceptOffer, onOpenChat, onUpd
             const compressedImg = await compressImage(result.assets[0].uri);
             const newImages = [...(data.images || []), compressedImg];
             setData({ ...data, images: newImages });
+            if (!isEditing) {
+                handleSave(newImages);
+                showAlert("Éxito", "La imagen se ha agregado a la solicitud.");
+            }
         }
     };
 
@@ -129,10 +137,12 @@ const RequestDetailClient = ({ request, onBack, onAcceptOffer, onOpenChat, onUpd
             // Comprimir multiples imagenes
             const compressedPromises = result.assets.map(asset => compressImage(asset.uri));
             const newPhotos = await Promise.all(compressedPromises);
-            setData(prev => ({
-                ...prev,
-                images: [...(prev.images || []), ...newPhotos]
-            }));
+            const newImages = [...(data.images || []), ...newPhotos];
+            setData({ ...data, images: newImages });
+            if (!isEditing) {
+                handleSave(newImages);
+                showAlert("Éxito", "Las imágenes se han agregado a la solicitud.");
+            }
         }
     };
 
@@ -415,7 +425,7 @@ const RequestDetailClient = ({ request, onBack, onAcceptOffer, onOpenChat, onUpd
                                             <View style={{ backgroundColor: '#F8FAFC', borderRadius: 16, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: '#E2E8F0', opacity: 0.6, overflow: 'hidden' }}>
                                                 {/* MODAL LOCK OVERLAY */}
                                                 <View style={{
-                                                    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+                                                    position: 'absolute', top: -16, left: -16, right: -16, bottom: -16,
                                                     backgroundColor: 'rgba(248, 250, 252, 0.4)',
                                                     zIndex: 100, justifyContent: 'center', alignItems: 'center', borderRadius: 24
                                                 }}>
@@ -529,7 +539,41 @@ const RequestDetailClient = ({ request, onBack, onAcceptOffer, onOpenChat, onUpd
                                 const prosToRender = showArchivedChats ? allPros : visiblePros;
                                 const prosWithOffers = prosToRender.filter(p => p.offer);
 
-                                if (prosWithOffers.length === 0) return null;
+                                if (prosWithOffers.length === 0) {
+                                    return (
+                                        <View style={{ paddingHorizontal: 0, opacity: 0.6, overflow: 'hidden' }}>
+                                            {/* MODAL LOCK OVERLAY */}
+                                            <View style={{
+                                                position: 'absolute', top: -16, left: -16, right: -16, bottom: -16,
+                                                backgroundColor: 'rgba(248, 250, 252, 0.4)',
+                                                zIndex: 100, justifyContent: 'center', alignItems: 'center', borderRadius: 24
+                                            }}>
+                                                <View style={{ backgroundColor: 'white', padding: 12, borderRadius: 50, elevation: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4 }}>
+                                                    <Feather name="lock" size={20} color="#94A3B8" />
+                                                </View>
+                                                <Text style={{ color: '#64748B', fontWeight: 'bold', fontSize: 13, marginTop: 12, textAlign: 'center', paddingHorizontal: 20 }}>
+                                                    Aún no tienes presupuestos.{'\n'}Espera las propuestas.
+                                                </Text>
+                                            </View>
+
+                                            <View style={{
+                                                backgroundColor: '#F8FAFC', padding: 16, borderRadius: 20, borderWidth: 1, borderColor: '#E2E8F0'
+                                            }}>
+                                                <Text style={{ fontWeight: 'bold', color: '#94A3B8', fontSize: 11, textAlign: 'center', marginBottom: 8 }}>
+                                                    EJ. PRESUPUESTO RECIBIDO
+                                                </Text>
+                                                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                                                    <View><Text style={{ fontSize: 9, color: '#CBD5E1' }}>MONTO</Text><Text style={{ fontWeight: 'bold', fontSize: 13, color: '#94A3B8' }}>$0</Text></View>
+                                                    <View><Text style={{ fontSize: 9, color: '#CBD5E1' }}>INICIO</Text><Text style={{ fontWeight: '600', fontSize: 12, color: '#94A3B8' }}>Pronto</Text></View>
+                                                    <View><Text style={{ fontSize: 9, color: '#CBD5E1' }}>PLAZO</Text><Text style={{ fontWeight: '600', fontSize: 12, color: '#94A3B8' }}>X Días</Text></View>
+                                                </View>
+                                                <View style={{ marginTop: 12, backgroundColor: '#E2E8F0', height: 40, borderRadius: 10, justifyContent: 'center', alignItems: 'center' }}>
+                                                    <Text style={{ color: '#94A3B8', fontWeight: 'bold', fontSize: 14 }}>VER PRESUPUESTO</Text>
+                                                </View>
+                                            </View>
+                                        </View>
+                                    );
+                                }
 
                                 return (
                                     <View style={{ paddingHorizontal: 0 }}>

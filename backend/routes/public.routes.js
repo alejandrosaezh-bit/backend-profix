@@ -49,9 +49,10 @@ router.get('/users/:id/reviews', async (req, res) => {
 
         // Solo mostrar reseñas si AMBAS partes han valorado
         const visibleReviews = allReviews.filter(r =>
-            !r.job || // Si por alguna razón no hay trabajo (legacy), dejar pasar? o bloquear? mejor dejar pasar para no romper legacy
-            (r.job.clientRated && r.job.proRated) ||
-            (r.job.status === 'TERMINADO')
+            r.job && (
+                (r.job.clientRated && r.job.proRated) ||
+                (r.job.status === 'TERMINADO')
+            )
         );
 
         res.json(visibleReviews);
@@ -71,9 +72,10 @@ router.get('/professionals/:id/reviews', async (req, res) => {
 
         // Solo mostrar reseñas si AMBAS partes han valorado
         const visibleReviews = allReviews.filter(r =>
-            !r.job ||
-            (r.job.clientRated && r.job.proRated) ||
-            (r.job.status === 'TERMINADO')
+            r.job && (
+                (r.job.clientRated && r.job.proRated) ||
+                (r.job.status === 'TERMINADO')
+            )
         );
 
         res.json(visibleReviews);

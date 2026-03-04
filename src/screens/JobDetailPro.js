@@ -466,7 +466,7 @@ const JobDetailPro = ({ job: initialJob, onBack, onSendQuote, onOpenChat, proSta
                                         <TouchableOpacity
                                             onPress={() => {
                                                 onUpdateStatus('CONTACTADO');
-                                                onOpenChat && onOpenChat(job, null, messages.length > 0 ? null : `Hola ${job.clientName || 'Cliente'}, mi nombre es ${currentUser?.name}. Me interesa tu solicitud.`);
+                                                onOpenChat && onOpenChat(job, null, messages.length > 0 ? null : `Hola ${job.clientName || 'Cliente'}, mi nombre es ${currentUser?.name}. Me interesa tu solicitud: ${job.title}.`);
                                             }}
                                             style={{ backgroundColor: (messages.length > 0 && isClientLast) ? '#EA580C' : 'white', borderWidth: 1.5, borderColor: '#EA580C', paddingVertical: 14, borderRadius: 16, alignItems: 'center' }}
                                         >

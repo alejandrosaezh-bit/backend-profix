@@ -69,7 +69,7 @@ const ProjectTimeline = ({ job, userMode, currentUser, onConfirmStart, onAddTime
 
     // For client, isAccepted means a professional is already working on it
     const isAccepted = userMode === 'pro' ? isITheWinner : (!!job.professional || job.offers?.some(o => o.status === 'accepted'));
-    const isFinished = ['completed', 'finished', 'rated', 'TERMINADO', 'FINALIZADA', 'Culminada'].includes(job.status) || job.clientFinished;
+    const isFinished = ['completed', 'finished', 'rated', 'TERMINADO', 'FINALIZADA', 'Culminada'].includes(job.status) || job.clientFinished || job.proFinished;
 
     if (isFinished) {
         currentStage = 3;
@@ -248,7 +248,7 @@ const ProjectTimeline = ({ job, userMode, currentUser, onConfirmStart, onAddTime
             {/* PANEL DE GESTIÓN INTEGRADO (Solo si es el Pro y no ha terminado, o si el cliente tiene permisos) */}
             {/* PANEL DE GESTIÓN INTEGRADO (Unificado para Pro y Cliente) */}
             {(showSection === 'all' || showSection === 'management') && (
-                <View style={[styles.managementCard, !isAccepted && { backgroundColor: '#F8FAFC', borderColor: '#E2E8F0' }]}>
+                <View style={[styles.managementCard, !isAccepted && { backgroundColor: '#F8FAFC', borderColor: '#E2E8F0', padding: 0, overflow: 'hidden' }]}>
                     {/* Bloqueo Visual */}
                     {!isAccepted && (
                         <View style={{
@@ -257,8 +257,7 @@ const ProjectTimeline = ({ job, userMode, currentUser, onConfirmStart, onAddTime
                             backgroundColor: 'rgba(248, 250, 252, 0.4)',
                             zIndex: 100,
                             justifyContent: 'center',
-                            alignItems: 'center',
-                            borderRadius: 24
+                            alignItems: 'center'
                         }}>
                             <View style={{ backgroundColor: 'white', padding: 15, borderRadius: 50, elevation: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4 }}>
                                 <Feather name="lock" size={24} color="#94A3B8" />
@@ -272,329 +271,315 @@ const ProjectTimeline = ({ job, userMode, currentUser, onConfirmStart, onAddTime
                         </View>
                     )}
 
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-                        <View>
-                            <Text style={[styles.managementTitle, !isAccepted && { color: '#94A3B8' }]}>
-                                {userMode === 'pro' ? 'Gestión de Avances' : 'Gestión de Avance'}
-                            </Text>
-                        </View>
-                    </View>
+                    <View style={[{ padding: 20 }, !isAccepted && { opacity: 0.4 }]}>
 
-                    {/* Journey Map Stepper */}
-                    <View style={[styles.journeyContainer, !isAccepted && { opacity: 0.4 }]}>
-                        {stageNames.map((name, index) => {
-                            const isActive = isAccepted && index === currentStage;
-                            const isCompleted = isAccepted && index < currentStage;
-                            const themeColor = userMode === 'pro' ? '#2563EB' : '#EA580C';
-                            const inactiveColor = userMode === 'pro' ? '#DBEAFE' : '#FFEDD5';
-                            const activeTextColor = 'white';
-                            const inactiveTextColor = userMode === 'pro' ? '#1E3A8A' : '#9A3412';
-
-                            const bgColor = (isActive || isCompleted) ? themeColor : inactiveColor;
-                            const textColor = (isActive || isCompleted) ? activeTextColor : inactiveTextColor;
-
-                            return (
-                                <View key={index} style={[styles.journeyStep, { zIndex: 10 - index }]}>
-                                    <View style={[styles.journeyBlock, { backgroundColor: bgColor }]}>
-                                        {index > 0 && <View style={styles.leftCutout} />}
-                                        <Text style={[styles.journeyText, { color: textColor }]}>{name}</Text>
-                                        <View style={[styles.rightPoint, { borderLeftColor: bgColor }]} />
-                                    </View>
-                                </View>
-                            );
-                        })}
-                    </View>
-
-                    {/* Instructional Text */}
-                    {isAccepted && (
-                        <View style={styles.instructionBox}>
-                            <Feather name="info" size={14} color="#64748B" style={{ marginRight: 6 }} />
-                            <Text style={styles.instructionText}>
-                                {userMode === 'pro' ? (
-                                    currentStage === 0 ? "Registra el estado inicial del sitio antes de comenzar." :
-                                        currentStage === 1 ? "Sube avances del proceso para dar tranquilidad al cliente." :
-                                            currentStage === 2 ? "Registra el resultado final para cerrar el servicio con éxito." :
-                                                "Trabajo finalizado. ¡Gracias por usar ProFix!"
-                                ) : (
-                                    currentStage === 0 ? "El profesional está preparando el inicio de la labor." :
-                                        currentStage === 1 ? "El trabajo está en curso. Revisa el historial para ver fotos del avance." :
-                                            currentStage === 2 ? "Recuerda subir fotos del trabajo final para tu control y portafolio de trabajos realizados." :
-                                                "¡Trabajo finalizado! No olvides calificar el servicio."
-                                )}
-                            </Text>
-                        </View>
-                    )}
-
-                    {/* Actions Grid (Show for pro, and also for client if they want to contribute?) */}
-                    {/* User requested 'igual', so we show controls if accepted, or at least common actions */}
-                    <View style={[styles.actionsGrid, !isAccepted && { opacity: 0.3 }]}>
-                        <TouchableOpacity
-                            style={[styles.actionBtn, { backgroundColor: '#F1F5F9' }]}
-                            onPress={() => handlePickMedia('library')}
-                            disabled={!isAccepted}
-                        >
-                            <Feather name="file-text" size={18} color="#334155" />
-                            <Text style={styles.actionBtnText}>Archivo</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                            style={[styles.actionBtn, { backgroundColor: userMode === 'pro' ? '#DBEAFE' : '#FFEDD5' }]}
-                            onPress={() => handlePickMedia('camera')}
-                            disabled={!isAccepted}
-                        >
-                            <Feather name="camera" size={18} color={userMode === 'pro' ? '#2563EB' : '#EA580C'} />
-                            <Text style={styles.actionBtnText}>Foto</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                            style={[styles.actionBtn, { backgroundColor: '#FEE2E2' }]}
-                            onPress={() => handlePickMedia('video')}
-                            disabled={!isAccepted}
-                        >
-                            <Feather name="video" size={18} color="#EF4444" />
-                            <Text style={styles.actionBtnText}>Vídeo</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                            style={[styles.actionBtn, { backgroundColor: '#F3F4F6' }]}
-                            onPress={() => setShowNoteModal(true)}
-                            disabled={!isAccepted}
-                        >
-                            <Feather name="edit-3" size={18} color="#4B5563" />
-                            <Text style={styles.actionBtnText}>Nota</Text>
-                        </TouchableOpacity>
-                    </View>
-
-
-
-                    {/* Main action btn ONLY for PRO or very specific client action */}
-                    {userMode === 'pro' && currentStage < 2 && isAccepted && (
-                        <TouchableOpacity
-                            onPress={handleMainAction}
-                            style={[
-                                styles.mainActionBtn,
-                                { backgroundColor: currentStage === 0 ? '#2563EB' : '#10B981' }
-                            ]}
-                            disabled={loading}
-                        >
-                            {loading ? <ActivityIndicator color="white" /> : (
-                                <Text style={styles.mainActionText}>
-                                    {currentStage === 0 ? 'Iniciar Obra / Trabajo' : 'Cambiar Estado a: TERMINADO'}
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                            <View>
+                                <Text style={[styles.managementTitle, !isAccepted && { color: '#94A3B8' }]}>
+                                    {userMode === 'pro' ? 'Gestión de Avances' : 'Gestión de Avance'}
                                 </Text>
-                            )}
-                        </TouchableOpacity>
-                    )}
-
-                    {/* MODAL PARA ELEGIR PRIVACIDAD DE MEDIOS */}
-                    <Modal
-                        visible={showMediaModal}
-                        transparent
-                        animationType="fade"
-                        onRequestClose={() => setShowMediaModal(false)}
-                    >
-                        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 24 }}>
-                            <View style={{ backgroundColor: 'white', borderRadius: 28, padding: 24, width: '100%', elevation: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.15, shadowRadius: 10 }}>
-                                <Text style={{ fontSize: 20, fontWeight: '900', color: '#1E293B', marginBottom: 8, textAlign: 'center' }}>
-                                    Visibilidad del Archivo
-                                </Text>
-                                <Text style={{ fontSize: 13, color: '#64748B', textAlign: 'center', marginBottom: 28, paddingHorizontal: 10, lineHeight: 18 }}>
-                                    Selecciona quién podrá ver los archivos que vas a subir al historial.
-                                </Text>
-
-                                <View style={{ gap: 14 }}>
-                                    <TouchableOpacity
-                                        onPress={() => executePickMedia(false)}
-                                        style={{ backgroundColor: '#F0F9FF', borderColor: '#E0F2FE', borderWidth: 1, padding: 18, borderRadius: 20, flexDirection: 'row', alignItems: 'center' }}
-                                    >
-                                        <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: 'white', alignItems: 'center', justifyContent: 'center', marginRight: 16 }}>
-                                            <Feather name="eye" size={22} color="#0284C7" />
-                                        </View>
-                                        <View style={{ flex: 1 }}>
-                                            <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#0369A1' }}>Completamente Público</Text>
-                                            <Text style={{ fontSize: 12, color: '#0284C7', marginTop: 3 }}>Será visible para ambas partes.</Text>
-                                        </View>
-                                    </TouchableOpacity>
-
-                                    <TouchableOpacity
-                                        onPress={() => executePickMedia(true)}
-                                        style={{ backgroundColor: '#F8FAFC', borderColor: '#E2E8F0', borderWidth: 1, padding: 18, borderRadius: 20, flexDirection: 'row', alignItems: 'center' }}
-                                    >
-                                        <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: 'white', alignItems: 'center', justifyContent: 'center', marginRight: 16 }}>
-                                            <Feather name="lock" size={22} color="#475569" />
-                                        </View>
-                                        <View style={{ flex: 1 }}>
-                                            <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#334155' }}>Solo para mí (Privado)</Text>
-                                            <Text style={{ fontSize: 12, color: '#475569', marginTop: 3 }}>Para bitácora interna, uso personal.</Text>
-                                        </View>
-                                    </TouchableOpacity>
-                                </View>
-
-                                <TouchableOpacity onPress={() => setShowMediaModal(false)} style={{ marginTop: 24, alignItems: 'center', paddingVertical: 12 }}>
-                                    <Text style={{ fontSize: 15, fontWeight: 'bold', color: '#64748B' }}>Cancelar</Text>
-                                </TouchableOpacity>
                             </View>
                         </View>
-                    </Modal>
 
-                    {/* MODAL PARA AGREGAR NOTA */}
-                    <Modal
-                        visible={showNoteModal}
-                        transparent
-                        animationType="slide"
-                        onRequestClose={() => setShowNoteModal(false)}
-                    >
-                        <KeyboardAvoidingView
-                            behavior={Platform.OS === "ios" ? "padding" : "height"}
-                            style={{ flex: 1 }}
-                        >
-                            <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' }}>
-                                <View style={{
-                                    backgroundColor: 'white',
-                                    borderTopLeftRadius: 36,
-                                    borderTopRightRadius: 36,
-                                    padding: 24,
-                                    paddingTop: 12,
-                                    maxHeight: '90%',
-                                    width: '100%'
-                                }}>
-                                    {/* INDICADOR DE MODAL (Drag Handle) */}
-                                    <View style={{ width: 40, height: 5, backgroundColor: '#E2E8F0', borderRadius: 3, alignSelf: 'center', marginBottom: 15 }} />
+                        {/* Journey Map Stepper */}
+                        <View style={[styles.journeyContainer, !isAccepted && { opacity: 0.4 }]}>
+                            {stageNames.map((name, index) => {
+                                const isActive = isAccepted && index === currentStage;
+                                const isCompleted = isAccepted && index < currentStage;
+                                const themeColor = userMode === 'pro' ? '#2563EB' : '#EA580C';
+                                const inactiveColor = userMode === 'pro' ? '#DBEAFE' : '#FFEDD5';
+                                const activeTextColor = 'white';
+                                const inactiveTextColor = userMode === 'pro' ? '#1E3A8A' : '#9A3412';
 
-                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 25 }}>
-                                        <View>
-                                            <Text style={{ fontSize: 22, fontWeight: '900', color: '#1E293B' }}>Agregar Nota</Text>
-                                            <Text style={{ fontSize: 13, color: '#64748B', fontWeight: '500' }}>Registro para el historial</Text>
+                                const bgColor = (isActive || isCompleted) ? themeColor : inactiveColor;
+                                const textColor = (isActive || isCompleted) ? activeTextColor : inactiveTextColor;
+
+                                return (
+                                    <View key={index} style={[styles.journeyStep, { zIndex: 10 - index }]}>
+                                        <View style={[styles.journeyBlock, { backgroundColor: bgColor }]}>
+                                            {index > 0 && <View style={styles.leftCutout} />}
+                                            <Text style={[styles.journeyText, { color: textColor }]}>{name}</Text>
+                                            <View style={[styles.rightPoint, { borderLeftColor: bgColor }]} />
                                         </View>
-                                        <TouchableOpacity onPress={() => setShowNoteModal(false)} style={{ backgroundColor: '#F1F5F9', padding: 8, borderRadius: 15 }}>
-                                            <Feather name="x" size={24} color="#64748B" />
-                                        </TouchableOpacity>
                                     </View>
+                                );
+                            })}
+                        </View>
 
-                                    <ScrollView showsVerticalScrollIndicator={false}>
-                                        <TextInput
-                                            style={{
-                                                backgroundColor: '#F8FAFC',
-                                                borderRadius: 24,
-                                                borderWidth: 1.5,
-                                                borderColor: '#E2E8F0',
-                                                padding: 20,
-                                                fontSize: 16,
-                                                color: '#1E293B',
-                                                minHeight: 180,
-                                                textAlignVertical: 'top',
-                                                marginBottom: 25,
-                                                lineHeight: 24
-                                            }}
-                                            placeholder={userMode === 'pro' ? "Escribe una nota detallada para el historial del proyecto..." : "Escribe una observación para el profesional..."}
-                                            value={note}
-                                            onChangeText={setNote}
-                                            multiline
-                                            autoFocus
-                                        />
+                        {/* Instructional Text */}
+                        {isAccepted && (
+                            <View style={styles.instructionBox}>
+                                <Feather name="info" size={14} color="#64748B" style={{ marginRight: 6 }} />
+                                <Text style={styles.instructionText}>
+                                    {userMode === 'pro' ? (
+                                        currentStage === 0 ? "Registra el estado inicial del sitio antes de comenzar." :
+                                            currentStage === 1 ? "Sube avances del proceso para dar tranquilidad al cliente." :
+                                                currentStage === 2 ? "Registra el resultado final para cerrar el servicio con éxito." :
+                                                    "Trabajo finalizado. ¡Gracias por usar ProFix!"
+                                    ) : (
+                                        currentStage === 0 ? "El profesional está preparando el inicio de la labor." :
+                                            currentStage === 1 ? "El trabajo está en curso. Revisa el historial para ver fotos del avance." :
+                                                currentStage === 2 ? "Recuerda subir fotos del trabajo final para tu control y portafolio de trabajos realizados." :
+                                                    "¡Trabajo finalizado! No olvides calificar el servicio."
+                                    )}
+                                </Text>
+                            </View>
+                        )}
 
-                                        <View style={{ marginBottom: 30 }}>
-                                            <Text style={{ fontSize: 11, fontWeight: '800', color: '#64748B', marginBottom: 12, textTransform: 'uppercase', letterSpacing: 1 }}>VISIBILIDAD DE LA NOTA</Text>
-                                            <View style={{ flexDirection: 'row', backgroundColor: '#F1F5F9', borderRadius: 18, padding: 5 }}>
-                                                <TouchableOpacity
-                                                    onPress={() => setIsPrivate(false)}
-                                                    style={{
-                                                        flex: 1,
-                                                        flexDirection: 'row',
-                                                        alignItems: 'center',
-                                                        justifyContent: 'center',
-                                                        paddingVertical: 14,
-                                                        borderRadius: 14,
-                                                        backgroundColor: !isPrivate ? (userMode === 'pro' ? '#2563EB' : '#EA580C') : 'transparent',
-                                                        gap: 10,
-                                                        elevation: !isPrivate ? 2 : 0
-                                                    }}
-                                                >
-                                                    <Feather name="eye" size={18} color={!isPrivate ? 'white' : '#64748B'} />
-                                                    <Text style={{ fontWeight: 'bold', color: !isPrivate ? 'white' : '#64748B', fontSize: 15 }}>Público</Text>
-                                                </TouchableOpacity>
+                        {/* Actions Grid (Show for pro, and also for client if they want to contribute?) */}
+                        {/* User requested 'igual', so we show controls if accepted, or at least common actions */}
+                        <View style={[styles.actionsGrid, !isAccepted && { opacity: 0.3 }]}>
+                            <TouchableOpacity
+                                style={[styles.actionBtn, { backgroundColor: '#F1F5F9' }]}
+                                onPress={() => handlePickMedia('library')}
+                                disabled={!isAccepted}
+                            >
+                                <Feather name="file-text" size={18} color="#334155" />
+                                <Text style={styles.actionBtnText}>Archivo</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={[styles.actionBtn, { backgroundColor: userMode === 'pro' ? '#DBEAFE' : '#FFEDD5' }]}
+                                onPress={() => handlePickMedia('camera')}
+                                disabled={!isAccepted}
+                            >
+                                <Feather name="camera" size={18} color={userMode === 'pro' ? '#2563EB' : '#EA580C'} />
+                                <Text style={styles.actionBtnText}>Foto</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={[styles.actionBtn, { backgroundColor: '#FEE2E2' }]}
+                                onPress={() => handlePickMedia('video')}
+                                disabled={!isAccepted}
+                            >
+                                <Feather name="video" size={18} color="#EF4444" />
+                                <Text style={styles.actionBtnText}>Vídeo</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={[styles.actionBtn, { backgroundColor: '#F3F4F6' }]}
+                                onPress={() => setShowNoteModal(true)}
+                                disabled={!isAccepted}
+                            >
+                                <Feather name="edit-3" size={18} color="#4B5563" />
+                                <Text style={styles.actionBtnText}>Nota</Text>
+                            </TouchableOpacity>
+                        </View>
 
-                                                <TouchableOpacity
-                                                    onPress={() => setIsPrivate(true)}
-                                                    style={{
-                                                        flex: 1,
-                                                        flexDirection: 'row',
-                                                        alignItems: 'center',
-                                                        justifyContent: 'center',
-                                                        paddingVertical: 14,
-                                                        borderRadius: 14,
-                                                        backgroundColor: isPrivate ? '#1E293B' : 'transparent',
-                                                        gap: 10,
-                                                        elevation: isPrivate ? 2 : 0
-                                                    }}
-                                                >
-                                                    <Feather name="lock" size={18} color={isPrivate ? 'white' : '#64748B'} />
-                                                    <Text style={{ fontWeight: 'bold', color: isPrivate ? 'white' : '#64748B', fontSize: 15 }}>Privado</Text>
-                                                </TouchableOpacity>
+
+
+                        {/* Main action btn ONLY for PRO or very specific client action */}
+                        {userMode === 'pro' && currentStage < 2 && isAccepted && (
+                            <TouchableOpacity
+                                onPress={handleMainAction}
+                                style={[
+                                    styles.mainActionBtn,
+                                    { backgroundColor: currentStage === 0 ? '#2563EB' : '#10B981' }
+                                ]}
+                                disabled={loading}
+                            >
+                                {loading ? <ActivityIndicator color="white" /> : (
+                                    <Text style={styles.mainActionText}>
+                                        {currentStage === 0 ? 'Iniciar Obra / Trabajo' : 'Cambiar Estado a: TERMINADO'}
+                                    </Text>
+                                )}
+                            </TouchableOpacity>
+                        )}
+
+                        {/* MODAL PARA ELEGIR PRIVACIDAD DE MEDIOS */}
+                        <Modal
+                            visible={showMediaModal}
+                            transparent
+                            animationType="fade"
+                            onRequestClose={() => setShowMediaModal(false)}
+                        >
+                            <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 24 }}>
+                                <View style={{ backgroundColor: 'white', borderRadius: 28, padding: 24, width: '100%', elevation: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.15, shadowRadius: 10 }}>
+                                    <Text style={{ fontSize: 20, fontWeight: '900', color: '#1E293B', marginBottom: 8, textAlign: 'center' }}>
+                                        Visibilidad del Archivo
+                                    </Text>
+                                    <Text style={{ fontSize: 13, color: '#64748B', textAlign: 'center', marginBottom: 28, paddingHorizontal: 10, lineHeight: 18 }}>
+                                        Selecciona quién podrá ver los archivos que vas a subir al historial.
+                                    </Text>
+
+                                    <View style={{ gap: 14 }}>
+                                        <TouchableOpacity
+                                            onPress={() => executePickMedia(false)}
+                                            style={{ backgroundColor: '#F0F9FF', borderColor: '#E0F2FE', borderWidth: 1, padding: 18, borderRadius: 20, flexDirection: 'row', alignItems: 'center' }}
+                                        >
+                                            <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: 'white', alignItems: 'center', justifyContent: 'center', marginRight: 16 }}>
+                                                <Feather name="eye" size={22} color="#0284C7" />
                                             </View>
-
-                                            <View style={{ marginTop: 15, backgroundColor: '#F0F9FF', padding: 15, borderRadius: 16, flexDirection: 'row', alignItems: 'flex-start', borderWidth: 1, borderColor: '#E0F2FE' }}>
-                                                <Feather name="info" size={16} color="#0369A1" style={{ marginRight: 10, marginTop: 2 }} />
-                                                <Text style={{ flex: 1, color: '#0369A1', fontSize: 13, lineHeight: 20, fontWeight: '500' }}>
-                                                    {!isPrivate
-                                                        ? "Este mensaje será visible para ambas partes (Cliente y Profesional) en el historial."
-                                                        : "Este mensaje es estrictamente privado y SOLO tú podrás verlo. Ideal para gastos personales, recordatorios o bitácora interna."
-                                                    }
-                                                </Text>
+                                            <View style={{ flex: 1 }}>
+                                                <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#0369A1' }}>Completamente Público</Text>
+                                                <Text style={{ fontSize: 12, color: '#0284C7', marginTop: 3 }}>Será visible para ambas partes.</Text>
                                             </View>
-                                        </View>
+                                        </TouchableOpacity>
 
                                         <TouchableOpacity
-                                            onPress={handleAddNote}
-                                            disabled={loading || !note.trim()}
-                                            style={{
-                                                backgroundColor: userMode === 'pro' ? '#2563EB' : '#EA580C',
-                                                paddingVertical: 18,
-                                                borderRadius: 24,
-                                                alignItems: 'center',
-                                                marginBottom: Platform.OS === 'ios' ? 20 : 0,
-                                                opacity: (!note.trim() || loading) ? 0.6 : 1,
-                                                shadowColor: userMode === 'pro' ? '#2563EB' : '#EA580C',
-                                                shadowOffset: { width: 0, height: 6 },
-                                                shadowOpacity: 0.3,
-                                                shadowRadius: 12,
-                                                elevation: 6
-                                            }}
+                                            onPress={() => executePickMedia(true)}
+                                            style={{ backgroundColor: '#F8FAFC', borderColor: '#E2E8F0', borderWidth: 1, padding: 18, borderRadius: 20, flexDirection: 'row', alignItems: 'center' }}
                                         >
-                                            {loading ? (
-                                                <ActivityIndicator color="white" />
-                                            ) : (
-                                                <Text style={{ color: 'white', fontWeight: '900', fontSize: 17 }}>Agregar Nota al Historial</Text>
-                                            )}
+                                            <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: 'white', alignItems: 'center', justifyContent: 'center', marginRight: 16 }}>
+                                                <Feather name="lock" size={22} color="#475569" />
+                                            </View>
+                                            <View style={{ flex: 1 }}>
+                                                <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#334155' }}>Solo para mí (Privado)</Text>
+                                                <Text style={{ fontSize: 12, color: '#475569', marginTop: 3 }}>Para bitácora interna, uso personal.</Text>
+                                            </View>
                                         </TouchableOpacity>
-                                    </ScrollView>
+                                    </View>
+
+                                    <TouchableOpacity onPress={() => setShowMediaModal(false)} style={{ marginTop: 24, alignItems: 'center', paddingVertical: 12 }}>
+                                        <Text style={{ fontSize: 15, fontWeight: 'bold', color: '#64748B' }}>Cancelar</Text>
+                                    </TouchableOpacity>
                                 </View>
                             </View>
-                        </KeyboardAvoidingView>
-                    </Modal>
+                        </Modal>
 
+                        {/* MODAL PARA AGREGAR NOTA */}
+                        <Modal
+                            visible={showNoteModal}
+                            transparent
+                            animationType="slide"
+                            onRequestClose={() => setShowNoteModal(false)}
+                        >
+                            <KeyboardAvoidingView
+                                behavior={Platform.OS === "ios" ? "padding" : "height"}
+                                style={{ flex: 1 }}
+                            >
+                                <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' }}>
+                                    <View style={{
+                                        backgroundColor: 'white',
+                                        borderTopLeftRadius: 36,
+                                        borderTopRightRadius: 36,
+                                        padding: 24,
+                                        paddingTop: 12,
+                                        maxHeight: '90%',
+                                        width: '100%'
+                                    }}>
+                                        {/* INDICADOR DE MODAL (Drag Handle) */}
+                                        <View style={{ width: 40, height: 5, backgroundColor: '#E2E8F0', borderRadius: 3, alignSelf: 'center', marginBottom: 15 }} />
+
+                                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 25 }}>
+                                            <View>
+                                                <Text style={{ fontSize: 22, fontWeight: '900', color: '#1E293B' }}>Agregar Nota</Text>
+                                                <Text style={{ fontSize: 13, color: '#64748B', fontWeight: '500' }}>Registro para el historial</Text>
+                                            </View>
+                                            <TouchableOpacity onPress={() => setShowNoteModal(false)} style={{ backgroundColor: '#F1F5F9', padding: 8, borderRadius: 15 }}>
+                                                <Feather name="x" size={24} color="#64748B" />
+                                            </TouchableOpacity>
+                                        </View>
+
+                                        <ScrollView showsVerticalScrollIndicator={false}>
+                                            <TextInput
+                                                style={{
+                                                    backgroundColor: '#F8FAFC',
+                                                    borderRadius: 24,
+                                                    borderWidth: 1.5,
+                                                    borderColor: '#E2E8F0',
+                                                    padding: 20,
+                                                    fontSize: 16,
+                                                    color: '#1E293B',
+                                                    minHeight: 180,
+                                                    textAlignVertical: 'top',
+                                                    marginBottom: 25,
+                                                    lineHeight: 24
+                                                }}
+                                                placeholder={userMode === 'pro' ? "Escribe una nota detallada para el historial del proyecto..." : "Escribe una observación para el profesional..."}
+                                                value={note}
+                                                onChangeText={setNote}
+                                                multiline
+                                                autoFocus
+                                            />
+
+                                            <View style={{ marginBottom: 30 }}>
+                                                <Text style={{ fontSize: 11, fontWeight: '800', color: '#64748B', marginBottom: 12, textTransform: 'uppercase', letterSpacing: 1 }}>VISIBILIDAD DE LA NOTA</Text>
+                                                <View style={{ flexDirection: 'row', backgroundColor: '#F1F5F9', borderRadius: 18, padding: 5 }}>
+                                                    <TouchableOpacity
+                                                        onPress={() => setIsPrivate(false)}
+                                                        style={{
+                                                            flex: 1,
+                                                            flexDirection: 'row',
+                                                            alignItems: 'center',
+                                                            justifyContent: 'center',
+                                                            paddingVertical: 14,
+                                                            borderRadius: 14,
+                                                            backgroundColor: !isPrivate ? (userMode === 'pro' ? '#2563EB' : '#EA580C') : 'transparent',
+                                                            gap: 10,
+                                                            elevation: !isPrivate ? 2 : 0
+                                                        }}
+                                                    >
+                                                        <Feather name="eye" size={18} color={!isPrivate ? 'white' : '#64748B'} />
+                                                        <Text style={{ fontWeight: 'bold', color: !isPrivate ? 'white' : '#64748B', fontSize: 15 }}>Público</Text>
+                                                    </TouchableOpacity>
+
+                                                    <TouchableOpacity
+                                                        onPress={() => setIsPrivate(true)}
+                                                        style={{
+                                                            flex: 1,
+                                                            flexDirection: 'row',
+                                                            alignItems: 'center',
+                                                            justifyContent: 'center',
+                                                            paddingVertical: 14,
+                                                            borderRadius: 14,
+                                                            backgroundColor: isPrivate ? '#1E293B' : 'transparent',
+                                                            gap: 10,
+                                                            elevation: isPrivate ? 2 : 0
+                                                        }}
+                                                    >
+                                                        <Feather name="lock" size={18} color={isPrivate ? 'white' : '#64748B'} />
+                                                        <Text style={{ fontWeight: 'bold', color: isPrivate ? 'white' : '#64748B', fontSize: 15 }}>Privado</Text>
+                                                    </TouchableOpacity>
+                                                </View>
+
+                                                <View style={{ marginTop: 15, backgroundColor: '#F0F9FF', padding: 15, borderRadius: 16, flexDirection: 'row', alignItems: 'flex-start', borderWidth: 1, borderColor: '#E0F2FE' }}>
+                                                    <Feather name="info" size={16} color="#0369A1" style={{ marginRight: 10, marginTop: 2 }} />
+                                                    <Text style={{ flex: 1, color: '#0369A1', fontSize: 13, lineHeight: 20, fontWeight: '500' }}>
+                                                        {!isPrivate
+                                                            ? "Este mensaje será visible para ambas partes (Cliente y Profesional) en el historial."
+                                                            : "Este mensaje es estrictamente privado y SOLO tú podrás verlo. Ideal para gastos personales, recordatorios o bitácora interna."
+                                                        }
+                                                    </Text>
+                                                </View>
+                                            </View>
+
+                                            <TouchableOpacity
+                                                onPress={handleAddNote}
+                                                disabled={loading || !note.trim()}
+                                                style={{
+                                                    backgroundColor: userMode === 'pro' ? '#2563EB' : '#EA580C',
+                                                    paddingVertical: 18,
+                                                    borderRadius: 24,
+                                                    alignItems: 'center',
+                                                    marginBottom: Platform.OS === 'ios' ? 20 : 0,
+                                                    opacity: (!note.trim() || loading) ? 0.6 : 1,
+                                                    shadowColor: userMode === 'pro' ? '#2563EB' : '#EA580C',
+                                                    shadowOffset: { width: 0, height: 6 },
+                                                    shadowOpacity: 0.3,
+                                                    shadowRadius: 12,
+                                                    elevation: 6
+                                                }}
+                                            >
+                                                {loading ? (
+                                                    <ActivityIndicator color="white" />
+                                                ) : (
+                                                    <Text style={{ color: 'white', fontWeight: '900', fontSize: 17 }}>Agregar Nota al Historial</Text>
+                                                )}
+                                            </TouchableOpacity>
+                                        </ScrollView>
+                                    </View>
+                                </View>
+                            </KeyboardAvoidingView>
+                        </Modal>
+
+                    </View>
                 </View>
             )}
 
             {/* SECCIÓN DE VALORACIÓN (Always visible, but disabled if not finished) */}
             {(showSection === 'all' || showSection === 'rating') && (
-                <View style={[styles.managementCard, !isFinished && { backgroundColor: '#F8FAFC', borderColor: '#E2E8F0' }]}>
-                    <Text style={styles.managementTitle}>{customTitle || 'Valoración del Servicio'}</Text>
-                    {!isFinished ? (
-                        <View style={{
-                            position: 'absolute',
-                            top: 0, left: 0, right: 0, bottom: 0,
-                            backgroundColor: 'rgba(248, 250, 252, 0.4)',
-                            zIndex: 100,
-                            justifyContent: 'center',
-                            alignItems: 'center',
-                            borderRadius: 24
-                        }}>
-                            <View style={{ backgroundColor: 'white', padding: 15, borderRadius: 50, elevation: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4 }}>
-                                <Feather name="lock" size={24} color="#94A3B8" />
-                            </View>
-                            <Text style={{ color: '#64748B', fontWeight: 'bold', fontSize: 13, marginTop: 12, textAlign: 'center', paddingHorizontal: 40 }}>
-                                Esta sección se activará cuando termines un trabajo.
-                            </Text>
-                        </View>
-                    ) : (
-                        (userMode === 'client' && job.clientRated) || (userMode === 'pro' && job.proRated) ? (
+                <View style={[styles.managementCard, !isFinished && { backgroundColor: '#F8FAFC', borderColor: '#E2E8F0', padding: 0, overflow: 'hidden' }]}>
+                    <View style={[{ padding: 20 }, !isFinished && { opacity: 0.4 }]}>
+                        <Text style={styles.managementTitle}>{customTitle || 'Valoración del Servicio'}</Text>
+                        {((userMode === 'client' && job.clientRated) || (userMode === 'pro' && job.proRated)) ? (
                             <View style={{ alignItems: 'center', padding: 20, backgroundColor: '#ECFDF5', borderRadius: 16, marginTop: 15 }}>
                                 <Feather name="check-circle" size={32} color="#10B981" />
                                 <Text style={{ color: '#065F46', fontWeight: 'bold', fontSize: 15, marginTop: 10, textAlign: 'center' }}>
@@ -605,15 +590,35 @@ const ProjectTimeline = ({ job, userMode, currentUser, onConfirmStart, onAddTime
                                 </Text>
                             </View>
                         ) : (
-                            <View style={{ marginTop: 15, pointerEvents: isFinished ? 'auto' : 'none', opacity: isFinished ? 1 : 0.4 }}>
-                                <RatingForm
-                                    onSubmit={handleRatingSubmit}
-                                    revieweeName={revieweeName}
-                                    isForPro={userMode === 'client'}
-                                />
+                            <View style={{ position: 'relative' }}>
+                                {!isFinished && (
+                                    <View style={{
+                                        position: 'absolute',
+                                        top: -20, left: -20, right: -20, bottom: -20, // Cover the paddings
+                                        backgroundColor: 'rgba(248, 250, 252, 0.5)',
+                                        zIndex: 100,
+                                        justifyContent: 'center',
+                                        alignItems: 'center',
+                                        borderRadius: 24
+                                    }}>
+                                        <View style={{ backgroundColor: 'white', padding: 15, borderRadius: 50, elevation: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4 }}>
+                                            <Feather name="lock" size={24} color="#94A3B8" />
+                                        </View>
+                                        <Text style={{ color: '#64748B', fontWeight: 'bold', fontSize: 13, marginTop: 12, textAlign: 'center', paddingHorizontal: 40 }}>
+                                            Esta sección se activará cuando termines un trabajo.
+                                        </Text>
+                                    </View>
+                                )}
+                                <View style={{ marginTop: 15, pointerEvents: isFinished ? 'auto' : 'none', opacity: isFinished ? 1 : 0.3 }}>
+                                    <RatingForm
+                                        onSubmit={handleRatingSubmit}
+                                        revieweeName={revieweeName}
+                                        isForPro={userMode === 'client'}
+                                    />
+                                </View>
                             </View>
-                        )
-                    )}
+                        )}
+                    </View>
                 </View>
             )}
 

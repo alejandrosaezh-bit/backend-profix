@@ -455,7 +455,7 @@ const UsersManager = () => {
                     <View style={{ alignItems: 'center', marginBottom: 20 }}>
                         {selectedUser.avatar ? (
                             <Image
-                                source={{ uri: `data:image/jpeg;base64,${selectedUser.avatar}` }}
+                                source={{ uri: selectedUser.avatar }}
                                 style={{ width: 100, height: 100, borderRadius: 50, backgroundColor: '#cbd5e1' }}
                             />
                         ) : (
