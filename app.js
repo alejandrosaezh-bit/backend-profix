@@ -981,92 +981,99 @@ function MainApp() {
                 realChatId = newChat._id || newChat.id;
             }
 
-            // 5. Enviar mensaje al backend y obtener respuesta
-            const response = await api.sendMessage(realChatId, messageContent);
-            const newMessage = response.message;
+            // 5. Enviar mensaje al backend en BACKGROUND (Optimistic UI)
+            const textArg = type === 'media' ? null : messageContent;
+            const mediaArg = type === 'media' ? messageContent : null;
 
-            if (newMessage) {
-                // Formatear el nuevo mensaje para el frontend
-                const formattedNewMsg = {
-                    text: newMessage.content || "",
-                    sender: isActingAsPro ? 'pro' : 'client',
-                    timestamp: newMessage.createdAt,
-                    type: newMessage.media ? 'media' : 'text',
-                    media: newMessage.media,
-                    mediaType: newMessage.mediaType
-                };
+            api.sendMessage(realChatId, textArg, mediaArg).then(response => {
+                const newMessage = response.message;
 
-                // Actualizar selectedChatRequest ("active chat")
-                setSelectedChatRequest(prev => {
-                    if (!prev) return prev;
-                    const newConvs = (prev.conversations || []).map(c => {
-                        if (c.id === realChatId || areIdsEqual(c.proId?._id || c.proId, proId)) {
-                            // Solo agregamos si no existe ya (evitar duplicados por socket)
-                            const exists = (c.messages || []).some(m => m.timestamp === formattedNewMsg.timestamp && m.text === formattedNewMsg.text);
-                            if (exists) return c;
-                            return { ...c, messages: [...(c.messages || []), formattedNewMsg], id: realChatId };
+                if (newMessage) {
+                    // Formatear el nuevo mensaje para el frontend
+                    const formattedNewMsg = {
+                        text: newMessage.content || "",
+                        sender: isActingAsPro ? 'pro' : 'client',
+                        timestamp: newMessage.createdAt,
+                        type: newMessage.media ? 'media' : 'text',
+                        media: newMessage.media,
+                        mediaType: newMessage.mediaType
+                    };
+
+                    // Actualizar selectedChatRequest ("active chat")
+                    setSelectedChatRequest(prev => {
+                        if (!prev) return prev;
+                        const newConvs = (prev.conversations || []).map(c => {
+                            if (c.id === realChatId || areIdsEqual(c.proId?._id || c.proId, proId)) {
+                                // Solo agregamos si no existe ya (evitar duplicados por socket)
+                                const exists = (c.messages || []).some(m => m.timestamp === formattedNewMsg.timestamp && m.text === formattedNewMsg.text);
+                                if (exists) return c;
+                                return { ...c, messages: [...(c.messages || []), formattedNewMsg], id: realChatId };
+                            }
+                            return c;
+                        });
+
+                        // Si no existía la conversación, crearla
+                        if (!newConvs.some(c => c.id === realChatId || areIdsEqual(c.proId?._id || c.proId, proId))) {
+                            newConvs.push({
+                                id: realChatId,
+                                proId: proId,
+                                proName: proName,
+                                proEmail: proEmail,
+                                messages: [formattedNewMsg]
+                            });
                         }
-                        return c;
+                        return { ...prev, conversations: newConvs };
                     });
 
-                    // Si no existía la conversación, crearla
-                    if (!newConvs.some(c => c.id === realChatId || areIdsEqual(c.proId?._id || c.proId, proId))) {
-                        newConvs.push({
-                            id: realChatId,
-                            proId: proId,
-                            proName: proName,
-                            proEmail: proEmail,
-                            messages: [formattedNewMsg]
+                    // Actualizar allRequests (Global State) - Optimized
+                    setAllRequests(prevRequests => {
+                        const currentRequestId = request.id || request._id;
+                        const idx = prevRequests.findIndex(r => areIdsEqual(r.id || r._id, currentRequestId));
+                        if (idx === -1) return prevRequests;
+
+                        const req = prevRequests[idx];
+                        const newConvs = (req.conversations || []).map(c => {
+                            if (c.id === realChatId || areIdsEqual(c.proId?._id || c.proId, proId)) {
+                                const exists = (c.messages || []).some(m => m.timestamp === formattedNewMsg.timestamp && m.text === formattedNewMsg.text);
+                                if (exists) return c;
+                                return { ...c, messages: [...(c.messages || []), formattedNewMsg], id: realChatId };
+                            }
+                            return c;
                         });
-                    }
-                    return { ...prev, conversations: newConvs };
-                });
-
-                // Actualizar allRequests (Global State) - Optimized
-                setAllRequests(prevRequests => {
-                    const currentRequestId = request.id || request._id;
-                    const idx = prevRequests.findIndex(r => areIdsEqual(r.id || r._id, currentRequestId));
-                    if (idx === -1) return prevRequests;
-
-                    const req = prevRequests[idx];
-                    const newConvs = (req.conversations || []).map(c => {
-                        if (c.id === realChatId || areIdsEqual(c.proId?._id || c.proId, proId)) {
-                            const exists = (c.messages || []).some(m => m.timestamp === formattedNewMsg.timestamp && m.text === formattedNewMsg.text);
-                            if (exists) return c;
-                            return { ...c, messages: [...(c.messages || []), formattedNewMsg], id: realChatId };
+                        if (!newConvs.some(c => c.id === realChatId)) {
+                            newConvs.push({
+                                id: realChatId,
+                                proId: proId,
+                                proName: proName,
+                                proEmail: proEmail,
+                                messages: [formattedNewMsg]
+                            });
                         }
-                        return c;
+                        const updatedReq = { ...req, conversations: newConvs };
+
+                        // Update selectedRequest if it matches
+                        if (selectedRequest && areIdsEqual(selectedRequest.id || selectedRequest._id, currentRequestId)) {
+                            setSelectedRequest(updatedReq);
+                        }
+
+                        const newList = [...prevRequests];
+                        newList[idx] = updatedReq;
+                        return newList;
                     });
-                    if (!newConvs.some(c => c.id === realChatId)) {
-                        newConvs.push({
-                            id: realChatId,
-                            proId: proId,
-                            proName: proName,
-                            proEmail: proEmail,
-                            messages: [formattedNewMsg]
-                        });
-                    }
-                    const updatedReq = { ...req, conversations: newConvs };
+                }
+            }).catch(e => {
+                console.warn('Error enviando mensaje:', e);
+                showAlert('Error', 'No se pudo enviar el mensaje. Verifica tu conexión.');
 
-                    // Update selectedRequest if it matches
-                    if (selectedRequest && areIdsEqual(selectedRequest.id || selectedRequest._id, currentRequestId)) {
-                        setSelectedRequest(updatedReq);
-                    }
-
-                    const newList = [...prevRequests];
-                    newList[idx] = updatedReq;
-                    return newList;
-                });
-            }
+                // EMERGENCY: If we still hit quota, maybe clear the whole storage once
+                if (e.message && e.message.includes('quota') && Platform.OS === 'web') {
+                    console.warn("EMERGENCY: Clearing localStorage due to persistent quota error.");
+                    localStorage.clear();
+                }
+            });
         } catch (e) {
-            console.warn('Error enviando mensaje:', e);
-            showAlert('Error', 'No se pudo enviar el mensaje.');
-
-            // EMERGENCY: If we still hit quota, maybe clear the whole storage once
-            if (e.message && e.message.includes('quota') && Platform.OS === 'web') {
-                console.warn("EMERGENCY: Clearing localStorage due to persistent quota error.");
-                localStorage.clear();
-            }
+            console.warn('Error en proceso local de enviar mensaje:', e);
+            showAlert('Error', 'No se pudo enviar el mensaje localmente.');
         }
     };
 

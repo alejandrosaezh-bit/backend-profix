@@ -24,17 +24,11 @@ router.get('/', protect, async (req, res) => {
             .sort({ lastMessageDate: -1 })
             .lean();
 
-        // 2. Calcular unreadCount para todos los chats en UNA sola consulta de agregación
-        const unreadCounts = await Chat.aggregate([
-            { $match: { participants: req.user._id } },
-            { $unwind: '$messages' },
-            { $match: { 'messages.read': false, 'messages.sender': { $ne: req.user._id } } },
-            { $group: { _id: '$_id', count: { $sum: 1 } } }
-        ]);
-
+        // 2. Extraer unreadCount directamente del mapa optimizado (O(1))
         const unreadMap = {};
-        unreadCounts.forEach(u => {
-            unreadMap[u._id.toString()] = u.count;
+        chats.forEach(c => {
+            const counts = c.unreadCounts || {};
+            unreadMap[c._id.toString()] = counts[req.user._id.toString()] || 0;
         });
 
         // 3. Procesar según las reglas del usuario
@@ -208,6 +202,13 @@ router.post('/:id/messages', protect, async (req, res) => {
             createdAt: new Date()
         };
 
+        const receiverId = chat.participants.find(p => {
+            const pid = p._id ? p._id.toString() : p.toString();
+            return pid !== req.user._id.toString();
+        });
+
+        const incField = receiverId ? { [`unreadCounts.${receiverId.toString()}`]: 1 } : {};
+
         // OPTIMIZACIÓN CRÍTICA: No cargar todo el chat. Usar $push directo.
         const updatedChat = await Chat.findByIdAndUpdate(
             req.params.id,
@@ -216,7 +217,8 @@ router.post('/:id/messages', protect, async (req, res) => {
                 $set: {
                     lastMessage: content || (media ? "Imagen enviada" : ""),
                     lastMessageDate: new Date()
-                }
+                },
+                $inc: incField
             },
             {
                 new: true, // Devolver el doc actualizado
@@ -328,10 +330,18 @@ router.put('/:id/read', protect, async (req, res) => {
             return res.status(403).json({ message: 'No autorizado' });
         }
 
-        // Marcar como leídos todos los mensajes donde el remitente NO es el usuario actual
+        const userIdStr = req.user._id.toString();
+
+        // 1. Marcar el contador directo a 0 en la DB (O(1))
+        await Chat.updateOne(
+            { _id: chat._id },
+            { $set: { [`unreadCounts.${userIdStr}`]: 0 } }
+        );
+
+        // 2. Marcar como leídos todos los mensajes donde el remitente NO es el usuario actual
         let changed = false;
         chat.messages.forEach(m => {
-            if (m.sender.toString() !== req.user._id.toString() && !m.read) {
+            if (m.sender.toString() !== userIdStr && !m.read) {
                 m.read = true;
                 changed = true;
             }

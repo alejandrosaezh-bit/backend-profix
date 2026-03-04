@@ -13,7 +13,8 @@ const chatSchema = mongoose.Schema({
     participants: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     messages: [messageSchema],
     lastMessage: { type: String },
-    lastMessageDate: { type: Date, default: Date.now }
+    lastMessageDate: { type: Date, default: Date.now },
+    unreadCounts: { type: Map, of: Number, default: {} }
 }, { timestamps: true });
 
 chatSchema.index({ participants: 1 });

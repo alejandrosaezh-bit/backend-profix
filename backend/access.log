@@ -18358,3 +18358,251 @@
 [2026-03-04T23:08:07.051Z] END GET /api/chats - Status: 304 (836ms) Size: unknown bytes [User: 69a8319da8bc908566ad8f25 / pro1@profix.com]
 [2026-03-04T23:08:07.352Z] END GET /api/jobs/me - Status: 200 (1589ms) Size: 140311 bytes [User: 6941cfdcfd8ac2c570c363fa / alejandrosaezh@gmail.com]
 [2026-03-04T23:08:07.836Z] END GET /api/jobs/me - Status: 200 (1626ms) Size: 2 bytes [User: 69a8319da8bc908566ad8f25 / pro1@profix.com]
+[2026-03-04T23:08:50.782Z] START GET /api/jobs/me
+[2026-03-04T23:08:50.790Z] START GET /api/chats
+[2026-03-04T23:08:51.232Z] START GET /api/jobs/me
+[2026-03-04T23:08:51.238Z] START GET /api/chats
+[2026-03-04T23:08:51.605Z] END GET /api/chats - Status: 304 (815ms) Size: unknown bytes [User: 6941cfdcfd8ac2c570c363fa / alejandrosaezh@gmail.com]
+[2026-03-04T23:08:52.048Z] END GET /api/chats - Status: 304 (810ms) Size: unknown bytes [User: 69a8319da8bc908566ad8f25 / pro1@profix.com]
+[2026-03-04T23:08:52.289Z] END GET /api/jobs/me - Status: 200 (1507ms) Size: 140311 bytes [User: 6941cfdcfd8ac2c570c363fa / alejandrosaezh@gmail.com]
+[2026-03-04T23:08:52.804Z] END GET /api/jobs/me - Status: 200 (1572ms) Size: 2 bytes [User: 69a8319da8bc908566ad8f25 / pro1@profix.com]
+[2026-03-04T23:09:35.773Z] START GET /api/jobs/me
+[2026-03-04T23:09:35.781Z] START GET /api/chats
+[2026-03-04T23:09:36.216Z] START GET /api/jobs/me
+[2026-03-04T23:09:36.221Z] START GET /api/chats
+[2026-03-04T23:09:36.642Z] END GET /api/chats - Status: 304 (861ms) Size: unknown bytes [User: 6941cfdcfd8ac2c570c363fa / alejandrosaezh@gmail.com]
+[2026-03-04T23:09:37.038Z] END GET /api/chats - Status: 304 (816ms) Size: unknown bytes [User: 69a8319da8bc908566ad8f25 / pro1@profix.com]
+[2026-03-04T23:09:37.391Z] END GET /api/jobs/me - Status: 200 (1618ms) Size: 140311 bytes [User: 6941cfdcfd8ac2c570c363fa / alejandrosaezh@gmail.com]
+[2026-03-04T23:09:37.898Z] END GET /api/jobs/me - Status: 200 (1682ms) Size: 2 bytes [User: 69a8319da8bc908566ad8f25 / pro1@profix.com]
+[2026-03-04T23:10:20.770Z] START GET /api/jobs/me
+[2026-03-04T23:10:20.775Z] START GET /api/chats
+[2026-03-04T23:10:21.216Z] START GET /api/jobs/me
+[2026-03-04T23:10:21.226Z] START GET /api/chats
+[2026-03-04T23:10:21.628Z] END GET /api/chats - Status: 304 (853ms) Size: unknown bytes [User: 6941cfdcfd8ac2c570c363fa / alejandrosaezh@gmail.com]
+[2026-03-04T23:10:22.209Z] END GET /api/chats - Status: 304 (982ms) Size: unknown bytes [User: 69a8319da8bc908566ad8f25 / pro1@profix.com]
+[2026-03-04T23:10:22.535Z] END GET /api/jobs/me - Status: 200 (1765ms) Size: 140311 bytes [User: 6941cfdcfd8ac2c570c363fa / alejandrosaezh@gmail.com]
+[2026-03-04T23:10:22.888Z] END GET /api/jobs/me - Status: 200 (1672ms) Size: 2 bytes [User: 69a8319da8bc908566ad8f25 / pro1@profix.com]
+[2026-03-04T23:11:05.771Z] START GET /api/jobs/me
+[2026-03-04T23:11:05.777Z] START GET /api/chats
+[2026-03-04T23:11:06.214Z] START GET /api/jobs/me
+[2026-03-04T23:11:06.218Z] START GET /api/chats
+[2026-03-04T23:11:06.614Z] END GET /api/chats - Status: 304 (837ms) Size: unknown bytes [User: 6941cfdcfd8ac2c570c363fa / alejandrosaezh@gmail.com]
+[2026-03-04T23:11:07.017Z] END GET /api/chats - Status: 304 (799ms) Size: unknown bytes [User: 69a8319da8bc908566ad8f25 / pro1@profix.com]
+[2026-03-04T23:11:07.286Z] END GET /api/jobs/me - Status: 200 (1515ms) Size: 140311 bytes [User: 6941cfdcfd8ac2c570c363fa / alejandrosaezh@gmail.com]
+[2026-03-04T23:11:07.822Z] END GET /api/jobs/me - Status: 200 (1608ms) Size: 2 bytes [User: 69a8319da8bc908566ad8f25 / pro1@profix.com]
+[2026-03-04T23:11:50.773Z] START GET /api/jobs/me
+[2026-03-04T23:11:50.779Z] START GET /api/chats
+[2026-03-04T23:11:51.222Z] START GET /api/jobs/me
+[2026-03-04T23:11:51.228Z] START GET /api/chats
+[2026-03-04T23:11:51.901Z] END GET /api/chats - Status: 304 (1122ms) Size: unknown bytes [User: 6941cfdcfd8ac2c570c363fa / alejandrosaezh@gmail.com]
+[2026-03-04T23:11:52.440Z] END GET /api/chats - Status: 304 (1213ms) Size: unknown bytes [User: 69a8319da8bc908566ad8f25 / pro1@profix.com]
+[2026-03-04T23:11:52.890Z] END GET /api/jobs/me - Status: 200 (2117ms) Size: 140311 bytes [User: 6941cfdcfd8ac2c570c363fa / alejandrosaezh@gmail.com]
+[2026-03-04T23:11:53.295Z] END GET /api/jobs/me - Status: 200 (2073ms) Size: 2 bytes [User: 69a8319da8bc908566ad8f25 / pro1@profix.com]
+[2026-03-04T23:12:35.780Z] START GET /api/jobs/me
+[2026-03-04T23:12:35.806Z] START GET /api/chats
+[2026-03-04T23:12:36.218Z] START GET /api/jobs/me
+[2026-03-04T23:12:36.224Z] START GET /api/chats
+[2026-03-04T23:12:36.595Z] END GET /api/chats - Status: 304 (789ms) Size: unknown bytes [User: 6941cfdcfd8ac2c570c363fa / alejandrosaezh@gmail.com]
+[2026-03-04T23:12:37.010Z] END GET /api/chats - Status: 304 (786ms) Size: unknown bytes [User: 69a8319da8bc908566ad8f25 / pro1@profix.com]
+[2026-03-04T23:12:37.236Z] END GET /api/jobs/me - Status: 200 (1456ms) Size: 140311 bytes [User: 6941cfdcfd8ac2c570c363fa / alejandrosaezh@gmail.com]
+[2026-03-04T23:12:37.799Z] END GET /api/jobs/me - Status: 200 (1581ms) Size: 2 bytes [User: 69a8319da8bc908566ad8f25 / pro1@profix.com]
+[2026-03-04T23:13:20.769Z] START GET /api/jobs/me
+[2026-03-04T23:13:20.774Z] START GET /api/chats
+[2026-03-04T23:13:21.214Z] START GET /api/jobs/me
+[2026-03-04T23:13:21.220Z] START GET /api/chats
+[2026-03-04T23:13:21.775Z] END GET /api/chats - Status: 304 (1001ms) Size: unknown bytes [User: 6941cfdcfd8ac2c570c363fa / alejandrosaezh@gmail.com]
+[2026-03-04T23:13:21.999Z] END GET /api/chats - Status: 304 (779ms) Size: unknown bytes [User: 69a8319da8bc908566ad8f25 / pro1@profix.com]
+[2026-03-04T23:13:22.264Z] END GET /api/jobs/me - Status: 200 (1495ms) Size: 140311 bytes [User: 6941cfdcfd8ac2c570c363fa / alejandrosaezh@gmail.com]
+[2026-03-04T23:13:22.718Z] END GET /api/jobs/me - Status: 200 (1503ms) Size: 2 bytes [User: 69a8319da8bc908566ad8f25 / pro1@profix.com]
+[2026-03-04T23:14:05.774Z] START GET /api/jobs/me
+[2026-03-04T23:14:05.779Z] START GET /api/chats
+[2026-03-04T23:14:06.218Z] START GET /api/jobs/me
+[2026-03-04T23:14:06.230Z] START GET /api/chats
+[2026-03-04T23:14:06.584Z] END GET /api/chats - Status: 304 (805ms) Size: unknown bytes [User: 6941cfdcfd8ac2c570c363fa / alejandrosaezh@gmail.com]
+[2026-03-04T23:14:07.138Z] END GET /api/chats - Status: 304 (908ms) Size: unknown bytes [User: 69a8319da8bc908566ad8f25 / pro1@profix.com]
+[2026-03-04T23:14:07.254Z] END GET /api/jobs/me - Status: 200 (1480ms) Size: 140311 bytes [User: 6941cfdcfd8ac2c570c363fa / alejandrosaezh@gmail.com]
+[2026-03-04T23:14:07.876Z] END GET /api/jobs/me - Status: 200 (1658ms) Size: 2 bytes [User: 69a8319da8bc908566ad8f25 / pro1@profix.com]
+[2026-03-04T23:14:50.776Z] START GET /api/jobs/me
+[2026-03-04T23:14:50.782Z] START GET /api/chats
+[2026-03-04T23:14:51.235Z] START GET /api/jobs/me
+[2026-03-04T23:14:51.239Z] START GET /api/chats
+[2026-03-04T23:14:51.740Z] END GET /api/chats - Status: 304 (958ms) Size: unknown bytes [User: 6941cfdcfd8ac2c570c363fa / alejandrosaezh@gmail.com]
+[2026-03-04T23:14:52.095Z] END GET /api/chats - Status: 304 (856ms) Size: unknown bytes [User: 69a8319da8bc908566ad8f25 / pro1@profix.com]
+[2026-03-04T23:14:52.382Z] END GET /api/jobs/me - Status: 200 (1606ms) Size: 140311 bytes [User: 6941cfdcfd8ac2c570c363fa / alejandrosaezh@gmail.com]
+[2026-03-04T23:14:52.872Z] END GET /api/jobs/me - Status: 200 (1637ms) Size: 2 bytes [User: 69a8319da8bc908566ad8f25 / pro1@profix.com]
+[2026-03-04T23:15:35.769Z] START GET /api/jobs/me
+[2026-03-04T23:15:35.774Z] START GET /api/chats
+[2026-03-04T23:15:36.225Z] START GET /api/jobs/me
+[2026-03-04T23:15:36.230Z] START GET /api/chats
+[2026-03-04T23:15:36.734Z] END GET /api/chats - Status: 304 (960ms) Size: unknown bytes [User: 6941cfdcfd8ac2c570c363fa / alejandrosaezh@gmail.com]
+[2026-03-04T23:15:37.022Z] END GET /api/chats - Status: 304 (791ms) Size: unknown bytes [User: 69a8319da8bc908566ad8f25 / pro1@profix.com]
+[2026-03-04T23:15:37.309Z] END GET /api/jobs/me - Status: 200 (1540ms) Size: 140311 bytes [User: 6941cfdcfd8ac2c570c363fa / alejandrosaezh@gmail.com]
+[2026-03-04T23:15:37.966Z] END GET /api/jobs/me - Status: 200 (1742ms) Size: 2 bytes [User: 69a8319da8bc908566ad8f25 / pro1@profix.com]
+[2026-03-04T23:16:20.767Z] START GET /api/jobs/me
+[2026-03-04T23:16:20.772Z] START GET /api/chats
+[2026-03-04T23:16:21.213Z] START GET /api/jobs/me
+[2026-03-04T23:16:21.218Z] START GET /api/chats
+[2026-03-04T23:16:21.690Z] END GET /api/chats - Status: 304 (918ms) Size: unknown bytes [User: 6941cfdcfd8ac2c570c363fa / alejandrosaezh@gmail.com]
+[2026-03-04T23:16:22.212Z] END GET /api/chats - Status: 304 (994ms) Size: unknown bytes [User: 69a8319da8bc908566ad8f25 / pro1@profix.com]
+[2026-03-04T23:16:22.481Z] END GET /api/jobs/me - Status: 200 (1714ms) Size: 140311 bytes [User: 6941cfdcfd8ac2c570c363fa / alejandrosaezh@gmail.com]
+[2026-03-04T23:16:23.071Z] END GET /api/jobs/me - Status: 200 (1858ms) Size: 2 bytes [User: 69a8319da8bc908566ad8f25 / pro1@profix.com]
+[2026-03-04T23:17:05.763Z] START GET /api/jobs/me
+[2026-03-04T23:17:05.768Z] START GET /api/chats
+[2026-03-04T23:17:06.225Z] START GET /api/jobs/me
+[2026-03-04T23:17:06.230Z] START GET /api/chats
+[2026-03-04T23:17:06.605Z] END GET /api/chats - Status: 304 (837ms) Size: unknown bytes [User: 6941cfdcfd8ac2c570c363fa / alejandrosaezh@gmail.com]
+[2026-03-04T23:17:07.048Z] END GET /api/chats - Status: 304 (818ms) Size: unknown bytes [User: 69a8319da8bc908566ad8f25 / pro1@profix.com]
+[2026-03-04T23:17:07.320Z] END GET /api/jobs/me - Status: 200 (1557ms) Size: 140311 bytes [User: 6941cfdcfd8ac2c570c363fa / alejandrosaezh@gmail.com]
+[2026-03-04T23:17:07.965Z] END GET /api/jobs/me - Status: 200 (1740ms) Size: 2 bytes [User: 69a8319da8bc908566ad8f25 / pro1@profix.com]
+[2026-03-04T23:17:50.768Z] START GET /api/jobs/me
+[2026-03-04T23:17:50.773Z] START GET /api/chats
+[2026-03-04T23:17:51.212Z] START GET /api/jobs/me
+[2026-03-04T23:17:51.216Z] START GET /api/chats
+[2026-03-04T23:17:51.588Z] END GET /api/chats - Status: 304 (815ms) Size: unknown bytes [User: 6941cfdcfd8ac2c570c363fa / alejandrosaezh@gmail.com]
+[2026-03-04T23:17:52.135Z] END GET /api/chats - Status: 304 (919ms) Size: unknown bytes [User: 69a8319da8bc908566ad8f25 / pro1@profix.com]
+[2026-03-04T23:17:52.312Z] END GET /api/jobs/me - Status: 200 (1544ms) Size: 140311 bytes [User: 6941cfdcfd8ac2c570c363fa / alejandrosaezh@gmail.com]
+[2026-03-04T23:17:52.924Z] END GET /api/jobs/me - Status: 200 (1712ms) Size: 2 bytes [User: 69a8319da8bc908566ad8f25 / pro1@profix.com]
+[2026-03-04T23:18:35.776Z] START GET /api/jobs/me
+[2026-03-04T23:18:35.781Z] START GET /api/chats
+[2026-03-04T23:18:36.221Z] START GET /api/jobs/me
+[2026-03-04T23:18:36.226Z] START GET /api/chats
+[2026-03-04T23:18:36.701Z] END GET /api/chats - Status: 304 (920ms) Size: unknown bytes [User: 6941cfdcfd8ac2c570c363fa / alejandrosaezh@gmail.com]
+[2026-03-04T23:18:36.994Z] END GET /api/chats - Status: 304 (769ms) Size: unknown bytes [User: 69a8319da8bc908566ad8f25 / pro1@profix.com]
+[2026-03-04T23:18:37.276Z] END GET /api/jobs/me - Status: 200 (1500ms) Size: 140311 bytes [User: 6941cfdcfd8ac2c570c363fa / alejandrosaezh@gmail.com]
+[2026-03-04T23:18:37.913Z] END GET /api/jobs/me - Status: 200 (1692ms) Size: 2 bytes [User: 69a8319da8bc908566ad8f25 / pro1@profix.com]
+[2026-03-04T23:19:20.772Z] START GET /api/jobs/me
+[2026-03-04T23:19:20.777Z] START GET /api/chats
+[2026-03-04T23:19:21.220Z] START GET /api/jobs/me
+[2026-03-04T23:19:21.224Z] START GET /api/chats
+[2026-03-04T23:19:21.628Z] END GET /api/chats - Status: 304 (851ms) Size: unknown bytes [User: 6941cfdcfd8ac2c570c363fa / alejandrosaezh@gmail.com]
+[2026-03-04T23:19:22.066Z] END GET /api/chats - Status: 304 (842ms) Size: unknown bytes [User: 69a8319da8bc908566ad8f25 / pro1@profix.com]
+[2026-03-04T23:19:22.377Z] END GET /api/jobs/me - Status: 200 (1604ms) Size: 140311 bytes [User: 6941cfdcfd8ac2c570c363fa / alejandrosaezh@gmail.com]
+[2026-03-04T23:19:22.899Z] END GET /api/jobs/me - Status: 200 (1679ms) Size: 2 bytes [User: 69a8319da8bc908566ad8f25 / pro1@profix.com]
+[2026-03-04T23:20:05.767Z] START GET /api/jobs/me
+[2026-03-04T23:20:05.772Z] START GET /api/chats
+[2026-03-04T23:20:06.227Z] START GET /api/jobs/me
+[2026-03-04T23:20:06.232Z] START GET /api/chats
+[2026-03-04T23:20:06.891Z] END GET /api/chats - Status: 304 (1119ms) Size: unknown bytes [User: 6941cfdcfd8ac2c570c363fa / alejandrosaezh@gmail.com]
+[2026-03-04T23:20:07.303Z] END GET /api/chats - Status: 304 (1071ms) Size: unknown bytes [User: 69a8319da8bc908566ad8f25 / pro1@profix.com]
+[2026-03-04T23:20:07.614Z] END GET /api/jobs/me - Status: 200 (1847ms) Size: 140311 bytes [User: 6941cfdcfd8ac2c570c363fa / alejandrosaezh@gmail.com]
+[2026-03-04T23:20:08.124Z] END GET /api/jobs/me - Status: 200 (1897ms) Size: 2 bytes [User: 69a8319da8bc908566ad8f25 / pro1@profix.com]
+[2026-03-04T23:20:50.770Z] START GET /api/jobs/me
+[2026-03-04T23:20:50.775Z] START GET /api/chats
+[2026-03-04T23:20:51.227Z] START GET /api/jobs/me
+[2026-03-04T23:20:51.231Z] START GET /api/chats
+[2026-03-04T23:20:51.702Z] END GET /api/chats - Status: 304 (927ms) Size: unknown bytes [User: 6941cfdcfd8ac2c570c363fa / alejandrosaezh@gmail.com]
+[2026-03-04T23:20:52.052Z] END GET /api/chats - Status: 304 (821ms) Size: unknown bytes [User: 69a8319da8bc908566ad8f25 / pro1@profix.com]
+[2026-03-04T23:20:52.448Z] END GET /api/jobs/me - Status: 200 (1677ms) Size: 140311 bytes [User: 6941cfdcfd8ac2c570c363fa / alejandrosaezh@gmail.com]
+[2026-03-04T23:20:52.950Z] END GET /api/jobs/me - Status: 200 (1723ms) Size: 2 bytes [User: 69a8319da8bc908566ad8f25 / pro1@profix.com]
+[2026-03-04T23:21:35.777Z] START GET /api/jobs/me
+[2026-03-04T23:21:35.782Z] START GET /api/chats
+[2026-03-04T23:21:36.221Z] START GET /api/jobs/me
+[2026-03-04T23:21:36.225Z] START GET /api/chats
+[2026-03-04T23:21:36.832Z] END GET /api/chats - Status: 304 (1050ms) Size: unknown bytes [User: 6941cfdcfd8ac2c570c363fa / alejandrosaezh@gmail.com]
+[2026-03-04T23:21:37.136Z] END GET /api/chats - Status: 304 (911ms) Size: unknown bytes [User: 69a8319da8bc908566ad8f25 / pro1@profix.com]
+[2026-03-04T23:21:37.282Z] END GET /api/jobs/me - Status: 200 (1505ms) Size: 140311 bytes [User: 6941cfdcfd8ac2c570c363fa / alejandrosaezh@gmail.com]
+[2026-03-04T23:21:37.904Z] END GET /api/jobs/me - Status: 200 (1683ms) Size: 2 bytes [User: 69a8319da8bc908566ad8f25 / pro1@profix.com]
+[2026-03-04T23:22:20.778Z] START GET /api/jobs/me
+[2026-03-04T23:22:20.783Z] START GET /api/chats
+[2026-03-04T23:22:21.218Z] START GET /api/jobs/me
+[2026-03-04T23:22:21.224Z] START GET /api/chats
+[2026-03-04T23:22:21.623Z] END GET /api/chats - Status: 304 (840ms) Size: unknown bytes [User: 6941cfdcfd8ac2c570c363fa / alejandrosaezh@gmail.com]
+[2026-03-04T23:22:22.036Z] END GET /api/chats - Status: 304 (812ms) Size: unknown bytes [User: 69a8319da8bc908566ad8f25 / pro1@profix.com]
+[2026-03-04T23:22:22.453Z] END GET /api/jobs/me - Status: 200 (1675ms) Size: 140311 bytes [User: 6941cfdcfd8ac2c570c363fa / alejandrosaezh@gmail.com]
+[2026-03-04T23:22:22.983Z] END GET /api/jobs/me - Status: 200 (1765ms) Size: 2 bytes [User: 69a8319da8bc908566ad8f25 / pro1@profix.com]
+[2026-03-04T23:23:05.787Z] START GET /api/jobs/me
+[2026-03-04T23:23:05.812Z] START GET /api/chats
+[2026-03-04T23:23:06.233Z] START GET /api/jobs/me
+[2026-03-04T23:23:06.237Z] START GET /api/chats
+[2026-03-04T23:23:08.203Z] END GET /api/chats - Status: 304 (2390ms) Size: unknown bytes [User: 6941cfdcfd8ac2c570c363fa / alejandrosaezh@gmail.com]
+[2026-03-04T23:23:09.001Z] END GET /api/chats - Status: 304 (2764ms) Size: unknown bytes [User: 69a8319da8bc908566ad8f25 / pro1@profix.com]
+[2026-03-04T23:23:09.218Z] END GET /api/jobs/me - Status: 200 (2985ms) Size: 2 bytes [User: 69a8319da8bc908566ad8f25 / pro1@profix.com]
+[2026-03-04T23:23:09.292Z] END GET /api/jobs/me - Status: 200 (3504ms) Size: 140311 bytes [User: 6941cfdcfd8ac2c570c363fa / alejandrosaezh@gmail.com]
+[2026-03-04T23:23:50.792Z] START GET /api/jobs/me
+[2026-03-04T23:23:50.821Z] START GET /api/chats
+[2026-03-04T23:23:51.238Z] START GET /api/jobs/me
+[2026-03-04T23:23:51.246Z] START GET /api/chats
+[2026-03-04T23:23:51.587Z] END GET /api/chats - Status: 200 (766ms) Size: 65005 bytes [User: 6941cfdcfd8ac2c570c363fa / alejandrosaezh@gmail.com]
+[2026-03-04T23:23:51.946Z] END GET /api/chats - Status: 304 (700ms) Size: unknown bytes [User: 69a8319da8bc908566ad8f25 / pro1@profix.com]
+[2026-03-04T23:23:52.989Z] END GET /api/jobs/me - Status: 200 (1751ms) Size: 2 bytes [User: 69a8319da8bc908566ad8f25 / pro1@profix.com]
+[2026-03-04T23:23:53.305Z] END GET /api/jobs/me - Status: 200 (2513ms) Size: 140311 bytes [User: 6941cfdcfd8ac2c570c363fa / alejandrosaezh@gmail.com]
+[2026-03-04T23:24:35.782Z] START GET /api/jobs/me
+[2026-03-04T23:24:35.812Z] START GET /api/chats
+[2026-03-04T23:24:36.231Z] START GET /api/jobs/me
+[2026-03-04T23:24:36.239Z] START GET /api/chats
+[2026-03-04T23:24:36.504Z] END GET /api/chats - Status: 304 (692ms) Size: unknown bytes [User: 6941cfdcfd8ac2c570c363fa / alejandrosaezh@gmail.com]
+[2026-03-04T23:24:36.932Z] END GET /api/chats - Status: 304 (693ms) Size: unknown bytes [User: 69a8319da8bc908566ad8f25 / pro1@profix.com]
+[2026-03-04T23:24:37.891Z] END GET /api/jobs/me - Status: 200 (1660ms) Size: 2 bytes [User: 69a8319da8bc908566ad8f25 / pro1@profix.com]
+[2026-03-04T23:24:38.120Z] END GET /api/jobs/me - Status: 200 (2338ms) Size: 140311 bytes [User: 6941cfdcfd8ac2c570c363fa / alejandrosaezh@gmail.com]
+[2026-03-04T23:25:20.776Z] START GET /api/jobs/me
+[2026-03-04T23:25:20.783Z] START GET /api/chats
+[2026-03-04T23:25:21.232Z] START GET /api/jobs/me
+[2026-03-04T23:25:21.238Z] START GET /api/chats
+[2026-03-04T23:25:21.481Z] END GET /api/chats - Status: 304 (698ms) Size: unknown bytes [User: 6941cfdcfd8ac2c570c363fa / alejandrosaezh@gmail.com]
+[2026-03-04T23:25:22.385Z] END GET /api/jobs/me - Status: 200 (1609ms) Size: 140311 bytes [User: 6941cfdcfd8ac2c570c363fa / alejandrosaezh@gmail.com]
+[2026-03-04T23:25:22.770Z] END GET /api/chats - Status: 304 (1532ms) Size: unknown bytes [User: 69a8319da8bc908566ad8f25 / pro1@profix.com]
+[2026-03-04T23:25:22.939Z] END GET /api/jobs/me - Status: 200 (1707ms) Size: 2 bytes [User: 69a8319da8bc908566ad8f25 / pro1@profix.com]
+[2026-03-04T23:26:05.773Z] START GET /api/jobs/me
+[2026-03-04T23:26:05.778Z] START GET /api/chats
+[2026-03-04T23:26:06.229Z] START GET /api/jobs/me
+[2026-03-04T23:26:06.234Z] START GET /api/chats
+[2026-03-04T23:26:06.613Z] END GET /api/chats - Status: 304 (835ms) Size: unknown bytes [User: 6941cfdcfd8ac2c570c363fa / alejandrosaezh@gmail.com]
+[2026-03-04T23:26:06.898Z] END GET /api/chats - Status: 304 (664ms) Size: unknown bytes [User: 69a8319da8bc908566ad8f25 / pro1@profix.com]
+[2026-03-04T23:26:07.340Z] END GET /api/jobs/me - Status: 200 (1567ms) Size: 140311 bytes [User: 6941cfdcfd8ac2c570c363fa / alejandrosaezh@gmail.com]
+[2026-03-04T23:26:07.903Z] END GET /api/jobs/me - Status: 200 (1674ms) Size: 2 bytes [User: 69a8319da8bc908566ad8f25 / pro1@profix.com]
+[2026-03-04T23:26:50.784Z] START GET /api/jobs/me
+[2026-03-04T23:26:50.790Z] START GET /api/chats
+[2026-03-04T23:26:51.232Z] START GET /api/jobs/me
+[2026-03-04T23:26:51.237Z] START GET /api/chats
+[2026-03-04T23:26:51.466Z] END GET /api/chats - Status: 304 (675ms) Size: unknown bytes [User: 6941cfdcfd8ac2c570c363fa / alejandrosaezh@gmail.com]
+[2026-03-04T23:26:51.841Z] END GET /api/chats - Status: 304 (604ms) Size: unknown bytes [User: 69a8319da8bc908566ad8f25 / pro1@profix.com]
+[2026-03-04T23:26:52.290Z] END GET /api/jobs/me - Status: 200 (1505ms) Size: 140311 bytes [User: 6941cfdcfd8ac2c570c363fa / alejandrosaezh@gmail.com]
+[2026-03-04T23:26:52.744Z] END GET /api/jobs/me - Status: 200 (1512ms) Size: 2 bytes [User: 69a8319da8bc908566ad8f25 / pro1@profix.com]
+[2026-03-04T23:27:36.222Z] START GET /api/jobs/me
+[2026-03-04T23:27:36.227Z] START GET /api/chats
+[2026-03-04T23:27:36.898Z] END GET /api/chats - Status: 304 (671ms) Size: unknown bytes [User: 69a8319da8bc908566ad8f25 / pro1@profix.com]
+[2026-03-04T23:27:37.887Z] END GET /api/jobs/me - Status: 200 (1665ms) Size: 2 bytes [User: 69a8319da8bc908566ad8f25 / pro1@profix.com]
+[2026-03-04T23:28:21.225Z] START GET /api/jobs/me
+[2026-03-04T23:28:21.231Z] START GET /api/chats
+[2026-03-04T23:28:21.903Z] END GET /api/chats - Status: 304 (672ms) Size: unknown bytes [User: 69a8319da8bc908566ad8f25 / pro1@profix.com]
+[2026-03-04T23:28:22.854Z] END GET /api/jobs/me - Status: 200 (1629ms) Size: 2 bytes [User: 69a8319da8bc908566ad8f25 / pro1@profix.com]
+[2026-03-04T23:29:06.233Z] START GET /api/jobs/me
+[2026-03-04T23:29:06.238Z] START GET /api/chats
+[2026-03-04T23:29:06.884Z] END GET /api/chats - Status: 304 (646ms) Size: unknown bytes [User: 69a8319da8bc908566ad8f25 / pro1@profix.com]
+[2026-03-04T23:29:07.810Z] END GET /api/jobs/me - Status: 200 (1576ms) Size: 2 bytes [User: 69a8319da8bc908566ad8f25 / pro1@profix.com]
+[2026-03-04T23:29:51.237Z] START GET /api/jobs/me
+[2026-03-04T23:29:51.243Z] START GET /api/chats
+[2026-03-04T23:29:51.900Z] END GET /api/chats - Status: 304 (657ms) Size: unknown bytes [User: 69a8319da8bc908566ad8f25 / pro1@profix.com]
+[2026-03-04T23:29:52.893Z] END GET /api/jobs/me - Status: 200 (1656ms) Size: 2 bytes [User: 69a8319da8bc908566ad8f25 / pro1@profix.com]
+[2026-03-04T23:35:41.543Z] START GET /api/messages
+[2026-03-04T23:35:41.575Z] START GET /api/categories
+[2026-03-04T23:35:41.661Z] START GET /api/jobs/me
+[2026-03-04T23:35:41.695Z] START GET /api/auth/me
+[2026-03-04T23:35:41.726Z] START GET /api/chats
+[2026-03-04T23:35:41.856Z] END GET /api/messages - Status: 304 (314ms) Size: unknown bytes [No User]
+[2026-03-04T23:35:42.245Z] END GET /api/auth/me - Status: 304 (550ms) Size: unknown bytes [User: 6941cfdcfd8ac2c570c363fa / alejandrosaezh@gmail.com]
+[2026-03-04T23:35:42.531Z] END GET /api/chats - Status: 304 (806ms) Size: unknown bytes [User: 6941cfdcfd8ac2c570c363fa / alejandrosaezh@gmail.com]
+[2026-03-04T23:35:43.648Z] END GET /api/jobs/me - Status: 200 (1988ms) Size: 140311 bytes [User: 6941cfdcfd8ac2c570c363fa / alejandrosaezh@gmail.com]
+[2026-03-04T23:35:47.459Z] END GET /api/categories - Status: 304 (5884ms) Size: unknown bytes [No User]
+[2026-03-04T23:35:47.513Z] START GET /api/articles
+[2026-03-04T23:35:47.652Z] END GET /api/articles - Status: 304 (139ms) Size: unknown bytes [No User]
+[2026-03-04T23:36:04.980Z] START GET /api/messages
+[2026-03-04T23:36:04.988Z] START GET /api/categories
+[2026-03-04T23:36:05.005Z] START GET /api/auth/me
+[2026-03-04T23:36:05.127Z] END GET /api/messages - Status: 304 (147ms) Size: unknown bytes [No User]
+[2026-03-04T23:36:05.166Z] START GET /api/jobs/me
+[2026-03-04T23:36:05.172Z] START GET /api/chats
+[2026-03-04T23:36:05.481Z] END GET /api/auth/me - Status: 304 (476ms) Size: unknown bytes [User: 6941cfdcfd8ac2c570c363fa / alejandrosaezh@gmail.com]
+[2026-03-04T23:36:05.890Z] END GET /api/chats - Status: 304 (718ms) Size: unknown bytes [User: 6941cfdcfd8ac2c570c363fa / alejandrosaezh@gmail.com]
+[2026-03-04T23:36:06.771Z] END GET /api/jobs/me - Status: 200 (1604ms) Size: 140311 bytes [User: 6941cfdcfd8ac2c570c363fa / alejandrosaezh@gmail.com]
+[2026-03-04T23:36:09.843Z] START GET /api/chats
+[2026-03-04T23:36:09.850Z] START GET /api/jobs/me
+[2026-03-04T23:36:10.535Z] END GET /api/chats - Status: 304 (692ms) Size: unknown bytes [User: 6941cfdcfd8ac2c570c363fa / alejandrosaezh@gmail.com]
+[2026-03-04T23:36:11.001Z] END GET /api/categories - Status: 304 (6013ms) Size: unknown bytes [No User]
+[2026-03-04T23:36:11.129Z] START GET /api/articles
+[2026-03-04T23:36:11.278Z] END GET /api/articles - Status: 304 (149ms) Size: unknown bytes [No User]
+[2026-03-04T23:36:11.544Z] END GET /api/jobs/me - Status: 200 (1694ms) Size: 140311 bytes [User: 6941cfdcfd8ac2c570c363fa / alejandrosaezh@gmail.com]
+[2026-03-04T23:36:13.924Z] START GET /api/jobs/69a83b8c6b3fd65b6501329c
+[2026-03-04T23:36:16.975Z] END GET /api/jobs/69a83b8c6b3fd65b6501329c - Status: 200 (3051ms) Size: 162633 bytes [No User]
+[2026-03-04T23:36:17.210Z] START PUT /api/jobs/69a83b8c6b3fd65b6501329c/offers/read
+[2026-03-04T23:36:21.368Z] END PUT /api/jobs/69a83b8c6b3fd65b6501329c/offers/read - Status: 200 (4158ms) Size: 43 bytes [User: 6941cfdcfd8ac2c570c363fa / alejandrosaezh@gmail.com]
