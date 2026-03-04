@@ -69,7 +69,7 @@ const ProjectTimeline = ({ job, userMode, currentUser, onConfirmStart, onAddTime
 
     // For client, isAccepted means a professional is already working on it
     const isAccepted = userMode === 'pro' ? isITheWinner : (!!job.professional || job.offers?.some(o => o.status === 'accepted'));
-    const isFinished = ['completed', 'finished', 'rated', 'TERMINADO', 'Culminada'].includes(job.status) || job.clientFinished;
+    const isFinished = ['completed', 'finished', 'rated', 'TERMINADO', 'FINALIZADA', 'Culminada'].includes(job.status) || job.clientFinished;
 
     if (isFinished) {
         currentStage = 3;
@@ -576,7 +576,7 @@ const ProjectTimeline = ({ job, userMode, currentUser, onConfirmStart, onAddTime
             {(showSection === 'all' || showSection === 'rating') && (
                 <View style={[styles.managementCard, !isFinished && { backgroundColor: '#F8FAFC', borderColor: '#E2E8F0' }]}>
                     <Text style={styles.managementTitle}>{customTitle || 'Valoración del Servicio'}</Text>
-                    {!isFinished && (
+                    {!isFinished ? (
                         <View style={{
                             position: 'absolute',
                             top: 0, left: 0, right: 0, bottom: 0,
@@ -593,14 +593,27 @@ const ProjectTimeline = ({ job, userMode, currentUser, onConfirmStart, onAddTime
                                 Esta sección se activará cuando termines un trabajo.
                             </Text>
                         </View>
+                    ) : (
+                        (userMode === 'client' && job.clientRated) || (userMode === 'pro' && job.proRated) ? (
+                            <View style={{ alignItems: 'center', padding: 20, backgroundColor: '#ECFDF5', borderRadius: 16, marginTop: 15 }}>
+                                <Feather name="check-circle" size={32} color="#10B981" />
+                                <Text style={{ color: '#065F46', fontWeight: 'bold', fontSize: 15, marginTop: 10, textAlign: 'center' }}>
+                                    ¡Gracias por tu valoración!
+                                </Text>
+                                <Text style={{ color: '#047857', fontSize: 13, marginTop: 4, textAlign: 'center' }}>
+                                    Tu opinión ayuda a mejorar la comunidad de Profesional Cercano.
+                                </Text>
+                            </View>
+                        ) : (
+                            <View style={{ marginTop: 15, pointerEvents: isFinished ? 'auto' : 'none', opacity: isFinished ? 1 : 0.4 }}>
+                                <RatingForm
+                                    onSubmit={handleRatingSubmit}
+                                    revieweeName={revieweeName}
+                                    isForPro={userMode === 'client'}
+                                />
+                            </View>
+                        )
                     )}
-                    <View style={{ marginTop: 15, pointerEvents: isFinished ? 'auto' : 'none', opacity: isFinished ? 1 : 0.4 }}>
-                        <RatingForm
-                            onSubmit={handleRatingSubmit}
-                            revieweeName={revieweeName}
-                            isForPro={userMode === 'client'}
-                        />
-                    </View>
                 </View>
             )}
 

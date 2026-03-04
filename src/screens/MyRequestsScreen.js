@@ -156,11 +156,12 @@ export default function MyRequestsScreen({ navigation, allRequests: propsAllRequ
     // 0. ELIMINADA (Canceled)
     if (request.status === 'canceled') return 'ELIMINADA';
 
-    // 1. TERMINADO (Rated, Completed or Rated by someone)
-    if (request.status === 'rated' || request.status === 'completed' || request.rating > 0 || request.proRating > 0 || request.clientRating > 0 || request.status === 'TERMINADO' || request.status === 'Culminada') return 'TERMINADO';
+    // 1. FINALIZADA (El cliente ya valoró)
+    const isClientRated = request.clientRated || request.rating > 0;
+    if (isClientRated) return 'FINALIZADA';
 
-    // 2. VALORACIÓN (Pro and Client finished, but not rated)
-    if (request.proFinished && request.clientFinished) return 'VALORACIÓN';
+    // 2. VALORACIÓN (Both sides finished, waiting for rating)
+    if (request.proFinished && request.clientFinished || request.status === 'completed' || request.status === 'rated') return 'VALORACIÓN';
 
     // 3. VALIDANDO (Pro Finished, waiting for Client)
     if (request.proFinished && !request.clientFinished) return 'VALIDANDO';
@@ -190,7 +191,7 @@ export default function MyRequestsScreen({ navigation, allRequests: propsAllRequ
     return requests.filter(req => {
       const catMatch = filterCategory === 'Todas' || (req.category?.name || 'General') === filterCategory;
       const label = getClientStatus(req);
-      const isArchived = label === 'TERMINADO' || label === 'ELIMINADA' || label === 'Cerrada';
+      const isArchived = label === 'FINALIZADA' || label === 'TERMINADO' || label === 'ELIMINADA' || label === 'Cerrada';
 
       if (showArchived) {
         if (!isArchived) return false;
@@ -209,7 +210,8 @@ export default function MyRequestsScreen({ navigation, allRequests: propsAllRequ
       case 'EN EJECUCIÓN': return { bg: '#ECFDF5', text: '#059669' }; // Strong Green
       case 'VALIDANDO': return { bg: '#FFF7ED', text: '#C2410C' }; // Orange
       case 'VALORACIÓN': return { bg: '#EEF2FF', text: '#4F46E5' }; // Indigo
-      case 'TERMINADO': return { bg: '#1F2937', text: '#F9FAFB' }; // Black
+      case 'FINALIZADA': return { bg: '#1F2937', text: '#F9FAFB' }; // Black
+      case 'TERMINADO': return { bg: '#1F2937', text: '#F9FAFB' }; // Black Legacy
       case 'RECHAZADA': return { bg: '#FEF2F2', text: '#EF4444' }; // Red
       case 'ACEPTADO': return { bg: '#F0FDF4', text: '#16A34A' }; // Green
 

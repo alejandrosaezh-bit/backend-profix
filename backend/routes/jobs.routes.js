@@ -64,10 +64,10 @@ const calculateJobStatuses = (job, userId) => {
 
     // 1. CANCELED
     if (job.status === 'canceled') clientStatus = 'ELIMINADA';
-    // 2. TERMINADO (Rated, Completed)
-    else if (job.status === 'rated' || job.status === 'completed' || job.status === 'Culminada' || job.rating > 0 || job.proRating > 0) clientStatus = 'TERMINADO';
-    // 2.5 VALORACIÓN
-    else if (job.proFinished && job.clientFinished) clientStatus = 'VALORACIÓN';
+    // 2. TERMINADO (Both Rated or explicit legacy check)
+    else if (((job.status === 'rated' || job.status === 'completed' || job.status === 'Culminada') && job.clientRated && job.proRated) || (job.rating > 0 && job.proRating > 0)) clientStatus = 'TERMINADO';
+    // 2.5 VALORACIÓN (Pending one or both ratings)
+    else if (job.proFinished && job.clientFinished || job.status === 'completed' || job.status === 'rated' || job.status === 'TERMINADO') clientStatus = 'VALORACIÓN';
     // 3. VALIDATING (Pro finished, Client pending)
     else if (job.proFinished && !job.clientFinished) clientStatus = 'VALIDANDO';
     // 4. IN PROGRESS (Started)
@@ -88,7 +88,8 @@ const calculateJobStatuses = (job, userId) => {
         (job.offers && job.offers.some(o => o.proId && (o.proId._id?.toString() === userIdStr || o.proId.toString() === userIdStr) && o.status === 'accepted'));
 
     if (amIWinner) {
-        if (job.status === 'rated' || job.status === 'completed' || job.status === 'Culminada' || job.clientFinished) proStatus = 'TERMINADO';
+        if (((job.status === 'rated' || job.status === 'completed' || job.status === 'Culminada') && job.clientRated && job.proRated) || (job.rating > 0 && job.proRating > 0)) proStatus = 'TERMINADO';
+        else if (job.proFinished && job.clientFinished || job.status === 'completed' || job.status === 'rated') proStatus = 'VALORACIÓN';
         else if (job.proFinished) proStatus = 'VALIDANDO';
         else if (job.trackingStatus === 'started') proStatus = 'EN EJECUCIÓN';
         else proStatus = 'ACEPTADO';
@@ -1473,6 +1474,7 @@ router.put('/:id/finish', protect, async (req, res) => {
                 job.validatedEndDate = job.validatedEndDate || new Date();
             }
             // TIMELINE EVENT
+            if (!job.projectHistory) job.projectHistory = [];
             job.projectHistory.push({
                 eventType: 'job_finished',
                 actor: req.user._id,
@@ -1486,6 +1488,7 @@ router.put('/:id/finish', protect, async (req, res) => {
             job.proFinished = true;
             job.validatedEndDate = new Date();
             // TIMELINE EVENT
+            if (!job.projectHistory) job.projectHistory = [];
             job.projectHistory.push({
                 eventType: 'job_finished',
                 actor: req.user._id,
@@ -1594,13 +1597,49 @@ router.post('/:id/rate-mutual', protect, async (req, res) => {
             await job.save();
         }
 
-        // Si es una reseña PARA un profesional, actualizar su rating promedio en User model
-        if (reviewee && reviewee.role === 'professional') {
-            const allReviews = await Review.find({ reviewee: revieweeId, reviewerRole: 'client' });
-            const avgRating = allReviews.reduce((acc, r) => acc + r.rating, 0) / allReviews.length;
-            reviewee.rating = avgRating;
-            reviewee.reviewsCount = allReviews.length;
-            await reviewee.save();
+        // Función helper para recalcular el rating promedio de un usuario en base a sus reseñas "completadas" (mutuas)
+        const recalculateUserRating = async (userId) => {
+            try {
+                const userObj = await User.findById(userId);
+                if (!userObj) return;
+
+                let roleFilter = userObj.role === 'professional' ? 'client' : 'pro';
+
+                const allReviewsRaw = await Review.find({ reviewee: userId, reviewerRole: roleFilter })
+                    .populate('job', 'clientRated proRated status')
+                    .lean();
+
+                const allReviews = allReviewsRaw.filter(r =>
+                    !r.job ||
+                    (r.job.clientRated && r.job.proRated) ||
+                    (r.job.status === 'TERMINADO')
+                );
+
+                if (allReviews.length > 0) {
+                    const avgRating = allReviews.reduce((acc, r) => acc + r.rating, 0) / allReviews.length;
+                    userObj.rating = avgRating;
+                    userObj.reviewsCount = allReviews.length;
+                    if (userObj.role !== 'professional') {
+                        userObj.clientRating = avgRating;
+                    }
+                } else {
+                    userObj.rating = 0;
+                    userObj.reviewsCount = 0;
+                    if (userObj.role !== 'professional') {
+                        userObj.clientRating = 0;
+                    }
+                }
+                await userObj.save();
+            } catch (e) {
+                console.error("Error al recalcular rating:", e);
+            }
+        };
+
+        if (reviewee) {
+            await recalculateUserRating(revieweeId);
+        }
+        if (reviewerId) {
+            await recalculateUserRating(reviewerId);
         }
 
         res.status(201).json(review);

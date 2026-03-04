@@ -6,7 +6,7 @@ const LOCAL_IP = '192.168.1.172'; // IMPORTANTE: Verifica tu IP con `ipconfig` e
 
 // Automatización de entorno: Detecta si estamos en modo de desarrollo (Expo Go/Dev Client) o en un build real (APK)
 const isDev = __DEV__;
-const USE_LOCAL = true;
+const USE_LOCAL = false;
 
 // Export with override to PROD for testing if local backend is not available
 export const API_URL = (isDev && USE_LOCAL)
@@ -470,6 +470,10 @@ export const api = {
             method: 'PUT',
             headers
         });
+        if (!res.ok) {
+            const errorText = await res.text();
+            throw new Error(errorText || 'Error al validar trabajo');
+        }
         return res.json();
     },
 

@@ -311,7 +311,7 @@ const JobDetailPro = ({ job: initialJob, onBack, onSendQuote, onOpenChat, proSta
                             </View>
                         )}
 
-                        <Text style={{ fontSize: 17, color: '#1F2937', lineHeight: 26, marginBottom: 24 }}>{job.description}</Text>
+                        <Text style={{ fontSize: 19, color: '#1F2937', lineHeight: 28, marginBottom: 24 }}>{job.description}</Text>
 
                         {job.images && job.images.length > 0 && (
                             <View>
@@ -544,14 +544,24 @@ const JobDetailPro = ({ job: initialJob, onBack, onSendQuote, onOpenChat, proSta
                         // --- ORDERING LOGIC ---
                         if (isFinished) {
                             return [
-                                renderTimelineSection('management'),
                                 renderTimelineSection('rating'),
+                                renderTimelineSection('management'),
                                 renderBudgets(),
                                 renderTimelineSection('timeline')
                             ];
                         }
 
-                        if (isAcceptedOrRunning) {
+                        if (['VALIDANDO', 'VALORACIÓN'].includes(proStatus)) {
+                            return [
+                                renderTimelineSection('rating'),
+                                renderTimelineSection('management'),
+                                renderChat(),
+                                renderBudgets(),
+                                renderTimelineSection('timeline')
+                            ];
+                        }
+
+                        if (['GANADA', 'ACEPTADO', 'EN EJECUCIÓN'].includes(proStatus)) {
                             return [
                                 renderTimelineSection('management'),
                                 renderChat(),

@@ -11,7 +11,6 @@ import ProjectTimeline from './ProjectTimeline';
 
 const RequestDetailClient = ({ request, onBack, onAcceptOffer, onOpenChat, onUpdateRequest, selectedBudget, setSelectedBudget, showBudgetModal, setShowBudgetModal, startWithRejectForm, setStartWithRejectForm, categories = [], onRejectOffer, onConfirmStart, onAddWorkPhoto, onFinish, onRate, onCloseRequest, currentUser, onAddTimelineEvent, onTogglePortfolio, onViewUserProfile, onViewImage }) => {
     const [isEditing, setIsEditing] = React.useState(false);
-    const [rejectionReason, setRejectionReason] = useState("");
     const [data, setData] = useState(request);
     const [showArchivedChats, setShowArchivedChats] = useState(false);
 
@@ -20,37 +19,8 @@ const RequestDetailClient = ({ request, onBack, onAcceptOffer, onOpenChat, onUpd
 
     useEffect(() => { setData(request); }, [request]);
 
-    const handleRejectOfferInternal = (proId) => {
-        // Find the specific offer to show details in the popup
-        const proOffer = (request.offers || []).find(o => (o.proId?._id || o.proId) === proId);
-        if (proOffer) {
-            setSelectedBudget({
-                ...proOffer,
-                proName: proOffer.proId?.name || proOffer.proName || 'Profesional',
-                proAvatar: proOffer.proId?.avatar || proOffer.proAvatar
-            });
-            setStartWithRejectForm(true);
-            setShowBudgetModal(true);
-        } else {
-            // Fallback for unexpected cases
-            onRejectOffer(request._id || request.id, proId, "Rechazado por el cliente");
-        }
-    };
-
     const handleConfirmStartInternal = (startedOnTime) => {
         onConfirmStart(request.id, startedOnTime);
-    };
-
-    const takeWorkPhoto = async () => {
-        let result = await ImagePicker.launchCameraAsync({
-            mediaTypes: ImagePicker.MediaTypeOptions.Images,
-            quality: 0.5,
-            base64: true,
-        });
-        if (!result.canceled) {
-            const compressedImg = await compressImage(result.assets[0].uri);
-            onAddWorkPhoto(request._id || request.id, compressedImg);
-        }
     };
 
     const handleFinishInternal = async () => {
@@ -283,45 +253,62 @@ const RequestDetailClient = ({ request, onBack, onAcceptOffer, onOpenChat, onUpd
                                 placeholder="Descripción del problema..."
                             />
                         ) : (
-                            <Text style={{ color: '#374151', fontSize: 15, lineHeight: 24 }}>{data.description}</Text>
+                            <Text style={{ color: '#374151', fontSize: 18, lineHeight: 28 }}>{data.description}</Text>
                         )}
 
                         {/* FOTOS */}
-                        <View style={{ marginTop: 20 }}>
-                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                                <Text style={{ fontSize: 12, fontWeight: 'bold', color: '#6B7280' }}>FOTOS ADJUNTAS</Text>
-                                {isEditing && (
-                                    <TouchableOpacity onPress={handleAddImage} style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                        <Feather name="plus-circle" size={16} color="#EA580C" />
-                                        <Text style={{ fontSize: 12, color: '#EA580C', marginLeft: 4, fontWeight: 'bold' }}>Agregar</Text>
-                                    </TouchableOpacity>
+                        {((data.images && data.images.length > 0) || isEditing || ['NUEVA', 'CONTACTADA', 'PRESUPUESTADA'].includes(getClientStatus(data))) && (
+                            <View style={{ marginTop: 20 }}>
+                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                        <Text style={{ fontSize: 12, fontWeight: 'bold', color: '#6B7280', marginRight: 10 }}>FOTOS ADJUNTAS</Text>
+                                        {((data.images && data.images.length > 0) || isEditing) && (
+                                            <TouchableOpacity onPress={handleAddImage} style={{ backgroundColor: '#F1F5F9', padding: 6, borderRadius: 8 }}>
+                                                <Feather name="camera" size={14} color="#64748B" />
+                                            </TouchableOpacity>
+                                        )}
+                                    </View>
+                                    {isEditing && (
+                                        <TouchableOpacity onPress={handleAddImage} style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                            <Feather name="plus-circle" size={16} color="#EA580C" />
+                                            <Text style={{ fontSize: 12, color: '#EA580C', marginLeft: 4, fontWeight: 'bold' }}>Agregar</Text>
+                                        </TouchableOpacity>
+                                    )}
+                                </View>
+
+                                {(data.images && data.images.length > 0) || isEditing ? (
+                                    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                                        {data.images && data.images.map((img, i) => (
+                                            <View key={i} style={{ position: 'relative', marginRight: 10 }}>
+                                                <TouchableOpacity onPress={() => onViewImage(img)}>
+                                                    <Image source={{ uri: img }} style={{ width: 100, height: 100, borderRadius: 12, borderWidth: 1, borderColor: '#E5E7EB' }} />
+                                                </TouchableOpacity>
+                                                {isEditing && (
+                                                    <TouchableOpacity
+                                                        style={{ position: 'absolute', top: -8, right: -8, backgroundColor: 'white', borderRadius: 12, width: 24, height: 24, alignItems: 'center', justifyContent: 'center', elevation: 2 }}
+                                                        onPress={() => {
+                                                            const newImages = [...data.images];
+                                                            newImages.splice(i, 1);
+                                                            setData({ ...data, images: newImages });
+                                                        }}
+                                                    >
+                                                        <Feather name="x" size={14} color="#EF4444" />
+                                                    </TouchableOpacity>
+                                                )}
+                                            </View>
+                                        ))}
+                                    </ScrollView>
+                                ) : (
+                                    <View style={{ alignItems: 'center', backgroundColor: '#F8FAFC', padding: 20, borderRadius: 16, borderWidth: 1, borderColor: '#E2E8F0', borderStyle: 'dashed' }}>
+                                        <Text style={{ fontSize: 13, color: '#64748B', textAlign: 'center', marginBottom: 15, paddingHorizontal: 10 }}>Sube fotos e imágenes para recibir presupuestos más precisos.</Text>
+                                        <TouchableOpacity onPress={handleAddImage} style={{ backgroundColor: 'white', paddingVertical: 10, paddingHorizontal: 20, borderRadius: 20, borderWidth: 1, borderColor: '#E2E8F0', flexDirection: 'row', alignItems: 'center', elevation: 2 }}>
+                                            <Feather name="camera" size={16} color="#EA580C" style={{ marginRight: 8 }} />
+                                            <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#1E293B' }}>Agregar Imágenes</Text>
+                                        </TouchableOpacity>
+                                    </View>
                                 )}
                             </View>
-
-                            {(data.images && data.images.length > 0) || isEditing ? (
-                                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                                    {data.images && data.images.map((img, i) => (
-                                        <View key={i} style={{ position: 'relative', marginRight: 10 }}>
-                                            <TouchableOpacity onPress={() => onViewImage(img)}>
-                                                <Image source={{ uri: img }} style={{ width: 100, height: 100, borderRadius: 12, borderWidth: 1, borderColor: '#E5E7EB' }} />
-                                            </TouchableOpacity>
-                                            {isEditing && (
-                                                <TouchableOpacity
-                                                    style={{ position: 'absolute', top: -8, right: -8, backgroundColor: 'white', borderRadius: 12, width: 24, height: 24, alignItems: 'center', justifyContent: 'center', elevation: 2 }}
-                                                    onPress={() => {
-                                                        const newImages = [...data.images];
-                                                        newImages.splice(i, 1);
-                                                        setData({ ...data, images: newImages });
-                                                    }}
-                                                >
-                                                    <Feather name="x" size={14} color="#EF4444" />
-                                                </TouchableOpacity>
-                                            )}
-                                        </View>
-                                    ))}
-                                </ScrollView>
-                            ) : null}
-                        </View>
+                        )}
                     </View>
                 </View>
 
@@ -374,8 +361,8 @@ const RequestDetailClient = ({ request, onBack, onAcceptOffer, onOpenChat, onUpd
                     );
 
                     const ChatsSection = (
-                        <View style={{ paddingHorizontal: 0, marginBottom: 20 }}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, paddingHorizontal: 20 }}>
+                        <View style={{ backgroundColor: 'white', borderRadius: 24, padding: 20, marginBottom: 25, borderWidth: 1, borderColor: '#F1F5F9', elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 10 }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 15 }}>
                                 <Text style={{ fontSize: 18, fontWeight: '900', color: '#1E2937' }}>Mensajes</Text>
                                 <View style={{ backgroundColor: '#EFF6FF', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 }}>
                                     <Text style={{ color: '#2563EB', fontWeight: 'bold', fontSize: 12 }}>
@@ -424,13 +411,54 @@ const RequestDetailClient = ({ request, onBack, onAcceptOffer, onOpenChat, onUpd
 
                                 return (
                                     <View style={{ paddingHorizontal: 0 }}>
-                                        {prosToRender.map((pro, index) => {
+                                        {prosToRender.length === 0 ? (
+                                            <View style={{ backgroundColor: '#F8FAFC', borderRadius: 16, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: '#E2E8F0', opacity: 0.6, overflow: 'hidden' }}>
+                                                {/* MODAL LOCK OVERLAY */}
+                                                <View style={{
+                                                    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+                                                    backgroundColor: 'rgba(248, 250, 252, 0.4)',
+                                                    zIndex: 100, justifyContent: 'center', alignItems: 'center', borderRadius: 24
+                                                }}>
+                                                    <View style={{ backgroundColor: 'white', padding: 12, borderRadius: 50, elevation: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4 }}>
+                                                        <Feather name="lock" size={20} color="#94A3B8" />
+                                                    </View>
+                                                    <Text style={{ color: '#64748B', fontWeight: 'bold', fontSize: 13, marginTop: 12, textAlign: 'center', paddingHorizontal: 20 }}>
+                                                        Aún no tienes mensajes.{'\n'}Los profesionales te contactarán pronto.
+                                                    </Text>
+                                                </View>
+
+                                                {/* PRO HEADER MOCK */}
+                                                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 15 }}>
+                                                    <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: '#E2E8F0', justifyContent: 'center', alignItems: 'center', marginRight: 10 }}>
+                                                        <Feather name="user" size={20} color="#94A3B8" />
+                                                    </View>
+                                                    <View>
+                                                        <Text style={{ fontWeight: 'bold', color: '#94A3B8' }}>Ej. Un Profesional</Text>
+                                                        <Text style={{ fontSize: 12, color: '#CBD5E1' }}>⭐ 5.0</Text>
+                                                    </View>
+                                                </View>
+
+                                                {/* MESSAGES MOCK */}
+                                                <View style={{ marginBottom: 10 }}>
+                                                    <View style={{ backgroundColor: '#F1F5F9', padding: 8, borderRadius: 12, marginBottom: 4, alignSelf: 'flex-start', maxWidth: '85%' }}>
+                                                        <Text style={{ fontSize: 12, color: '#94A3B8' }}>Hola, revisé tu solicitud.</Text>
+                                                    </View>
+                                                    <View style={{ backgroundColor: '#FFF7ED', padding: 8, borderRadius: 12, marginBottom: 4, alignSelf: 'flex-end', maxWidth: '85%' }}>
+                                                        <Text style={{ fontSize: 12, color: '#94A3B8' }}>Perfecto, espero el presupuesto.</Text>
+                                                    </View>
+
+                                                    <View style={{ backgroundColor: '#F1F5F9', paddingVertical: 12, borderRadius: 14, alignItems: 'center', borderWidth: 1.5, borderColor: '#CBD5E1', marginTop: 6 }}>
+                                                        <Text style={{ color: '#94A3B8', fontWeight: 'bold' }}>Preguntar</Text>
+                                                    </View>
+                                                </View>
+                                            </View>
+                                        ) : prosToRender.map((pro, index) => {
                                             const messages = pro.chat?.messages || [];
                                             const lastThree = messages.slice(-3);
                                             const isLastFromPro = lastThree.length > 0 && lastThree[lastThree.length - 1].sender === 'pro';
 
                                             return (
-                                                <View key={`chat-${index}`} style={{ backgroundColor: 'white', borderRadius: 24, padding: 16, marginBottom: 16, elevation: 4, shadowColor: '#000', shadowOpacity: 0.1, borderWidth: 1, borderColor: '#F1F5F9' }}>
+                                                <View key={`chat-${index}`} style={{ marginBottom: index === prosToRender.length - 1 ? 0 : 25 }}>
                                                     {/* PRO HEADER */}
                                                     <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 15 }} onPress={() => onViewUserProfile && onViewUserProfile(pro)}>
                                                         <Image source={{ uri: pro.avatar }} style={{ width: 44, height: 44, borderRadius: 22, marginRight: 10 }} />
@@ -468,8 +496,8 @@ const RequestDetailClient = ({ request, onBack, onAcceptOffer, onOpenChat, onUpd
                     );
 
                     const BudgetSection = (
-                        <View style={{ paddingHorizontal: 0, marginBottom: 20 }}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, paddingHorizontal: 20 }}>
+                        <View style={{ backgroundColor: 'white', borderRadius: 24, padding: 20, marginBottom: 25, borderWidth: 1, borderColor: '#F1F5F9', elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 10 }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 15 }}>
                                 <Text style={{ fontSize: 18, fontWeight: '900', color: '#1E2937' }}>Presupuesto</Text>
                             </View>
 
@@ -509,30 +537,25 @@ const RequestDetailClient = ({ request, onBack, onAcceptOffer, onOpenChat, onUpd
                                             const isWinner = pro.offer?.status === 'accepted';
                                             return (
                                                 <View key={`budget-${index}`} style={{
-                                                    backgroundColor: 'white', borderRadius: 24, padding: 16, marginBottom: 16, elevation: 4, shadowColor: '#000', shadowOpacity: 0.1, borderWidth: 1, borderColor: '#F1F5F9'
+                                                    backgroundColor: '#F0F9FF',
+                                                    padding: 16, borderRadius: 20,
+                                                    borderWidth: 1, borderColor: '#BAE6FD',
+                                                    marginBottom: index === prosWithOffers.length - 1 ? 0 : 20
                                                 }}>
-
-                                                    <View style={{
-                                                        backgroundColor: '#F0F9FF',
-                                                        padding: 16, borderRadius: 20,
-                                                        borderWidth: 1, borderColor: '#BAE6FD',
-                                                        elevation: 0
-                                                    }}>
-                                                        <Text style={{ fontWeight: 'bold', color: isWinner ? '#059669' : '#1E3A8A', fontSize: 11, textAlign: 'center', marginBottom: 8 }}>
-                                                            {isWinner ? '✅ PRESUPUESTO ACEPTADO' : 'PRESUPUESTO RECIBIDO'}
-                                                        </Text>
-                                                        <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                                                            <View><Text style={{ fontSize: 9, color: '#64748B' }}>MONTO</Text><Text style={{ fontWeight: 'bold', fontSize: 13 }}>{pro.offer.currency || '$'}{pro.offer.amount}</Text></View>
-                                                            <View><Text style={{ fontSize: 9, color: '#64748B' }}>INICIO</Text><Text style={{ fontWeight: '600', fontSize: 12 }}>{pro.offer.startDate || 'Pronto'}</Text></View>
-                                                            <View><Text style={{ fontSize: 9, color: '#64748B' }}>PLAZO</Text><Text style={{ fontWeight: '600', fontSize: 12 }}>{pro.offer.duration}</Text></View>
-                                                        </View>
-                                                        <TouchableOpacity
-                                                            style={{ marginTop: 12, backgroundColor: '#10B981', height: 40, borderRadius: 10, justifyContent: 'center', alignItems: 'center' }}
-                                                            onPress={() => { setSelectedBudget(pro.offer); setShowBudgetModal(true); }}
-                                                        >
-                                                            <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 14 }}>VER PRESUPUESTO</Text>
-                                                        </TouchableOpacity>
+                                                    <Text style={{ fontWeight: 'bold', color: isWinner ? '#059669' : '#1E3A8A', fontSize: 11, textAlign: 'center', marginBottom: 8 }}>
+                                                        {isWinner ? '✅ PRESUPUESTO ACEPTADO' : 'PRESUPUESTO RECIBIDO'}
+                                                    </Text>
+                                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                                                        <View><Text style={{ fontSize: 9, color: '#64748B' }}>MONTO</Text><Text style={{ fontWeight: 'bold', fontSize: 13 }}>{pro.offer.currency || '$'}{pro.offer.amount}</Text></View>
+                                                        <View><Text style={{ fontSize: 9, color: '#64748B' }}>INICIO</Text><Text style={{ fontWeight: '600', fontSize: 12 }}>{pro.offer.startDate || 'Pronto'}</Text></View>
+                                                        <View><Text style={{ fontSize: 9, color: '#64748B' }}>PLAZO</Text><Text style={{ fontWeight: '600', fontSize: 12 }}>{pro.offer.duration}</Text></View>
                                                     </View>
+                                                    <TouchableOpacity
+                                                        style={{ marginTop: 12, backgroundColor: '#10B981', height: 40, borderRadius: 10, justifyContent: 'center', alignItems: 'center' }}
+                                                        onPress={() => { setSelectedBudget(pro.offer); setShowBudgetModal(true); }}
+                                                    >
+                                                        <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 14 }}>VER PRESUPUESTO</Text>
+                                                    </TouchableOpacity>
                                                 </View>
                                             );
                                         })}
@@ -568,7 +591,7 @@ const RequestDetailClient = ({ request, onBack, onAcceptOffer, onOpenChat, onUpd
                         return <>{ValidationSection}{ManagementSection}{ChatsSection}{BudgetSection}{RatingSection}{TimelineSection}</>;
                     } else if (status === 'VALORACIÓN') {
                         return <>{RatingSection}{ManagementSection}{ChatsSection}{BudgetSection}{TimelineSection}</>;
-                    } else if (status === 'TERMINADO') {
+                    } else if (status === 'FINALIZADA') {
                         return <>{RatingSection}{ManagementSection}{ChatsSection}{BudgetSection}{TimelineSection}</>;
                     } else {
                         return <>{ManagementSection}{ChatsSection}{BudgetSection}{RatingSection}{TimelineSection}</>;

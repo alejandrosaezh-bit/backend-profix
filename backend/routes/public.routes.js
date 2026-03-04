@@ -41,11 +41,20 @@ router.get('/businesses', async (req, res) => {
 // 4. Obtener reviews de un usuario (Genérico, usado por Perfiles)
 router.get('/users/:id/reviews', async (req, res) => {
     try {
-        // Para clientes, buscar reseñas donde el profesional los evaluó ('pro')
-        const reviews = await Review.find({ reviewee: req.params.id, reviewerRole: 'pro' })
+        const allReviews = await Review.find({ reviewee: req.params.id, reviewerRole: 'pro' })
             .populate('reviewer', 'name avatar') // Populate básico del autor
-            .sort({ createdAt: -1 });
-        res.json(reviews);
+            .populate('job', 'clientRated proRated status') // Traer datos del trabajo
+            .sort({ createdAt: -1 })
+            .lean();
+
+        // Solo mostrar reseñas si AMBAS partes han valorado
+        const visibleReviews = allReviews.filter(r =>
+            !r.job || // Si por alguna razón no hay trabajo (legacy), dejar pasar? o bloquear? mejor dejar pasar para no romper legacy
+            (r.job.clientRated && r.job.proRated) ||
+            (r.job.status === 'TERMINADO')
+        );
+
+        res.json(visibleReviews);
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -54,11 +63,20 @@ router.get('/users/:id/reviews', async (req, res) => {
 // 5. Obtener reviews de un profesional (Alias para compatibilidad)
 router.get('/professionals/:id/reviews', async (req, res) => {
     try {
-        // Para profesionales, buscar reseñas donde el cliente los evaluó ('client')
-        const reviews = await Review.find({ reviewee: req.params.id, reviewerRole: 'client' })
+        const allReviews = await Review.find({ reviewee: req.params.id, reviewerRole: 'client' })
             .populate('reviewer', 'name avatar')
-            .sort({ createdAt: -1 });
-        res.json(reviews);
+            .populate('job', 'clientRated proRated status')
+            .sort({ createdAt: -1 })
+            .lean();
+
+        // Solo mostrar reseñas si AMBAS partes han valorado
+        const visibleReviews = allReviews.filter(r =>
+            !r.job ||
+            (r.job.clientRated && r.job.proRated) ||
+            (r.job.status === 'TERMINADO')
+        );
+
+        res.json(visibleReviews);
     } catch (error) {
         res.status(500).json({ message: error.message });
     }

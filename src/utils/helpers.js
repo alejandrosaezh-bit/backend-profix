@@ -46,12 +46,12 @@ export const getClientStatus = (request) => {
     // PRIORITY ORDER: TERMINADO > VALORACIÓN > VALIDANDO > EN EJECUCIÓN > PRESUPUESTADA > CONTACTADA > ABIERTA > NUEVA
     if (request.status === 'canceled' || request.status === 'Cerrada') return 'ELIMINADA';
 
-    // 1. TERMINADO (Any rating exists or explicitly completed/rated)
-    const isRated = !!(request.status === 'rated' || request.status === 'TERMINADO' || request.status === 'completed' || request.status === 'Culminada' || request.clientRated || request.proRated || request.rating > 0 || request.proRating > 0);
-    if (isRated) return 'TERMINADO';
+    // 1. FINALIZADA (El cliente ya valoró)
+    const isClientRated = request.clientRated || request.rating > 0;
+    if (isClientRated) return 'FINALIZADA';
 
-    // 2. VALORACIÓN (Both sides finished, waiting for rating)
-    if (request.proFinished && request.clientFinished) return 'VALORACIÓN';
+    // 2. VALORACIÓN (Both sides finished, waiting for both ratings)
+    if (request.proFinished && request.clientFinished || request.status === 'completed' || request.status === 'rated') return 'VALORACIÓN';
 
     // 3. VALIDANDO (Pro finished, Client hasn't confirmed)
     if (request.proFinished && !request.clientFinished) return 'VALIDANDO';
@@ -86,6 +86,7 @@ export const getClientStatusColor = (status) => {
         case 'EN EJECUCIÓN': return { bg: '#059669', text: 'white' };
         case 'VALIDANDO': return { bg: '#F97316', text: 'white' };
         case 'VALORACIÓN': return { bg: '#8B5CF6', text: 'white' };
+        case 'FINALIZADA': return { bg: '#1F2937', text: 'white' };
         case 'TERMINADO': return { bg: '#1F2937', text: 'white' };
         case 'ELIMINADA': return { bg: '#EF4444', text: 'white' };
         default: return { bg: '#6B7280', text: 'white' };
@@ -127,11 +128,11 @@ export const getProStatus = (job, myId) => {
 
     if (someoneElseWon) return 'PERDIDA';
 
-    if (job.status === 'rated' || job.status === 'completed' || job.status === 'Culminada' || job.status === 'TERMINADO') {
+    if (job.status === 'rated' || job.status === 'completed' || job.status === 'Culminada' || job.status === 'TERMINADO' || job.status === 'FINALIZADA' || (job.proFinished && job.clientFinished)) {
         if (!isWinner) return 'PERDIDA';
-        if (job.status === 'rated' || job.status === 'TERMINADO' || job.proRated || job.clientRated || job.proRating > 0 || job.rating > 0) return 'TERMINADO';
-        if (job.proFinished && job.clientFinished) return 'VALORACIÓN';
-        return 'VALIDANDO';
+        const isProRated = job.proRated || job.proRating > 0;
+        if (isProRated) return 'FINALIZADA';
+        return 'VALORACIÓN';
     }
 
     if (job.status === 'in_progress' || job.status === 'started' || job.status === 'En Ejecución') {

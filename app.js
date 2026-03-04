@@ -53,7 +53,9 @@ LogBox.ignoreLogs([
     'expo-notifications:',
     'props.pointerEvents is deprecated',
     'props.pointerEvents is deprecated. Use style.pointerEvents',
-    'Animated: `useNativeDriver` is not supported'
+    'Animated: `useNativeDriver` is not supported',
+    '"shadow*" style props are deprecated',
+    'Image: style.resizeMode is deprecated'
 ]);
 
 // Fallback para Web: interceptar console.warn para mensajes persistentes de librerías
@@ -63,7 +65,9 @@ if (Platform.OS === 'web') {
         if (typeof args[0] === 'string' && (
             args[0].includes('props.pointerEvents') ||
             args[0].includes('expo-notifications') ||
-            args[0].includes('useNativeDriver')
+            args[0].includes('useNativeDriver') ||
+            args[0].includes('shadow') ||
+            args[0].includes('resizeMode')
         )) {
             return;
         }
@@ -566,8 +570,9 @@ function MainApp() {
             if (selectedRequest && (selectedRequest.id === jobId || selectedRequest._id === jobId)) {
                 try {
                     const res = await api.getJob(jobId);
-                    const freshData = res.data || res;
+                    const freshData = mapJobData(res.data || res);
                     setSelectedRequest(freshData);
+                    setAllRequests(prev => prev.map(r => (r._id || r.id) === jobId ? freshData : r));
                 } catch (refreshErr) {
                     console.warn("Could not refresh after rejection:", refreshErr);
                 }
@@ -676,14 +681,16 @@ function MainApp() {
             const res = await api.rateMutual(jobId, { ...reviewData, revieweeId });
             showAlert("¡Gracias!", "Tu valoración ha sido enviada.");
 
-            // Refresh full list and especially the selected request
-            const updatedRequests = await loadRequests();
+            // FETCH PORTFOLIO-GRADE JOB DATA TO PREVENT DISAPPEARING AVATARS
+            const deepJob = await api.getJob(jobId);
+            const mappedJob = mapJobData(deepJob);
 
-            // Sync local selection state selecting the updated job from the mapped list
-            const updatedJob = (updatedRequests || []).find(r => r._id === jobId || r.id === jobId);
-            if (updatedJob) {
-                setSelectedRequest(updatedJob);
+            if (selectedRequest && areIdsEqual(selectedRequest.id || selectedRequest._id, jobId)) {
+                setSelectedRequest(mappedJob);
             }
+
+            // Refresh list in background
+            loadRequests();
         } catch (e) {
             showAlert("Error", e.message);
         }
@@ -745,6 +752,8 @@ function MainApp() {
             workPhotos: data.workPhotos || [],
             clientFinished: data.clientFinished,
             proFinished: data.proFinished,
+            clientRated: data.clientRated,
+            proRated: data.proRated,
             projectHistory: data.projectHistory || [],
             clientManagement: data.clientManagement || {},
             conversations: data.conversations || [],
@@ -1059,8 +1068,10 @@ function MainApp() {
         if (!selectedRequest) return;
         try {
             const jobId = selectedRequest.id || selectedRequest._id;
-            const res = await api.confirmStart(jobId, true);
-            const mapped = mapJobData(res);
+            await api.confirmStart(jobId, true);
+
+            const deepJob = await api.getJob(jobId);
+            const mapped = mapJobData(deepJob);
 
             // Update local state
             setAllRequests(prev => prev.map(r => (r._id || r.id) === jobId ? mapped : r));
@@ -1079,11 +1090,11 @@ function MainApp() {
 
         try {
             // Call PUT /:id/finish
-            const res = await api.finishJobByStatus(jId);
+            await api.finishJobByStatus(jId);
 
-            // Update local state
-            const updatedJobRaw = res.data || res;
-            const mapped = mapJobData(updatedJobRaw);
+            // Fetch populated job to prevent disappearing UI details
+            const deepJob = await api.getJob(jId);
+            const mapped = mapJobData(deepJob);
 
             setAllRequests(prev => prev.map(r => (r._id || r.id) === jId ? mapped : r));
             if (selectedRequest && areIdsEqual(selectedRequest.id || selectedRequest._id, jId)) {
@@ -1136,15 +1147,17 @@ function MainApp() {
                     isPrivate: eventData.isPrivate || false
                 };
 
-                const res = await api.addTimelineEvent(jobId, newEvent);
-                const mapped = mapJobData(res);
+                await api.addTimelineEvent(jobId, newEvent);
+                const deepJob = await api.getJob(jobId);
+                const mapped = mapJobData(deepJob);
                 setSelectedRequest(mapped);
                 setAllRequests(prev => prev.map(r => (r._id || r.id) === jobId ? mapped : r));
                 return;
             }
 
-            const res = await api.addTimelineEvent(jobId, eventData);
-            const mapped = mapJobData(res);
+            await api.addTimelineEvent(jobId, eventData);
+            const deepJob = await api.getJob(jobId);
+            const mapped = mapJobData(deepJob);
             setSelectedRequest(mapped);
             setAllRequests(prev => prev.map(r => (r._id || r.id) === jobId ? mapped : r));
         } catch (error) {
@@ -1331,7 +1344,16 @@ function MainApp() {
             if (confirmed) {
                 await api.confirmStart(jobId);
                 showAlert("Confirmado", "Has confirmado el inicio del trabajo. El tiempo comienza a correr.");
-                loadRequests();
+
+                const deepJob = await api.getJob(jobId);
+                const mapped = mapJobData(deepJob);
+
+                setAllRequests(prev => prev.map(r => (r._id || r.id) === jobId ? mapped : r));
+                if (selectedRequest && areIdsEqual(selectedRequest.id || selectedRequest._id, jobId)) {
+                    setSelectedRequest(mapped);
+                }
+
+                loadRequests(); // run in background
             }
         } catch (e) {
             showAlert("Error", e.message);
@@ -1425,7 +1447,7 @@ function MainApp() {
         return (
             <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F8F9FA' }}>
                 {/* Mascot Image Active */}
-                <Image source={require('./assets/mascot.png')} style={{ width: 250, height: 250, resizeMode: 'contain', marginBottom: 20 }} />
+                <Image source={require('./assets/mascot.png')} style={{ width: 250, height: 250, marginBottom: 20 }} resizeMode="contain" />
 
                 <Animated.View style={{ transform: [{ rotate: spin }] }}>
                     <View style={{ width: 80, height: 80, justifyContent: 'center', alignItems: 'center' }}>
@@ -1665,10 +1687,15 @@ function MainApp() {
                         onUpdateRequest={async (updated) => {
                             const newReqs = allRequests.map(r => r.id === updated.id ? updated : r);
                             setAllRequests(newReqs);
-                            // Force refresh detail view
-                            const updatedRequests = await loadRequests();
-                            const updatedSelected = (updatedRequests || []).find(r => (r._id === updated.id || r.id === updated.id));
-                            if (updatedSelected) setSelectedRequest(updatedSelected);
+                            // Force refresh detail view with populated data
+                            loadRequests(); // non-blocking cache update
+                            try {
+                                const deepJob = await api.getJob(updated.id);
+                                const mappedJob = mapJobData(deepJob);
+                                setSelectedRequest(mappedJob);
+                            } catch (e) {
+                                console.warn("Error refreshing job data after update:", e);
+                            }
                         }}
                         onCloseRequest={() => setShowCloseModal(true)}
                         currentUser={currentUser}
