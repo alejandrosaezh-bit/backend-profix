@@ -2366,3 +2366,83 @@
 [2026-03-04T23:36:11.539Z] Job 69a83a9b6b3fd65b6501323b evaluated: convs=0, interactions={"viewed":0,"contacted":0,"offered":0,"total":0}, finalClientStatus=NUEVA
 [2026-03-04T23:36:11.540Z] Job 69a83a5d6b3fd65b6501321b evaluated: convs=1, interactions={"viewed":0,"contacted":0,"offered":0,"total":1}, finalClientStatus=VALIDANDO
 [2026-03-04T23:36:11.540Z] Job 69a83a2b6b3fd65b65013209 evaluated: convs=0, interactions={"viewed":1,"contacted":0,"offered":0,"total":1}, finalClientStatus=NUEVA
+[2026-03-05T00:24:20.861Z] Job 69a83b8c6b3fd65b6501329c has 1 chats in chatsByJobId
+[2026-03-05T00:24:20.864Z] Job 69a83b586b3fd65b6501328a has 1 chats in chatsByJobId
+[2026-03-05T00:24:20.866Z] Job 69a83b2d6b3fd65b65013278 has 1 chats in chatsByJobId
+[2026-03-05T00:24:20.868Z] Job 69a83b016b3fd65b65013266 has 0 chats in chatsByJobId
+[2026-03-05T00:24:20.869Z] Job 69a83acc6b3fd65b6501324d has 0 chats in chatsByJobId
+[2026-03-05T00:24:20.871Z] Job 69a83a9b6b3fd65b6501323b has 0 chats in chatsByJobId
+[2026-03-05T00:24:20.872Z] Job 69a83a5d6b3fd65b6501321b has 1 chats in chatsByJobId
+[2026-03-05T00:24:20.873Z] Job 69a83a2b6b3fd65b65013209 has 0 chats in chatsByJobId
+[2026-03-05T00:24:20.874Z] Job 69a83b8c6b3fd65b6501329c evaluated: convs=1, interactions={"viewed":0,"contacted":1,"offered":0,"total":1}, finalClientStatus=CONTACTADA
+[2026-03-05T00:24:20.878Z] Job 69a83b586b3fd65b6501328a evaluated: convs=1, interactions={"viewed":0,"contacted":0,"offered":1,"total":1}, finalClientStatus=PRESUPUESTADA
+[2026-03-05T00:24:20.879Z] Job 69a83b2d6b3fd65b65013278 evaluated: convs=1, interactions={"viewed":0,"contacted":0,"offered":0,"total":1}, finalClientStatus=ACEPTADO
+[2026-03-05T00:24:20.880Z] Job 69a83b016b3fd65b65013266 evaluated: convs=0, interactions={"viewed":0,"contacted":0,"offered":0,"total":0}, finalClientStatus=NUEVA
+[2026-03-05T00:24:20.881Z] Job 69a83acc6b3fd65b6501324d evaluated: convs=0, interactions={"viewed":0,"contacted":0,"offered":0,"total":0}, finalClientStatus=NUEVA
+[2026-03-05T00:24:20.882Z] Job 69a83a9b6b3fd65b6501323b evaluated: convs=0, interactions={"viewed":0,"contacted":0,"offered":0,"total":0}, finalClientStatus=NUEVA
+[2026-03-05T00:24:20.882Z] Job 69a83a5d6b3fd65b6501321b evaluated: convs=1, interactions={"viewed":0,"contacted":0,"offered":0,"total":1}, finalClientStatus=VALIDANDO
+[2026-03-05T00:24:20.883Z] Job 69a83a2b6b3fd65b65013209 evaluated: convs=0, interactions={"viewed":1,"contacted":0,"offered":0,"total":1}, finalClientStatus=NUEVA
+[2026-03-05T00:24:29.177Z] Job 69a83b8c6b3fd65b6501329c has 1 chats in chatsByJobId
+[2026-03-05T00:24:29.179Z] Job 69a83b586b3fd65b6501328a has 1 chats in chatsByJobId
+[2026-03-05T00:24:29.181Z] Job 69a83b2d6b3fd65b65013278 has 1 chats in chatsByJobId
+[2026-03-05T00:24:29.181Z] Job 69a83b016b3fd65b65013266 has 0 chats in chatsByJobId
+[2026-03-05T00:24:29.182Z] Job 69a83acc6b3fd65b6501324d has 0 chats in chatsByJobId
+[2026-03-05T00:24:29.183Z] Job 69a83a9b6b3fd65b6501323b has 0 chats in chatsByJobId
+[2026-03-05T00:24:29.184Z] Job 69a83a5d6b3fd65b6501321b has 1 chats in chatsByJobId
+[2026-03-05T00:24:29.184Z] Job 69a83a2b6b3fd65b65013209 has 0 chats in chatsByJobId
+[2026-03-05T00:24:29.185Z] Job 69a83b8c6b3fd65b6501329c evaluated: convs=1, interactions={"viewed":0,"contacted":1,"offered":0,"total":1}, finalClientStatus=CONTACTADA
+[2026-03-05T00:24:29.186Z] Job 69a83b586b3fd65b6501328a evaluated: convs=1, interactions={"viewed":0,"contacted":0,"offered":1,"total":1}, finalClientStatus=PRESUPUESTADA
+[2026-03-05T00:24:29.187Z] Job 69a83b2d6b3fd65b65013278 evaluated: convs=1, interactions={"viewed":0,"contacted":0,"offered":0,"total":1}, finalClientStatus=ACEPTADO
+[2026-03-05T00:24:29.187Z] Job 69a83b016b3fd65b65013266 evaluated: convs=0, interactions={"viewed":0,"contacted":0,"offered":0,"total":0}, finalClientStatus=NUEVA
+[2026-03-05T00:24:29.188Z] Job 69a83acc6b3fd65b6501324d evaluated: convs=0, interactions={"viewed":0,"contacted":0,"offered":0,"total":0}, finalClientStatus=NUEVA
+[2026-03-05T00:24:29.190Z] Job 69a83a9b6b3fd65b6501323b evaluated: convs=0, interactions={"viewed":0,"contacted":0,"offered":0,"total":0}, finalClientStatus=NUEVA
+[2026-03-05T00:24:29.191Z] Job 69a83a5d6b3fd65b6501321b evaluated: convs=1, interactions={"viewed":0,"contacted":0,"offered":0,"total":1}, finalClientStatus=VALIDANDO
+[2026-03-05T00:24:29.192Z] Job 69a83a2b6b3fd65b65013209 evaluated: convs=0, interactions={"viewed":1,"contacted":0,"offered":0,"total":1}, finalClientStatus=NUEVA
+[2026-03-05T00:24:33.023Z] Job 69a83b8c6b3fd65b6501329c has 1 chats in chatsByJobId
+[2026-03-05T00:24:33.025Z] Job 69a83b586b3fd65b6501328a has 1 chats in chatsByJobId
+[2026-03-05T00:24:33.027Z] Job 69a83b2d6b3fd65b65013278 has 1 chats in chatsByJobId
+[2026-03-05T00:24:33.028Z] Job 69a83b016b3fd65b65013266 has 0 chats in chatsByJobId
+[2026-03-05T00:24:33.029Z] Job 69a83acc6b3fd65b6501324d has 0 chats in chatsByJobId
+[2026-03-05T00:24:33.032Z] Job 69a83a9b6b3fd65b6501323b has 0 chats in chatsByJobId
+[2026-03-05T00:24:33.033Z] Job 69a83a5d6b3fd65b6501321b has 1 chats in chatsByJobId
+[2026-03-05T00:24:33.034Z] Job 69a83a2b6b3fd65b65013209 has 0 chats in chatsByJobId
+[2026-03-05T00:24:33.035Z] Job 69a83b8c6b3fd65b6501329c evaluated: convs=1, interactions={"viewed":0,"contacted":1,"offered":0,"total":1}, finalClientStatus=CONTACTADA
+[2026-03-05T00:24:33.036Z] Job 69a83b586b3fd65b6501328a evaluated: convs=1, interactions={"viewed":0,"contacted":0,"offered":1,"total":1}, finalClientStatus=PRESUPUESTADA
+[2026-03-05T00:24:33.037Z] Job 69a83b2d6b3fd65b65013278 evaluated: convs=1, interactions={"viewed":0,"contacted":0,"offered":0,"total":1}, finalClientStatus=ACEPTADO
+[2026-03-05T00:24:33.038Z] Job 69a83b016b3fd65b65013266 evaluated: convs=0, interactions={"viewed":0,"contacted":0,"offered":0,"total":0}, finalClientStatus=NUEVA
+[2026-03-05T00:24:33.039Z] Job 69a83acc6b3fd65b6501324d evaluated: convs=0, interactions={"viewed":0,"contacted":0,"offered":0,"total":0}, finalClientStatus=NUEVA
+[2026-03-05T00:24:33.040Z] Job 69a83a9b6b3fd65b6501323b evaluated: convs=0, interactions={"viewed":0,"contacted":0,"offered":0,"total":0}, finalClientStatus=NUEVA
+[2026-03-05T00:24:33.041Z] Job 69a83a5d6b3fd65b6501321b evaluated: convs=1, interactions={"viewed":0,"contacted":0,"offered":0,"total":1}, finalClientStatus=VALIDANDO
+[2026-03-05T00:24:33.042Z] Job 69a83a2b6b3fd65b65013209 evaluated: convs=0, interactions={"viewed":1,"contacted":0,"offered":0,"total":1}, finalClientStatus=NUEVA
+[2026-03-05T00:24:43.975Z] Job 69a83b8c6b3fd65b6501329c has 1 chats in chatsByJobId
+[2026-03-05T00:24:43.977Z] Job 69a83b586b3fd65b6501328a has 1 chats in chatsByJobId
+[2026-03-05T00:24:43.978Z] Job 69a83b2d6b3fd65b65013278 has 1 chats in chatsByJobId
+[2026-03-05T00:24:43.980Z] Job 69a83b016b3fd65b65013266 has 0 chats in chatsByJobId
+[2026-03-05T00:24:43.981Z] Job 69a83acc6b3fd65b6501324d has 0 chats in chatsByJobId
+[2026-03-05T00:24:43.982Z] Job 69a83a9b6b3fd65b6501323b has 0 chats in chatsByJobId
+[2026-03-05T00:24:43.983Z] Job 69a83a5d6b3fd65b6501321b has 1 chats in chatsByJobId
+[2026-03-05T00:24:43.984Z] Job 69a83a2b6b3fd65b65013209 has 0 chats in chatsByJobId
+[2026-03-05T00:24:43.985Z] Job 69a83b8c6b3fd65b6501329c evaluated: convs=1, interactions={"viewed":0,"contacted":1,"offered":0,"total":1}, finalClientStatus=CONTACTADA
+[2026-03-05T00:24:43.986Z] Job 69a83b586b3fd65b6501328a evaluated: convs=1, interactions={"viewed":0,"contacted":0,"offered":1,"total":1}, finalClientStatus=PRESUPUESTADA
+[2026-03-05T00:24:43.987Z] Job 69a83b2d6b3fd65b65013278 evaluated: convs=1, interactions={"viewed":0,"contacted":0,"offered":0,"total":1}, finalClientStatus=ACEPTADO
+[2026-03-05T00:24:43.988Z] Job 69a83b016b3fd65b65013266 evaluated: convs=0, interactions={"viewed":0,"contacted":0,"offered":0,"total":0}, finalClientStatus=NUEVA
+[2026-03-05T00:24:43.989Z] Job 69a83acc6b3fd65b6501324d evaluated: convs=0, interactions={"viewed":0,"contacted":0,"offered":0,"total":0}, finalClientStatus=NUEVA
+[2026-03-05T00:24:43.990Z] Job 69a83a9b6b3fd65b6501323b evaluated: convs=0, interactions={"viewed":0,"contacted":0,"offered":0,"total":0}, finalClientStatus=NUEVA
+[2026-03-05T00:24:43.991Z] Job 69a83a5d6b3fd65b6501321b evaluated: convs=1, interactions={"viewed":0,"contacted":0,"offered":0,"total":1}, finalClientStatus=VALIDANDO
+[2026-03-05T00:24:43.991Z] Job 69a83a2b6b3fd65b65013209 evaluated: convs=0, interactions={"viewed":1,"contacted":0,"offered":0,"total":1}, finalClientStatus=NUEVA
+[2026-03-05T00:24:44.323Z] Job 69a83b8c6b3fd65b6501329c has 1 chats in chatsByJobId
+[2026-03-05T00:24:44.326Z] Job 69a83b586b3fd65b6501328a has 1 chats in chatsByJobId
+[2026-03-05T00:24:44.327Z] Job 69a83b2d6b3fd65b65013278 has 1 chats in chatsByJobId
+[2026-03-05T00:24:44.329Z] Job 69a83b016b3fd65b65013266 has 0 chats in chatsByJobId
+[2026-03-05T00:24:44.330Z] Job 69a83acc6b3fd65b6501324d has 0 chats in chatsByJobId
+[2026-03-05T00:24:44.331Z] Job 69a83a9b6b3fd65b6501323b has 0 chats in chatsByJobId
+[2026-03-05T00:24:44.331Z] Job 69a83a5d6b3fd65b6501321b has 1 chats in chatsByJobId
+[2026-03-05T00:24:44.332Z] Job 69a83a2b6b3fd65b65013209 has 0 chats in chatsByJobId
+[2026-03-05T00:24:44.333Z] Job 69a83b8c6b3fd65b6501329c evaluated: convs=1, interactions={"viewed":0,"contacted":1,"offered":0,"total":1}, finalClientStatus=CONTACTADA
+[2026-03-05T00:24:44.334Z] Job 69a83b586b3fd65b6501328a evaluated: convs=1, interactions={"viewed":0,"contacted":0,"offered":1,"total":1}, finalClientStatus=PRESUPUESTADA
+[2026-03-05T00:24:44.335Z] Job 69a83b2d6b3fd65b65013278 evaluated: convs=1, interactions={"viewed":0,"contacted":0,"offered":0,"total":1}, finalClientStatus=ACEPTADO
+[2026-03-05T00:24:44.336Z] Job 69a83b016b3fd65b65013266 evaluated: convs=0, interactions={"viewed":0,"contacted":0,"offered":0,"total":0}, finalClientStatus=NUEVA
+[2026-03-05T00:24:44.337Z] Job 69a83acc6b3fd65b6501324d evaluated: convs=0, interactions={"viewed":0,"contacted":0,"offered":0,"total":0}, finalClientStatus=NUEVA
+[2026-03-05T00:24:44.337Z] Job 69a83a9b6b3fd65b6501323b evaluated: convs=0, interactions={"viewed":0,"contacted":0,"offered":0,"total":0}, finalClientStatus=NUEVA
+[2026-03-05T00:24:44.338Z] Job 69a83a5d6b3fd65b6501321b evaluated: convs=1, interactions={"viewed":0,"contacted":0,"offered":0,"total":1}, finalClientStatus=VALIDANDO
+[2026-03-05T00:24:44.339Z] Job 69a83a2b6b3fd65b65013209 evaluated: convs=0, interactions={"viewed":1,"contacted":0,"offered":0,"total":1}, finalClientStatus=NUEVA
