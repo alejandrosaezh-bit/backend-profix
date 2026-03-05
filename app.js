@@ -297,6 +297,45 @@ function MainApp() {
     const [selectedRequest, setSelectedRequest] = useState(null);
     const [isOpeningRequest, setIsOpeningRequest] = useState(false);
 
+    // --- PUSH NOTIFICATION DEEP LINKING ---
+    useEffect(() => {
+        let subscription;
+        if (Platform.OS !== 'web') {
+            subscription = Notifications.addNotificationResponseReceivedListener(response => {
+                try {
+                    const data = response.notification.request.content.data;
+                    console.log("[Notification Opened] Payload:", data);
+
+                    if (data && data.chatId && data.jobId) {
+                        const targetJobId = String(data.jobId);
+                        console.log("[Notification Opened] Redirecting to chat for job:", targetJobId);
+
+                        const foundRequest = allRequests.find(r => String(r._id || r.id) === targetJobId);
+
+                        if (foundRequest) {
+                            setSelectedRequest(foundRequest);
+                            setView('chat');
+                        } else {
+                            loadRequests().then((refs) => {
+                                const freshRequests = Array.isArray(refs) ? refs : [];
+                                const delayedReq = freshRequests.find(r => String(r._id || r.id) === targetJobId);
+                                if (delayedReq) {
+                                    setSelectedRequest(delayedReq);
+                                    setView('chat');
+                                }
+                            });
+                        }
+                    }
+                } catch (e) {
+                    console.warn("[Notification Deep Link Error]:", e);
+                }
+            });
+        }
+        return () => {
+            if (subscription) subscription.remove();
+        };
+    }, [allRequests, loadRequests]);
+
     // --- ANIMATION FOR LOADER ---
     const spinValue = useRef(new Animated.Value(0)).current;
     const isAnimating = useRef(false);
