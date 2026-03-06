@@ -131,58 +131,6 @@ const ClientProfileView = ({ client, visible, onClose }) => {
                                     </View>
                                 </View>
 
-                                {/* PORTAFOLIO DE TRABAJOS */}
-                                <View style={styles.infoCard}>
-                                    <Text style={styles.sectionTitle}>PORTAFOLIO DE TRABAJOS</Text>
-                                    {(() => {
-                                        const portfolioFolders = [];
-                                        if (client?.profiles) {
-                                            const profilesObj = client.profiles instanceof Map ? Object.fromEntries(client.profiles) : client.profiles;
-                                            Object.keys(profilesObj).forEach(cat => {
-                                                if (profilesObj[cat]?.gallery && profilesObj[cat].gallery.length > 0) {
-                                                    portfolioFolders.push({
-                                                        category: cat,
-                                                        subcategories: profilesObj[cat].subcategories || [],
-                                                        images: profilesObj[cat].gallery
-                                                    });
-                                                }
-                                            });
-                                        }
-
-                                        if (portfolioFolders.length === 0) {
-                                            return (
-                                                <View style={styles.emptyContainer}>
-                                                    <Feather name="folder" size={40} color="#E2E8F0" />
-                                                    <Text style={styles.emptyText}>No hay trabajos en el portafolio.</Text>
-                                                </View>
-                                            );
-                                        }
-
-                                        return (
-                                            <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }}>
-                                                {portfolioFolders.map((folder, index) => (
-                                                    <TouchableOpacity key={index} style={styles.folderCard} onPress={() => setSelectedGallery(folder.images)}>
-                                                        <View style={styles.folderTab} />
-                                                        <View style={styles.folderContent}>
-                                                            <Image source={{ uri: folder.images[0] }} style={styles.folderImage} />
-                                                            <View style={styles.folderInfo}>
-                                                                <Text style={styles.folderTitle} numberOfLines={2}>{folder.category}</Text>
-                                                                <Text style={{ fontSize: 11, color: '#64748B', marginTop: 2, marginBottom: 2 }} numberOfLines={1}>
-                                                                    {folder.subcategories.length > 0 ? folder.subcategories.join(', ') : 'Servicios generales'}
-                                                                </Text>
-                                                                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
-                                                                    <Feather name="image" size={10} color="#94A3B8" />
-                                                                    <Text style={styles.folderCount}>{folder.images.length} fotos</Text>
-                                                                </View>
-                                                            </View>
-                                                        </View>
-                                                    </TouchableOpacity>
-                                                ))}
-                                            </View>
-                                        );
-                                    })()}
-                                </View>
-
                                 {/* OPINIONES */}
                                 <View style={styles.infoCard}>
                                     <Text style={styles.sectionTitle}>OPINIONES DE PROFESIONALES</Text>
