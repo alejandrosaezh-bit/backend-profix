@@ -239,8 +239,12 @@ router.post('/:id/messages', protect, async (req, res) => {
                 const pid = p._id ? p._id.toString() : p.toString();
                 return pid !== req.user._id.toString();
             });
+            console.log("Push DEBUG - Sender ID:", req.user._id);
+            console.log("Push DEBUG - Receiver ID:", receiverId);
+
             if (receiverId) {
                 const receiverUser = await User.findById(receiverId).select('pushToken');
+                console.log("Push DEBUG - Receiver User found:", receiverUser ? "Yes" : "No", "Token:", receiverUser?.pushToken);
                 if (receiverUser && receiverUser.pushToken) {
                     try {
                         const pushBody = {
@@ -259,11 +263,19 @@ router.post('/:id/messages', protect, async (req, res) => {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
-                                'Content-Length': data.length,
+                                'Content-Length': Buffer.byteLength(data),
                             },
                         };
 
-                        const reqPush = https.request(options, (resPush) => { });
+                        const reqPush = https.request(options, (resPush) => {
+                            let responseData = '';
+                            resPush.on('data', (chunk) => {
+                                responseData += chunk;
+                            });
+                            resPush.on('end', () => {
+                                console.log("[Expo Push API Response for " + receiverUser.pushToken + "]:", responseData);
+                            });
+                        });
                         reqPush.on('error', (e) => console.error("Push Error:", e));
                         reqPush.write(data);
                         reqPush.end();
