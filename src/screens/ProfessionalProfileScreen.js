@@ -554,144 +554,154 @@ export default function ProfessionalProfileScreen({
                             </View>
 
                             <View style={styles.cardContainerPublic}>
-                                {/* ACTIVIDAD */}
-                                <View style={{ backgroundColor: 'white', borderRadius: 24, padding: 20, marginBottom: 16, elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8 }}>
-                                    <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#64748B', marginBottom: 20 }}>{`CATEGORÍA (${selectedCategory?.name?.toUpperCase()})`}</Text>
-                                    <View style={{ flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center' }}>
-                                        <View style={{ alignItems: 'center' }}>
-                                            <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#2563EB' }}>{categoryStats.jobs}</Text>
-                                            <Text style={{ fontSize: 13, color: '#64748B', marginTop: 4 }}>Cotizados</Text>
-                                        </View>
-                                        <View style={{ width: 1, height: 40, backgroundColor: '#F1F5F9' }} />
-                                        <View style={{ alignItems: 'center' }}>
-                                            <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#2563EB' }}>{categoryStats.rating}</Text>
-                                            <Text style={{ fontSize: 13, color: '#64748B', marginTop: 4 }}>Ganados</Text>
-                                        </View>
-                                        <View style={{ width: 1, height: 40, backgroundColor: '#F1F5F9' }} />
-                                        <View style={{ alignItems: 'center' }}>
-                                            <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#2563EB' }}>{categoryStats.success}</Text>
-                                            <Text style={{ fontSize: 13, color: '#64748B', marginTop: 4 }}>Éxito</Text>
-                                        </View>
-                                    </View>
-                                </View>
-
-                                {/* BIO Y DETALLES */}
-                                <View style={{ backgroundColor: 'white', borderRadius: 24, padding: 20, marginBottom: 16, elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, marginHorizontal: -10 }}>
-                                    <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#64748B', marginBottom: 15 }}>INFORMACIÓN PROFESIONAL</Text>
-                                    {currentCatProfile?.bio ? (
-                                        <Text style={{ fontSize: 15, color: '#334155', fontStyle: 'italic', marginBottom: 16, lineHeight: 22 }}>"{currentCatProfile.bio}"</Text>
-                                    ) : null}
-
-                                    <Text style={{ fontSize: 14, color: '#4B5563', lineHeight: 22, marginTop: 4 }}>
-                                        <Text style={{ fontWeight: 'bold', color: '#1E293B' }}>Especialista en: </Text>
-                                        {currentCatProfile?.subcategories?.length ? currentCatProfile.subcategories.join(', ') : 'Servicios generales.'}
-                                    </Text>
-
-                                    <Text style={{ fontSize: 14, color: '#4B5563', lineHeight: 22, marginTop: 12 }}>
-                                        <Text style={{ fontWeight: 'bold', color: '#1E293B' }}>Zonas de servicio: </Text>
-                                        {currentCatProfile?.zones?.length ? currentCatProfile.zones.join(', ') : 'No especificadas.'}
-                                    </Text>
-                                </View>
-
-                                {/* RESEÑAS */}
-                                <View style={{ backgroundColor: 'white', borderRadius: 24, padding: 20, marginBottom: 16, elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8 }}>
-                                    <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#64748B', marginBottom: 20 }}>OPINIONES RECIENTES</Text>
-                                    {catReviews && catReviews.length > 0 ? (
-                                        catReviews.slice(0, 3).map((r, i) => (
-                                            <View key={i} style={{ backgroundColor: '#F8FAFC', padding: 16, borderRadius: 16, marginBottom: 12 }}>
-                                                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
-                                                    <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: '#E2E8F0', justifyContent: 'center', alignItems: 'center', marginRight: 10 }}>
-                                                        <Feather name="user" size={16} color="#94A3B8" />
-                                                    </View>
-                                                    <Text style={{ fontWeight: 'bold', fontSize: 14, color: '#1E293B' }}>{r.reviewer?.name || 'Cliente'}</Text>
+                                {isCategoryActive ? (
+                                    <>
+                                        {/* ACTIVIDAD */}
+                                        <View style={{ backgroundColor: 'white', borderRadius: 24, padding: 20, marginBottom: 16, elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8 }}>
+                                            <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#64748B', marginBottom: 20 }}>{`CATEGORÍA (${selectedCategory?.name?.toUpperCase()})`}</Text>
+                                            <View style={{ flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center' }}>
+                                                <View style={{ alignItems: 'center' }}>
+                                                    <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#2563EB' }}>{categoryStats.jobs}</Text>
+                                                    <Text style={{ fontSize: 13, color: '#64748B', marginTop: 4 }}>Cotizados</Text>
                                                 </View>
-                                                <Text style={{ fontSize: 13, color: '#4B5563', lineHeight: 20, paddingLeft: 42 }}>{r.comment}</Text>
+                                                <View style={{ width: 1, height: 40, backgroundColor: '#F1F5F9' }} />
+                                                <View style={{ alignItems: 'center' }}>
+                                                    <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#2563EB' }}>{categoryStats.rating}</Text>
+                                                    <Text style={{ fontSize: 13, color: '#64748B', marginTop: 4 }}>Ganados</Text>
+                                                </View>
+                                                <View style={{ width: 1, height: 40, backgroundColor: '#F1F5F9' }} />
+                                                <View style={{ alignItems: 'center' }}>
+                                                    <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#2563EB' }}>{categoryStats.success}</Text>
+                                                    <Text style={{ fontSize: 13, color: '#64748B', marginTop: 4 }}>Éxito</Text>
+                                                </View>
                                             </View>
-                                        ))
-                                    ) : (
-                                        <View style={{ alignItems: 'center', paddingVertical: 20 }}>
-                                            <Feather name="message-square" size={32} color="#E2E8F0" />
-                                            <Text style={{ color: '#94A3B8', fontSize: 13, textAlign: 'center', marginTop: 12 }}>No hay opiniones aún.</Text>
                                         </View>
-                                    )}
-                                </View>
 
-                                <View style={{ backgroundColor: 'white', borderRadius: 24, padding: 20, marginBottom: 16, elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8 }}>
-                                    <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#64748B', marginBottom: 20 }}>PORTAFOLIO DE TRABAJOS</Text>
-                                    {(() => {
-                                        const portfolioFolders = [];
-                                        const categoryFullName = selectedCategory?.fullName || selectedCategory?.name || '';
-                                        const currentProfileGallery = currentCatProfile?.gallery || [];
+                                        {/* BIO Y DETALLES */}
+                                        <View style={{ backgroundColor: 'white', borderRadius: 24, padding: 20, marginBottom: 16, elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, marginHorizontal: -10 }}>
+                                            <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#64748B', marginBottom: 15 }}>INFORMACIÓN PROFESIONAL</Text>
+                                            {currentCatProfile?.bio ? (
+                                                <Text style={{ fontSize: 15, color: '#334155', fontStyle: 'italic', marginBottom: 16, lineHeight: 22 }}>"{currentCatProfile.bio}"</Text>
+                                            ) : null}
 
-                                        if (currentProfileGallery.length > 0 && Array.isArray(jobsList)) {
-                                            jobsList.forEach(job => {
-                                                const jobCat = typeof job.category === 'string' ? job.category : (job.category?.name || job.category?.fullName || '');
-                                                if (jobCat && jobCat.toLowerCase() === categoryFullName.toLowerCase()) {
-                                                    const jobImagesInPortfolio = [];
-                                                    const jobMedia = [];
-                                                    if (job.images) jobMedia.push(...job.images);
-                                                    if (job.workPhotos) jobMedia.push(...job.workPhotos);
-                                                    if (job.projectHistory) {
-                                                        job.projectHistory.forEach(ev => { if (ev.mediaUrl) jobMedia.push(ev.mediaUrl); });
-                                                    }
-                                                    if (job.clientManagement?.beforePhotos) {
-                                                        job.clientManagement.beforePhotos.forEach(p => { if (p.url) jobMedia.push(p.url); });
-                                                    }
-                                                    if (job.clientManagement?.payments) {
-                                                        job.clientManagement.payments.forEach(p => { if (p.evidenceUrl) jobMedia.push(p.evidenceUrl); });
-                                                    }
-                                                    const uniqueJobMedia = [...new Set(jobMedia)];
-                                                    uniqueJobMedia.forEach(url => {
-                                                        if (currentProfileGallery.includes(url)) {
-                                                            jobImagesInPortfolio.push(url);
+                                            <Text style={{ fontSize: 14, color: '#4B5563', lineHeight: 22, marginTop: 4 }}>
+                                                <Text style={{ fontWeight: 'bold', color: '#1E293B' }}>Especialista en: </Text>
+                                                {currentCatProfile?.subcategories?.length ? currentCatProfile.subcategories.join(', ') : 'Servicios generales.'}
+                                            </Text>
+
+                                            <Text style={{ fontSize: 14, color: '#4B5563', lineHeight: 22, marginTop: 12 }}>
+                                                <Text style={{ fontWeight: 'bold', color: '#1E293B' }}>Zonas de servicio: </Text>
+                                                {currentCatProfile?.zones?.length ? currentCatProfile.zones.join(', ') : 'No especificadas.'}
+                                            </Text>
+                                        </View>
+
+                                        {/* RESEÑAS */}
+                                        <View style={{ backgroundColor: 'white', borderRadius: 24, padding: 20, marginBottom: 16, elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8 }}>
+                                            <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#64748B', marginBottom: 20 }}>OPINIONES RECIENTES</Text>
+                                            {catReviews && catReviews.length > 0 ? (
+                                                catReviews.slice(0, 3).map((r, i) => (
+                                                    <View key={i} style={{ backgroundColor: '#F8FAFC', padding: 16, borderRadius: 16, marginBottom: 12 }}>
+                                                        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+                                                            <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: '#E2E8F0', justifyContent: 'center', alignItems: 'center', marginRight: 10 }}>
+                                                                <Feather name="user" size={16} color="#94A3B8" />
+                                                            </View>
+                                                            <Text style={{ fontWeight: 'bold', fontSize: 14, color: '#1E293B' }}>{r.reviewer?.name || 'Cliente'}</Text>
+                                                        </View>
+                                                        <Text style={{ fontSize: 13, color: '#4B5563', lineHeight: 20, paddingLeft: 42 }}>{r.comment}</Text>
+                                                    </View>
+                                                ))
+                                            ) : (
+                                                <View style={{ alignItems: 'center', paddingVertical: 20 }}>
+                                                    <Feather name="message-square" size={32} color="#E2E8F0" />
+                                                    <Text style={{ color: '#94A3B8', fontSize: 13, textAlign: 'center', marginTop: 12 }}>No hay opiniones aún.</Text>
+                                                </View>
+                                            )}
+                                        </View>
+
+                                        <View style={{ backgroundColor: 'white', borderRadius: 24, padding: 20, marginBottom: 16, elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8 }}>
+                                            <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#64748B', marginBottom: 20 }}>PORTAFOLIO DE TRABAJOS</Text>
+                                            {(() => {
+                                                const portfolioFolders = [];
+                                                const categoryFullName = selectedCategory?.fullName || selectedCategory?.name || '';
+                                                const currentProfileGallery = currentCatProfile?.gallery || [];
+
+                                                if (currentProfileGallery.length > 0 && Array.isArray(jobsList)) {
+                                                    jobsList.forEach(job => {
+                                                        const jobCat = typeof job.category === 'string' ? job.category : (job.category?.name || job.category?.fullName || '');
+                                                        if (jobCat && jobCat.toLowerCase() === categoryFullName.toLowerCase()) {
+                                                            const jobImagesInPortfolio = [];
+                                                            const jobMedia = [];
+                                                            if (job.images) jobMedia.push(...job.images);
+                                                            if (job.workPhotos) jobMedia.push(...job.workPhotos);
+                                                            if (job.projectHistory) {
+                                                                job.projectHistory.forEach(ev => { if (ev.mediaUrl) jobMedia.push(ev.mediaUrl); });
+                                                            }
+                                                            if (job.clientManagement?.beforePhotos) {
+                                                                job.clientManagement.beforePhotos.forEach(p => { if (p.url) jobMedia.push(p.url); });
+                                                            }
+                                                            if (job.clientManagement?.payments) {
+                                                                job.clientManagement.payments.forEach(p => { if (p.evidenceUrl) jobMedia.push(p.evidenceUrl); });
+                                                            }
+                                                            const uniqueJobMedia = [...new Set(jobMedia)];
+                                                            uniqueJobMedia.forEach(url => {
+                                                                if (currentProfileGallery.includes(url)) {
+                                                                    jobImagesInPortfolio.push(url);
+                                                                }
+                                                            });
+
+                                                            if (jobImagesInPortfolio.length > 0) {
+                                                                portfolioFolders.push({
+                                                                    jobId: job._id || job.id,
+                                                                    title: job.title || 'Trabajo completado',
+                                                                    subcategories: [job.subCategory].filter(Boolean),
+                                                                    images: jobImagesInPortfolio
+                                                                });
+                                                            }
                                                         }
                                                     });
-
-                                                    if (jobImagesInPortfolio.length > 0) {
-                                                        portfolioFolders.push({
-                                                            jobId: job._id || job.id,
-                                                            title: job.title || 'Trabajo completado',
-                                                            subcategories: [job.subCategory].filter(Boolean),
-                                                            images: jobImagesInPortfolio
-                                                        });
-                                                    }
                                                 }
-                                            });
-                                        }
 
-                                        if (portfolioFolders.length === 0) {
-                                            return (
-                                                <View style={{ alignItems: 'center', paddingVertical: 20 }}>
-                                                    <Feather name="folder" size={40} color="#E2E8F0" />
-                                                    <Text style={{ color: '#94A3B8', fontSize: 13, textAlign: 'center', marginTop: 15 }}>No hay trabajos en el portafolio.</Text>
-                                                </View>
-                                            );
-                                        }
-
-                                        return (
-                                            <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }}>
-                                                {portfolioFolders.map((folder, index) => (
-                                                    <TouchableOpacity key={index} style={styles.folderCard} onPress={() => setSelectedGallery(folder)}>
-                                                        <View style={styles.folderTab} />
-                                                        <View style={styles.folderContent}>
-                                                            <Image source={{ uri: folder.images[0] }} style={styles.folderImage} />
-                                                            <View style={styles.folderInfo}>
-                                                                <Text style={styles.folderTitle} numberOfLines={1}>{folder.title}</Text>
-                                                                <Text style={{ fontSize: 11, color: '#64748B', marginTop: 2, marginBottom: 2 }} numberOfLines={1}>
-                                                                    {folder.subcategories.length > 0 ? folder.subcategories.join(', ') : 'Servicios generales'}
-                                                                </Text>
-                                                                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
-                                                                    <Feather name="image" size={10} color="#94A3B8" />
-                                                                    <Text style={styles.folderCount}>{folder.images.length} fotos</Text>
-                                                                </View>
-                                                            </View>
+                                                if (portfolioFolders.length === 0) {
+                                                    return (
+                                                        <View style={{ alignItems: 'center', paddingVertical: 20 }}>
+                                                            <Feather name="folder" size={40} color="#E2E8F0" />
+                                                            <Text style={{ color: '#94A3B8', fontSize: 13, textAlign: 'center', marginTop: 15 }}>No hay trabajos en el portafolio.</Text>
                                                         </View>
-                                                    </TouchableOpacity>
-                                                ))}
-                                            </View>
-                                        );
-                                    })()}
-                                </View>
+                                                    );
+                                                }
+
+                                                return (
+                                                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }}>
+                                                        {portfolioFolders.map((folder, index) => (
+                                                            <TouchableOpacity key={index} style={styles.folderCard} onPress={() => setSelectedGallery(folder)}>
+                                                                <View style={styles.folderTab} />
+                                                                <View style={styles.folderContent}>
+                                                                    <Image source={{ uri: folder.images[0] }} style={styles.folderImage} />
+                                                                    <View style={styles.folderInfo}>
+                                                                        <Text style={styles.folderTitle} numberOfLines={1}>{folder.title}</Text>
+                                                                        <Text style={{ fontSize: 11, color: '#64748B', marginTop: 2, marginBottom: 2 }} numberOfLines={1}>
+                                                                            {folder.subcategories.length > 0 ? folder.subcategories.join(', ') : 'Servicios generales'}
+                                                                        </Text>
+                                                                        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
+                                                                            <Feather name="image" size={10} color="#94A3B8" />
+                                                                            <Text style={styles.folderCount}>{folder.images.length} fotos</Text>
+                                                                        </View>
+                                                                    </View>
+                                                                </View>
+                                                            </TouchableOpacity>
+                                                        ))}
+                                                    </View>
+                                                );
+                                            })()}
+                                        </View>
+                                    </>
+                                ) : (
+                                    <View style={{ backgroundColor: 'white', borderRadius: 24, padding: 40, elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, alignItems: 'center', marginTop: 10 }}>
+                                        <Feather name="clock" size={48} color="#94A3B8" />
+                                        <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#1E293B', marginTop: 15, textAlign: 'center' }}>Servicio Pausado</Text>
+                                        <Text style={{ fontSize: 14, color: '#64748B', textAlign: 'center', marginTop: 8 }}>El profesional no está aceptando solicitudes para esta categoría actualmente.</Text>
+                                    </View>
+                                )}
                             </View>
 
                             {/* BOTÓN CERRAR FOOTER */}
@@ -833,124 +843,129 @@ export default function ProfessionalProfileScreen({
                         />
                     </View>
 
-                    {/* BIO Y DETALLES */}
-                    <View style={{ backgroundColor: 'white', borderRadius: 24, padding: 20, marginBottom: 16, elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, marginHorizontal: -10 }}>
-                        <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#64748B', marginBottom: 15 }}>INFORMACIÓN PROFESIONAL</Text>
-                        {currentCatProfile?.bio ? (
-                            <Text style={{ fontSize: 15, color: '#334155', fontStyle: 'italic', marginBottom: 16, lineHeight: 22 }}>"{currentCatProfile.bio}"</Text>
-                        ) : null}
+                    {/* SECIONES CONDICIONADAS A CATEGORIA ACTIVA */}
+                    {isCategoryActive && (
+                        <>
+                            {/* BIO Y DETALLES */}
+                            <View style={{ backgroundColor: 'white', borderRadius: 24, padding: 20, marginBottom: 16, elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, marginHorizontal: -10 }}>
+                                <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#64748B', marginBottom: 15 }}>INFORMACIÓN PROFESIONAL</Text>
+                                {currentCatProfile?.bio ? (
+                                    <Text style={{ fontSize: 15, color: '#334155', fontStyle: 'italic', marginBottom: 16, lineHeight: 22 }}>"{currentCatProfile.bio}"</Text>
+                                ) : null}
 
-                        <Text style={{ fontSize: 14, color: '#4B5563', lineHeight: 22, marginTop: 4 }}>
-                            <Text style={{ fontWeight: 'bold', color: '#1E293B' }}>Especialista en: </Text>
-                            {currentCatProfile?.subcategories?.length ? currentCatProfile.subcategories.join(', ') : 'Servicios generales.'}
-                        </Text>
+                                <Text style={{ fontSize: 14, color: '#4B5563', lineHeight: 22, marginTop: 4 }}>
+                                    <Text style={{ fontWeight: 'bold', color: '#1E293B' }}>Especialista en: </Text>
+                                    {currentCatProfile?.subcategories?.length ? currentCatProfile.subcategories.join(', ') : 'Servicios generales.'}
+                                </Text>
 
-                        <Text style={{ fontSize: 14, color: '#4B5563', lineHeight: 22, marginTop: 12 }}>
-                            <Text style={{ fontWeight: 'bold', color: '#1E293B' }}>Zonas de servicio: </Text>
-                            {currentCatProfile?.zones?.length ? currentCatProfile.zones.join(', ') : 'No especificadas.'}
-                        </Text>
-                    </View>
+                                <Text style={{ fontSize: 14, color: '#4B5563', lineHeight: 22, marginTop: 12 }}>
+                                    <Text style={{ fontWeight: 'bold', color: '#1E293B' }}>Zonas de servicio: </Text>
+                                    {currentCatProfile?.zones?.length ? currentCatProfile.zones.join(', ') : 'No especificadas.'}
+                                </Text>
+                            </View>
 
-                    {/* PORTAFOLIO DE TRABAJOS GLOBAL */}
-                    <View style={{ backgroundColor: 'white', borderRadius: 24, padding: 20, marginBottom: 16, elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8 }}>
-                        <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#64748B', marginBottom: 20 }}>PORTAFOLIO DE TRABAJOS</Text>
-                        {(() => {
-                            const portfolioFolders = [];
-                            const categoryFullName = selectedCategory?.fullName || selectedCategory?.name || '';
-                            const currentProfileGallery = currentCatProfile?.gallery || [];
+                            {/* PORTAFOLIO DE TRABAJOS GLOBAL */}
+                            <View style={{ backgroundColor: 'white', borderRadius: 24, padding: 20, marginBottom: 16, elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8 }}>
+                                <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#64748B', marginBottom: 20 }}>PORTAFOLIO DE TRABAJOS</Text>
+                                {(() => {
+                                    const portfolioFolders = [];
+                                    const categoryFullName = selectedCategory?.fullName || selectedCategory?.name || '';
+                                    const currentProfileGallery = currentCatProfile?.gallery || [];
 
-                            if (currentProfileGallery.length > 0 && Array.isArray(jobsList)) {
-                                jobsList.forEach(job => {
-                                    const jobCat = typeof job.category === 'string' ? job.category : (job.category?.name || job.category?.fullName || '');
-                                    if (jobCat && jobCat.toLowerCase() === categoryFullName.toLowerCase()) {
-                                        const jobImagesInPortfolio = [];
-                                        const jobMedia = [];
-                                        if (job.images) jobMedia.push(...job.images);
-                                        if (job.workPhotos) jobMedia.push(...job.workPhotos);
-                                        if (job.projectHistory) {
-                                            job.projectHistory.forEach(ev => { if (ev.mediaUrl) jobMedia.push(ev.mediaUrl); });
-                                        }
-                                        if (job.clientManagement?.beforePhotos) {
-                                            job.clientManagement.beforePhotos.forEach(p => { if (p.url) jobMedia.push(p.url); });
-                                        }
-                                        if (job.clientManagement?.payments) {
-                                            job.clientManagement.payments.forEach(p => { if (p.evidenceUrl) jobMedia.push(p.evidenceUrl); });
-                                        }
-                                        const uniqueJobMedia = [...new Set(jobMedia)];
-                                        uniqueJobMedia.forEach(url => {
-                                            if (currentProfileGallery.includes(url)) {
-                                                jobImagesInPortfolio.push(url);
+                                    if (currentProfileGallery.length > 0 && Array.isArray(jobsList)) {
+                                        jobsList.forEach(job => {
+                                            const jobCat = typeof job.category === 'string' ? job.category : (job.category?.name || job.category?.fullName || '');
+                                            if (jobCat && jobCat.toLowerCase() === categoryFullName.toLowerCase()) {
+                                                const jobImagesInPortfolio = [];
+                                                const jobMedia = [];
+                                                if (job.images) jobMedia.push(...job.images);
+                                                if (job.workPhotos) jobMedia.push(...job.workPhotos);
+                                                if (job.projectHistory) {
+                                                    job.projectHistory.forEach(ev => { if (ev.mediaUrl) jobMedia.push(ev.mediaUrl); });
+                                                }
+                                                if (job.clientManagement?.beforePhotos) {
+                                                    job.clientManagement.beforePhotos.forEach(p => { if (p.url) jobMedia.push(p.url); });
+                                                }
+                                                if (job.clientManagement?.payments) {
+                                                    job.clientManagement.payments.forEach(p => { if (p.evidenceUrl) jobMedia.push(p.evidenceUrl); });
+                                                }
+                                                const uniqueJobMedia = [...new Set(jobMedia)];
+                                                uniqueJobMedia.forEach(url => {
+                                                    if (currentProfileGallery.includes(url)) {
+                                                        jobImagesInPortfolio.push(url);
+                                                    }
+                                                });
+
+                                                if (jobImagesInPortfolio.length > 0) {
+                                                    portfolioFolders.push({
+                                                        jobId: job._id || job.id,
+                                                        title: job.title || 'Trabajo completado',
+                                                        subcategories: [job.subCategory].filter(Boolean),
+                                                        images: jobImagesInPortfolio
+                                                    });
+                                                }
                                             }
                                         });
-
-                                        if (jobImagesInPortfolio.length > 0) {
-                                            portfolioFolders.push({
-                                                jobId: job._id || job.id,
-                                                title: job.title || 'Trabajo completado',
-                                                subcategories: [job.subCategory].filter(Boolean),
-                                                images: jobImagesInPortfolio
-                                            });
-                                        }
                                     }
-                                });
-                            }
 
-                            if (portfolioFolders.length === 0) {
-                                return (
-                                    <View style={{ alignItems: 'center', paddingVertical: 20 }}>
-                                        <Feather name="folder" size={40} color="#E2E8F0" />
-                                        <Text style={{ color: '#94A3B8', fontSize: 13, textAlign: 'center', marginTop: 15 }}>No hay trabajos en el portafolio.</Text>
-                                    </View>
-                                );
-                            }
-
-                            return (
-                                <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }}>
-                                    {portfolioFolders.map((folder, index) => (
-                                        <TouchableOpacity key={index} style={styles.folderCard} onPress={() => setSelectedGallery(folder)}>
-                                            <View style={styles.folderTab} />
-                                            <View style={styles.folderContent}>
-                                                <Image source={{ uri: folder.images[0] }} style={styles.folderImage} />
-                                                <View style={styles.folderInfo}>
-                                                    <Text style={styles.folderTitle} numberOfLines={1}>{folder.title}</Text>
-                                                    <Text style={{ fontSize: 11, color: '#64748B', marginTop: 2, marginBottom: 2 }} numberOfLines={1}>
-                                                        {folder.subcategories.length > 0 ? folder.subcategories.join(', ') : 'Servicios generales'}
-                                                    </Text>
-                                                    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
-                                                        <Feather name="image" size={10} color="#94A3B8" />
-                                                        <Text style={styles.folderCount}>{folder.images.length} fotos</Text>
-                                                    </View>
-                                                </View>
+                                    if (portfolioFolders.length === 0) {
+                                        return (
+                                            <View style={{ alignItems: 'center', paddingVertical: 20 }}>
+                                                <Feather name="folder" size={40} color="#E2E8F0" />
+                                                <Text style={{ color: '#94A3B8', fontSize: 13, textAlign: 'center', marginTop: 15 }}>No hay trabajos en el portafolio.</Text>
                                             </View>
-                                        </TouchableOpacity>
-                                    ))}
-                                </View>
-                            );
-                        })()}
-                    </View>
+                                        );
+                                    }
 
-                    {/* RESEÑAS */}
-                    <View style={{ backgroundColor: 'white', borderRadius: 24, padding: 20, marginBottom: 16, elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8 }}>
-                        <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#64748B', marginBottom: 20 }}>OPINIONES RECIENTES</Text>
-                        {catReviews && catReviews.length > 0 ? (
-                            catReviews.slice(0, 3).map((r, i) => (
-                                <View key={i} style={{ backgroundColor: '#F8FAFC', padding: 16, borderRadius: 16, marginBottom: 12 }}>
-                                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
-                                        <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: '#E2E8F0', justifyContent: 'center', alignItems: 'center', marginRight: 10 }}>
-                                            <Feather name="user" size={16} color="#94A3B8" />
+                                    return (
+                                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }}>
+                                            {portfolioFolders.map((folder, index) => (
+                                                <TouchableOpacity key={index} style={styles.folderCard} onPress={() => setSelectedGallery(folder)}>
+                                                    <View style={styles.folderTab} />
+                                                    <View style={styles.folderContent}>
+                                                        <Image source={{ uri: folder.images[0] }} style={styles.folderImage} />
+                                                        <View style={styles.folderInfo}>
+                                                            <Text style={styles.folderTitle} numberOfLines={1}>{folder.title}</Text>
+                                                            <Text style={{ fontSize: 11, color: '#64748B', marginTop: 2, marginBottom: 2 }} numberOfLines={1}>
+                                                                {folder.subcategories.length > 0 ? folder.subcategories.join(', ') : 'Servicios generales'}
+                                                            </Text>
+                                                            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
+                                                                <Feather name="image" size={10} color="#94A3B8" />
+                                                                <Text style={styles.folderCount}>{folder.images.length} fotos</Text>
+                                                            </View>
+                                                        </View>
+                                                    </View>
+                                                </TouchableOpacity>
+                                            ))}
                                         </View>
-                                        <Text style={{ fontWeight: 'bold', fontSize: 14, color: '#1E293B' }}>{r.reviewer?.name || 'Cliente'}</Text>
-                                    </View>
-                                    <Text style={{ fontSize: 13, color: '#4B5563', lineHeight: 20, paddingLeft: 42 }}>{r.comment}</Text>
-                                </View>
-                            ))
-                        ) : (
-                            <View style={{ alignItems: 'center', paddingVertical: 20 }}>
-                                <Feather name="message-square" size={32} color="#E2E8F0" />
-                                <Text style={{ color: '#94A3B8', fontSize: 13, textAlign: 'center', marginTop: 12 }}>No hay opiniones aún.</Text>
+                                    );
+                                })()}
                             </View>
-                        )}
-                    </View>
+
+                            {/* RESEÑAS */}
+                            <View style={{ backgroundColor: 'white', borderRadius: 24, padding: 20, marginBottom: 16, elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8 }}>
+                                <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#64748B', marginBottom: 20 }}>OPINIONES RECIENTES</Text>
+                                {catReviews && catReviews.length > 0 ? (
+                                    catReviews.slice(0, 3).map((r, i) => (
+                                        <View key={i} style={{ backgroundColor: '#F8FAFC', padding: 16, borderRadius: 16, marginBottom: 12 }}>
+                                            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+                                                <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: '#E2E8F0', justifyContent: 'center', alignItems: 'center', marginRight: 10 }}>
+                                                    <Feather name="user" size={16} color="#94A3B8" />
+                                                </View>
+                                                <Text style={{ fontWeight: 'bold', fontSize: 14, color: '#1E293B' }}>{r.reviewer?.name || 'Cliente'}</Text>
+                                            </View>
+                                            <Text style={{ fontSize: 13, color: '#4B5563', lineHeight: 20, paddingLeft: 42 }}>{r.comment}</Text>
+                                        </View>
+                                    ))
+                                ) : (
+                                    <View style={{ alignItems: 'center', paddingVertical: 20 }}>
+                                        <Feather name="message-square" size={32} color="#E2E8F0" />
+                                        <Text style={{ color: '#94A3B8', fontSize: 13, textAlign: 'center', marginTop: 12 }}>No hay opiniones aún.</Text>
+                                    </View>
+                                )}
+                            </View>
+                        </>
+                    )}
                 </View>
 
                 {isOwner && (
