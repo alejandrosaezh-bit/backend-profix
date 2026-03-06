@@ -306,22 +306,31 @@ function MainApp() {
                     const data = response.notification.request.content.data;
                     console.log("[Notification Opened] Payload:", data);
 
-                    if (data && data.chatId && data.jobId) {
+                    if (data && data.jobId) {
                         const targetJobId = String(data.jobId);
-                        console.log("[Notification Opened] Redirecting to chat for job:", targetJobId);
+                        const isChat = data.type === 'chat' || data.chatId; // Fallback for old notifications
+
+                        console.log(`[Notification Opened] Redirecting to ${isChat ? 'chat' : 'job details'} for job:`, targetJobId);
+
+                        const routeToCorrectView = (jobRequest) => {
+                            setSelectedRequest(jobRequest);
+                            if (isChat) {
+                                setView('chat');
+                            } else {
+                                setView(userMode === 'client' ? 'request-detail-client' : 'job-detail-pro');
+                            }
+                        };
 
                         const foundRequest = allRequests.find(r => String(r._id || r.id) === targetJobId);
 
                         if (foundRequest) {
-                            setSelectedRequest(foundRequest);
-                            setView('chat');
+                            routeToCorrectView(foundRequest);
                         } else {
                             loadRequests().then((refs) => {
                                 const freshRequests = Array.isArray(refs) ? refs : [];
                                 const delayedReq = freshRequests.find(r => String(r._id || r.id) === targetJobId);
                                 if (delayedReq) {
-                                    setSelectedRequest(delayedReq);
-                                    setView('chat');
+                                    routeToCorrectView(delayedReq);
                                 }
                             });
                         }
@@ -334,7 +343,7 @@ function MainApp() {
         return () => {
             if (subscription) subscription.remove();
         };
-    }, [allRequests, loadRequests]);
+    }, [allRequests, loadRequests, userMode]);
 
     // --- ANIMATION FOR LOADER ---
     const spinValue = useRef(new Animated.Value(0)).current;

@@ -15,9 +15,13 @@ const { protect } = require('../middleware/authMiddleware');
 const sendPushNotification = async (pushToken, title, body, data = {}) => {
     if (!pushToken) return;
 
+    // By default, assume job-related push
+    data.type = data.type || 'job_update';
+
     const message = {
         to: pushToken,
         sound: 'default',
+        channelId: 'default',
         title: title,
         body: body,
         data: data,

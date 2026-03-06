@@ -5,6 +5,16 @@ export async function registerForPushNotificationsAsync() {
   if (Platform.OS === 'web') {
     return null;
   }
+
+  if (Platform.OS === 'android') {
+    await Notifications.setNotificationChannelAsync('default', {
+      name: 'General',
+      importance: Notifications.AndroidImportance.MAX,
+      vibrationPattern: [0, 250, 250, 250],
+      lightColor: '#EA580C',
+    });
+  }
+
   let isDevice = true;
   try {
     const Device = await import('expo-device');
