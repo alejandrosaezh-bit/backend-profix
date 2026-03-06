@@ -3,7 +3,7 @@
     "name": "Profesional Cercano",
     "slug": "profix",
     "scheme": "profix",
-    "version": "1.0.44",
+    "version": "1.0.45",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "userInterfaceStyle": "light",
@@ -17,7 +17,8 @@
     },
     "android": {
       "package": "com.conexta.profix",
-      "versionCode": 54,
+      "googleServicesFile": "./google-services.json",
+      "versionCode": 55,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundColor": "#ffffff"

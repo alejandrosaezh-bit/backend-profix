@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "241742918369",
+    "project_id": "profesional-cercano",
+    "storage_bucket": "profesional-cercano.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:241742918369:android:2e7db2de4a573152b57da0",
+        "android_client_info": {
+          "package_name": "com.conexta.profix"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAM7zy8J3vB_5M42YNf-afrziYVtvElgcU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
