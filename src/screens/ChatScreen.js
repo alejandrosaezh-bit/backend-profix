@@ -202,7 +202,7 @@ export default function ChatScreen({ request, currentUser, userMode, onBack, onS
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       quality: 0.5,
       base64: true,
-      allowsEditing: true,
+      allowsEditing: false,
     });
 
     if (!result.canceled) {
@@ -220,7 +220,7 @@ export default function ChatScreen({ request, currentUser, userMode, onBack, onS
 
     let result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
+      allowsEditing: false,
       aspect: [4, 3],
       quality: 0.5,
       base64: true,

@@ -160,7 +160,7 @@ export default function RequestDetailScreen({ route, navigation }) {
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       quality: 0.5,
       base64: true,
-      allowsEditing: true,
+      allowsEditing: false,
     });
     if (!result.canceled) {
       const base64Img = `data:image/jpeg;base64,${result.assets[0].base64}`;
@@ -177,7 +177,7 @@ export default function RequestDetailScreen({ route, navigation }) {
     }
     let result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
+      allowsEditing: false,
       aspect: [4, 3],
       quality: 0.5,
       base64: true,

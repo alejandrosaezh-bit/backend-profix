@@ -105,7 +105,7 @@ const RequestDetailClient = ({ request, onBack, onAcceptOffer, onOpenChat, onUpd
             mediaTypes: ImagePicker.MediaTypeOptions.Images,
             quality: 0.5,
             base64: true,
-            allowsEditing: true, // Optional
+            allowsEditing: false, // Optional
         });
 
         if (!result.canceled) {

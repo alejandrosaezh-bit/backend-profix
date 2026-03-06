@@ -125,7 +125,7 @@ const ServiceForm = ({ onSubmit, isLoggedIn, onTriggerLogin, initialCategory, in
 
         let result = await ImagePicker.launchImageLibraryAsync({
             mediaTypes: ImagePicker.MediaTypeOptions.Videos,
-            allowsEditing: true,
+            allowsEditing: false,
             quality: 1,
         });
 
@@ -162,7 +162,7 @@ const ServiceForm = ({ onSubmit, isLoggedIn, onTriggerLogin, initialCategory, in
         let result = await ImagePicker.launchCameraAsync({
             quality: 0.5,
             base64: true,
-            allowsEditing: true,
+            allowsEditing: false,
         });
 
         if (!result.canceled) {

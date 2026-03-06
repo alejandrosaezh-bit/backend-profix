@@ -139,7 +139,7 @@ export default function ClientProfileScreen({ user, isOwner, onBack, onLogout, o
 
     let result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
+      allowsEditing: false,
       aspect: [1, 1],
       quality: 0.5, // Reducir calidad para que no pese tanto
       base64: true, // Solicitar Base64
