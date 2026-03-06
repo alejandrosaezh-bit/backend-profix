@@ -248,7 +248,7 @@ const ProjectTimeline = ({ job, userMode, currentUser, onConfirmStart, onAddTime
             {/* PANEL DE GESTIÓN INTEGRADO (Solo si es el Pro y no ha terminado, o si el cliente tiene permisos) */}
             {/* PANEL DE GESTIÓN INTEGRADO (Unificado para Pro y Cliente) */}
             {(showSection === 'all' || showSection === 'management') && (
-                <View style={[styles.managementCard, !isAccepted && { backgroundColor: '#F8FAFC', borderColor: '#E2E8F0', padding: 0, overflow: 'hidden' }]}>
+                <View style={[styles.managementCard, !isAccepted && { backgroundColor: '#F8FAFC', borderColor: '#E2E8F0', overflow: 'hidden' }]}>
                     {/* Bloqueo Visual */}
                     {!isAccepted && (
                         <View style={{
@@ -271,7 +271,7 @@ const ProjectTimeline = ({ job, userMode, currentUser, onConfirmStart, onAddTime
                         </View>
                     )}
 
-                    <View style={[{ padding: 20 }, !isAccepted && { opacity: 0.4 }]}>
+                    <View style={[!isAccepted && { opacity: 0.4 }]}>
 
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
                             <View>
