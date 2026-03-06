@@ -1,3 +1,4 @@
+import Constants from 'expo-constants';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
@@ -40,7 +41,10 @@ export async function registerForPushNotificationsAsync() {
       return null;
     }
 
-    const tokenData = await Notifications.getExpoPushTokenAsync();
+    const projectId = Constants?.expoConfig?.extra?.eas?.projectId ?? '19584c7c-7dfb-4799-aa70-26a452f02714';
+    const tokenData = await Notifications.getExpoPushTokenAsync({
+      projectId: projectId
+    });
     return tokenData?.data ?? null;
   } catch (e) {
     console.log('Error getting push token (handled):', e);

@@ -1,3 +1,5 @@
+import Constants from 'expo-constants';
+
 export async function registerForPushNotificationsAsync() {
   try {
     // Dynamic import of expo-device
@@ -36,7 +38,10 @@ export async function registerForPushNotificationsAsync() {
     }
 
     try {
-      const tokenData = await Notifications.getExpoPushTokenAsync();
+      const projectId = Constants?.expoConfig?.extra?.eas?.projectId ?? '19584c7c-7dfb-4799-aa70-26a452f02714';
+      const tokenData = await Notifications.getExpoPushTokenAsync({
+        projectId: projectId
+      });
       return tokenData?.data ?? null;
     } catch (e) {
       console.warn('Notifications.getExpoPushTokenAsync failed', e);

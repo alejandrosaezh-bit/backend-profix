@@ -180,6 +180,7 @@ router.get('/:id', protect, async (req, res) => {
 // @route   POST /api/chats/:id/messages
 router.post('/:id/messages', protect, async (req, res) => {
     const { content, media } = req.body;
+    console.log(`[POST /chats/${req.params.id}/messages] User ${req.user._id} sending message: "${content?.substring(0, 20)}..."`);
     try {
         const chat = await Chat.findById(req.params.id);
         if (!chat) return res.status(404).json({ message: 'Chat no encontrado' });
@@ -286,6 +287,7 @@ router.post('/:id/messages', protect, async (req, res) => {
                     console.error("[Socket] Error determining role:", err);
                 }
 
+                console.log(`[Socket] Emitting 'receive_message' to room ${req.params.id} for message ${latestMessage._id}`);
                 io.to(req.params.id).emit('receive_message', {
                     chatId: req.params.id,
                     message: {

@@ -81,11 +81,11 @@ const io = require('socket.io')(server, {
 
 // Socket.io Logic
 io.on('connection', (socket) => {
-    console.log('New client connected:', socket.id);
+    console.log('✅ New client connected to Socket.io:', socket.id);
 
     socket.on('join_chat', (chatId) => {
         socket.join(chatId);
-        console.log(`Socket ${socket.id} joined chat: ${chatId}`);
+        console.log(`💬 Socket ${socket.id} joined chat room: ${chatId}`);
     });
 
     socket.on('join_user_dates', (userId) => {
