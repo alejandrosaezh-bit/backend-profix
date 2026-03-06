@@ -614,6 +614,7 @@ const ProjectTimeline = ({ job, userMode, currentUser, onConfirmStart, onAddTime
                                         onSubmit={handleRatingSubmit}
                                         revieweeName={revieweeName}
                                         isForPro={userMode === 'client'}
+                                        isBlocked={!isFinished}
                                     />
                                 </View>
                             </View>
