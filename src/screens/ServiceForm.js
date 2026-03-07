@@ -191,11 +191,11 @@ const ServiceForm = ({ onSubmit, isLoggedIn, onTriggerLogin, initialCategory, in
         if (!userName) return title;
 
         // Insertar nombre de forma natural
-        if (title.toLowerCase().startsWith('encuentra')) return `Alejandro, ${title.charAt(0).toLowerCase() + title.slice(1)}`;
-        if (title.toLowerCase().startsWith('soluciona')) return `Alejandro, ${title.charAt(0).toLowerCase() + title.slice(1)}`;
-        if (title.toLowerCase().startsWith('cualquier')) return `Alejandro, ${title.charAt(0).toLowerCase() + title.slice(1)}`;
-        if (title.toLowerCase().startsWith('¿qué')) return `Alejandro, ${title}`;
-        if (title.toLowerCase().startsWith('tu red')) return `Tu red, Alejandro`;
+        if (title.toLowerCase().startsWith('encuentra')) return `${userName}, ${title.charAt(0).toLowerCase() + title.slice(1)}`;
+        if (title.toLowerCase().startsWith('soluciona')) return `${userName}, ${title.charAt(0).toLowerCase() + title.slice(1)}`;
+        if (title.toLowerCase().startsWith('cualquier')) return `${userName}, ${title.charAt(0).toLowerCase() + title.slice(1)}`;
+        if (title.toLowerCase().startsWith('¿qué')) return `${userName}, ${title}`;
+        if (title.toLowerCase().startsWith('tu red')) return `Tu red, ${userName}`;
 
         return `${userName}, ${title.charAt(0).toLowerCase() + title.slice(1)}`;
     };

@@ -274,9 +274,9 @@ function MainApp() {
                 const fetched = await api.getAppMessages();
                 if (fetched && fetched.length > 0) {
                     setHomeMessages(fetched);
-                    // intentionally NOT calling setDynamicCopy(fetched[...]) here 
-                    // to prevent a visual flicker ("double read") for the user.
-                    // The backend layout can be used next time or stored if offline caching is implemented.
+                    // Use a random message from the backend collection if we haven't modified it recently
+                    const randomIdx = Math.floor(Math.random() * fetched.length);
+                    setDynamicCopy(fetched[randomIdx]);
                 }
             } catch (e) {
                 console.warn("Error fetching messages", e);
