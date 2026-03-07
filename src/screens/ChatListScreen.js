@@ -84,7 +84,10 @@ export default function ChatListScreen({ currentUser, requests, chats = [], onSe
                     image: partner.avatar,
                     unreadCount: chat.unreadCount || 0,
                     requestData: {
-                        ...(relatedRequest || { _id: chat.job._id || chat.job, title: chat.job.title || 'Trabajo' }),
+                        ...(relatedRequest || {
+                            _id: chat.job ? (chat.job._id || chat.job) : chat._id,
+                            title: (chat.job && chat.job.title) ? chat.job.title : 'Trabajo'
+                        }),
                         conversations: [{
                             id: chat._id,
                             proId: partner._id,

@@ -315,7 +315,12 @@ function MainApp() {
                         const routeToCorrectView = (jobRequest) => {
                             setSelectedRequest(jobRequest);
                             if (isChat) {
-                                setView('chat');
+                                // Extract target user for chat from incoming push data or fallback
+                                const targetId = data.senderId || (userMode === 'client' ? jobRequest.proId : jobRequest.client);
+                                const initialChatRequest = { ...jobRequest, targetUser: { id: targetId } };
+                                setSelectedChatRequest(initialChatRequest);
+                                setPreviousView('home');
+                                setView('chat-detail');
                             } else {
                                 setView(userMode === 'client' ? 'request-detail-client' : 'job-detail-pro');
                             }
