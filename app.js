@@ -1342,6 +1342,19 @@ function MainApp() {
         }
     };
 
+    // Auto-procesar solicitud que quedó pendiente al intentar registrarse / iniciar sesión
+    useEffect(() => {
+        if (isLoggedIn && currentUser && pendingRequestData) {
+            const processPending = async () => {
+                console.log("Auto-creando solicitud pendiente tras login/registro:", pendingRequestData);
+                await createRequest(pendingRequestData, currentUser.name, currentUser.email);
+                setPendingRequestData(null); // Limpiar para que no se repita
+            };
+            processPending();
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isLoggedIn, currentUser, pendingRequestData]);
+
     const handleProSendQuote = async (jobId, quoteData, isUpdating = false) => {
         try {
             // 1. Mostrar estado de carga (opcional si ya hay un loader global)
@@ -1991,11 +2004,11 @@ function MainApp() {
             </View>
 
             {/* MODAL LOGIN */}
-            <Modal visible={showAuth} animationType="slide" onRequestClose={() => setShowAuth(false)}>
+            <Modal visible={showAuth} animationType="slide" onRequestClose={() => { setShowAuth(false); setPendingRequestData(null); }}>
                 <View style={{ flex: 1 }}>
                     <TouchableOpacity
                         style={{ position: 'absolute', top: 40, right: 20, zIndex: 10, padding: 10, backgroundColor: 'rgba(0,0,0,0.3)', borderRadius: 20 }}
-                        onPress={() => setShowAuth(false)}
+                        onPress={() => { setShowAuth(false); setPendingRequestData(null); }}
                     >
                         <Feather name="x" size={24} color="white" />
                     </TouchableOpacity>
