@@ -225,7 +225,13 @@ export function useAppData({ isLoggedIn, currentUser, userMode, view }) {
     const lastLoadedViewRef = useRef(null);
 
     useEffect(() => {
-        if (!isLoggedIn) return;
+        if (!isLoggedIn) {
+            setAllRequests([]);
+            setAllChats([]);
+            setCounts({ client: { chats: 0, updates: 0 }, pro: { chats: 0, updates: 0 } });
+            lastLoadedViewRef.current = null;
+            return;
+        }
 
         const isMainView = ['home', 'my-requests', 'chat-list', 'professional-profile', 'admin'].includes(view);
         const shouldLoadData = isMainView && (lastLoadedViewRef.current !== view);

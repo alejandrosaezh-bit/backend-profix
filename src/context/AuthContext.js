@@ -66,9 +66,21 @@ export const AuthProvider = ({ children }) => {
     const logout = async () => {
         setIsLoading(true);
         try {
+            // Eliminar token de notificaciones del backend si es posible antes de borrar sesión
+            try {
+                if (userToken) {
+                    await api.updateProfile({ pushToken: '' });
+                    console.log("[AuthContext] Push token cleared on backend.");
+                }
+            } catch (backendError) {
+                console.warn("[AuthContext] Error clearing push token on backend:", backendError);
+            }
+
+            // Eliminar token de auth explícitamente y borrar caché completo (evitar fugas de data)
             await AsyncStorage.removeItem('userToken');
+            await AsyncStorage.clear();
             await clearSession();
-            console.log("[AuthContext] Session cleared successfully.");
+            console.log("[AuthContext] Session and all local storage fully cleared successfully.");
         } catch (error) {
             console.error("[AuthContext] Error during logout storage cleanup:", error);
         } finally {
