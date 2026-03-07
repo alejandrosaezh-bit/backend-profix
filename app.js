@@ -316,10 +316,14 @@ function MainApp() {
                             setSelectedRequest(jobRequest);
                             if (isChat) {
                                 // Extract target user for chat from incoming push data or fallback
-                                const targetId = data.senderId || (userMode === 'client' ? jobRequest.proId : jobRequest.client);
-                                const initialChatRequest = { ...jobRequest, targetUser: { id: targetId } };
+                                const targetId = data.senderId || (userMode === 'client' ? (jobRequest.proId?._id || jobRequest.proId) : (jobRequest.client?._id || jobRequest.client));
+                                const initialChatRequest = {
+                                    ...jobRequest,
+                                    targetUser: { id: targetId, name: data.senderName || 'Usuario' },
+                                    conversations: data.chatId ? [{ id: data.chatId, proId: targetId }] : []
+                                };
                                 setSelectedChatRequest(initialChatRequest);
-                                setPreviousView('home');
+                                setPreviousView('chat-list');
                                 setView('chat-detail');
                             } else {
                                 setView(userMode === 'client' ? 'request-detail-client' : 'job-detail-pro');

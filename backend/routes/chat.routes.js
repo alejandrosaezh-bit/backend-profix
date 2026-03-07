@@ -250,7 +250,13 @@ router.post('/:id/messages', protect, async (req, res) => {
                             title: req.user.name,
                             body: content,
                             channelId: 'default',
-                            data: { chatId: chat._id, jobId: chat.job, type: 'chat' }
+                            data: {
+                                chatId: chat._id,
+                                jobId: chat.job,
+                                type: 'chat',
+                                senderId: req.user._id,
+                                senderName: req.user.name
+                            }
                         };
 
                         const data = JSON.stringify(pushBody);
