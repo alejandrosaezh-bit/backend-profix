@@ -306,21 +306,21 @@ function MainApp() {
                     const data = response.notification.request.content.data;
                     console.log("[Notification Opened] Payload:", data);
 
-                    if (data && data.jobId) {
-                        const targetJobId = String(data.jobId);
-                        const isChat = data.type === 'chat' || data.chatId; // Fallback for old notifications
+                    if (data && (data.jobId || data.chatId)) {
+                        const targetJobId = data.jobId ? String(data.jobId) : null;
+                        const targetChatId = data.chatId ? String(data.chatId) : null;
+                        const isChat = data.type === 'chat' || data.chatId;
 
-                        console.log(`[Notification Opened] Redirecting to ${isChat ? 'chat' : 'job details'} for job:`, targetJobId);
+                        console.log(`[Notification Opened] Redirecting to ${isChat ? 'chat' : 'job details'} for job/chat:`, targetJobId || targetChatId);
 
                         const routeToCorrectView = (jobRequest) => {
                             setSelectedRequest(jobRequest);
                             if (isChat) {
-                                // Extract target user for chat from incoming push data or fallback
                                 const targetId = data.senderId || (userMode === 'client' ? (jobRequest.proId?._id || jobRequest.proId) : (jobRequest.client?._id || jobRequest.client));
                                 const initialChatRequest = {
                                     ...jobRequest,
                                     targetUser: { id: targetId, name: data.senderName || 'Usuario' },
-                                    conversations: data.chatId ? [{ id: data.chatId, proId: targetId }] : []
+                                    conversations: targetChatId ? [{ id: targetChatId, proId: targetId }] : []
                                 };
                                 setSelectedChatRequest(initialChatRequest);
                                 setPreviousView('chat-list');
@@ -330,16 +330,27 @@ function MainApp() {
                             }
                         };
 
-                        const foundRequest = allRequests.find(r => String(r._id || r.id) === targetJobId);
+                        let foundRequest = null;
+                        if (targetJobId) {
+                            foundRequest = allRequests.find(r => String(r._id || r.id) === targetJobId);
+                        }
 
                         if (foundRequest) {
                             routeToCorrectView(foundRequest);
                         } else {
                             loadRequests().then((refs) => {
                                 const freshRequests = Array.isArray(refs) ? refs : [];
-                                const delayedReq = freshRequests.find(r => String(r._id || r.id) === targetJobId);
+                                let delayedReq = null;
+                                if (targetJobId) {
+                                    delayedReq = freshRequests.find(r => String(r._id || r.id) === targetJobId);
+                                }
+
                                 if (delayedReq) {
                                     routeToCorrectView(delayedReq);
+                                } else if (isChat) {
+                                    // Fallback request to prevent silent failure on direct chats/missing jobs
+                                    const fallbackId = targetJobId || targetChatId || "unknown";
+                                    routeToCorrectView({ _id: fallbackId, id: fallbackId, title: "Chat" });
                                 }
                             });
                         }
