@@ -33,5 +33,9 @@ const userSchema = mongoose.Schema({
 
     createdAt: { type: Date, default: Date.now }
 });
+// Indexes for performance optimization on common search fields
+userSchema.index({ role: 1 });
+userSchema.index({ rating: -1 });
+userSchema.index({ isActive: 1 });
 
 module.exports = mongoose.model('User', userSchema);

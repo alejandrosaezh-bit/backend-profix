@@ -8,10 +8,16 @@ const jobRoutes = require('./routes/jobs.routes');
 const adminRoutes = require('./routes/admin.routes');
 const publicRoutes = require('./routes/public.routes');
 const chatRoutes = require('./routes/chat.routes');
+const messageRoutes = require('./routes/messages.routes');
+const { notFound, errorHandler } = require('./middleware/errorMiddleware');
+
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
+const mongoSanitize = require('express-mongo-sanitize');
+const hpp = require('hpp');
+const xss = require('xss-clean');
 
 dotenv.config({ path: path.join(__dirname, '.env') });
-
-
 // Conectar a Base de Datos
 connectDB();
 
@@ -21,6 +27,21 @@ const app = express();
 app.use(cors());
 app.use(express.json({ limit: '50mb' })); // Aumentar límite para imágenes Base64
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
+
+// Security Middleware
+app.use(helmet()); // Set security HTTP headers
+app.use(mongoSanitize()); // Prevent NoSQL injection
+app.use(xss()); // Prevent XSS attacks
+app.use(hpp()); // Prevent HTTP Param Pollution
+
+// Rate limiting (100 requests per 15 mins)
+const apiLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 100,
+    message: 'Demasiadas peticiones desde esta IP, intente de nuevo en 15 minutos'
+});
+// Apply to auth routes specifically to prevent brute force
+app.use('/api/auth/', apiLimiter);
 
 // Log request size and time
 app.use((req, res, next) => {
@@ -65,10 +86,12 @@ app.use('/api/admin', adminRoutes);
 // Rutas de Chat
 app.use('/api/chats', chatRoutes);
 
-const messageRoutes = require('./routes/messages.routes');
-
 // Rutas de Mensajes
 app.use('/api/messages', messageRoutes);
+
+// Error Middleware
+app.use(notFound);
+app.use(errorHandler);
 
 const PORT = process.env.PORT || 5000;
 const server = require('http').createServer(app);

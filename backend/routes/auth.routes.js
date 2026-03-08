@@ -4,6 +4,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const { protect } = require('../middleware/authMiddleware');
+const { body, validationResult } = require('express-validator');
 
 // Generar JWT
 const generateToken = (id) => {
@@ -15,9 +16,20 @@ const generateToken = (id) => {
 // @desc    Registrar nuevo usuario
 // @route   POST /api/auth/register
 // @access  Public
-router.post('/register', async (req, res) => {
+router.post('/register', [
+    body('name').trim().notEmpty().withMessage('El nombre es obligatorio').escape(),
+    body('email').isEmail().normalizeEmail().withMessage('Email inválido'),
+    body('password').isLength({ min: 6 }).withMessage('La contraseña debe tener al menos 6 caracteres'),
+    body('cedula').trim().notEmpty().withMessage('La cédula es obligatoria').escape(),
+    body('phone').optional().trim().escape()
+], async (req, res) => {
     console.log("Backend received /register request body:", req.body);
     try {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            return res.status(400).json({ Object: 'Validation error', errors: errors.array() });
+        }
+
         const { name, email, password, role, phone, cedula } = req.body;
 
         if (!cedula) {
@@ -69,12 +81,20 @@ router.post('/register', async (req, res) => {
 // @desc    Autenticar usuario y obtener token
 // @route   POST /api/auth/login
 // @access  Public
-router.post('/login', async (req, res) => {
+router.post('/login', [
+    body('email').isEmail().normalizeEmail().withMessage('Email inválido'),
+    body('password').notEmpty().withMessage('Contraseña es obligatoria')
+], async (req, res) => {
     console.log("-> /login request started");
     try {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            return res.status(400).json({ Object: 'Validation error', errors: errors.array() });
+        }
+
         const { email, password } = req.body;
         console.log("-> parsed body, email:", email);
-        
+
         console.time("FindUser");
         const user = await User.findOne({ email }).select('+password');
         console.timeEnd("FindUser");
@@ -88,7 +108,7 @@ router.post('/login', async (req, res) => {
         console.time("Bcrypt");
         const isMatch = user && (await bcrypt.compare(password, user.password));
         console.timeEnd("Bcrypt");
-        
+
         if (isMatch) {
             console.log("-> password match, serializing...");
             const userSerialized = serializeUser(user);
