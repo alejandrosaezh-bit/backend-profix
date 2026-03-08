@@ -184,7 +184,7 @@ const BudgetPopup = ({ visible, budget, onClose, onAccept, onReject, request, st
                     <View style={{
                         paddingHorizontal: 24,
                         paddingTop: 16,
-                        paddingBottom: Platform.OS === 'ios' ? 40 : 24,
+                        paddingBottom: Platform.OS === 'android' ? 40 : 40,
                         borderTopWidth: 1,
                         borderTopColor: '#F1F5F9',
                         backgroundColor: 'white'

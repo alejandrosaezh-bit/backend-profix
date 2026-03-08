@@ -401,6 +401,7 @@ const styles = StyleSheet.create({
         borderTopLeftRadius: 32,
         borderTopRightRadius: 32,
         padding: 24,
+        paddingBottom: Platform.OS === 'android' ? 40 : 40,
         width: '100%',
         height: '90%',
         maxHeight: '100%'

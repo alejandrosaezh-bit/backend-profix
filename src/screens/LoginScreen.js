@@ -1,7 +1,6 @@
 import { Feather } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useContext, useEffect, useState } from 'react';
-import { Alert, Keyboard, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
+import { Keyboard, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
 import { AuthContext } from '../context/AuthContext';
 import { api } from '../utils/api';
 import { OTA_VERSION } from '../utils/version';
@@ -216,53 +215,9 @@ export default function LoginScreen({ navigation }) {
         </TouchableOpacity>
       </View>
 
-      {/* Zona de Diagnóstico e Información de Versión */}
+      {/* Zona de Información de Versión */}
       <View style={{ marginTop: 30, alignItems: 'center', opacity: 0.8 }}>
         <Text style={{ color: 'white', fontWeight: 'bold' }}>Versión: {OTA_VERSION}</Text>
-
-        <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
-          <TouchableOpacity
-            onPress={runDiagnostics}
-            style={{ backgroundColor: 'rgba(0,0,0,0.2)', padding: 10, borderRadius: 8 }}
-          >
-            <Text style={{ color: 'white', fontSize: 12 }}>Diagnosticar Conexión</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={async () => {
-              Alert.alert(
-                "Reiniciar Aplicación",
-                "Esto borrará la sesión actual y el historial local. Úsalo si ves errores de 'base de datos llena'.",
-                [
-                  { text: "Cancelar", style: "cancel" },
-                  {
-                    text: "Limpiar y Reiniciar",
-                    style: "destructive",
-                    onPress: async () => {
-                      try {
-                        await AsyncStorage.clear();
-                        Alert.alert("Éxito", "Datos borrados. Reinicia la app manualmente.");
-                      } catch (e) {
-                        Alert.alert("Error", "No se pudieron borrar los datos.");
-                      }
-                    }
-                  }
-                ]
-              );
-            }}
-            style={{ backgroundColor: 'rgba(255,0,0,0.2)', padding: 10, borderRadius: 8 }}
-          >
-            <Text style={{ color: 'white', fontSize: 12 }}>Limpiar Datos (Reset)</Text>
-          </TouchableOpacity>
-        </View>
-
-        {diagStatus ? (
-          <View style={{ marginTop: 10, backgroundColor: '#333', padding: 10, borderRadius: 5, width: '100%' }}>
-            <Text style={{ color: '#00FF00', fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace', fontSize: 10 }}>
-              {diagStatus}
-            </Text>
-          </View>
-        ) : null}
       </View>
 
       {/* Espaciador para asegurar que el teclado no tape el último input */}

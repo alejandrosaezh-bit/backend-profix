@@ -146,9 +146,9 @@ class ErrorBoundary extends React.Component {
     render() {
         if (this.state.hasError) {
             return (
-                <SafeAreaView style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
-                    <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 10 }}>Se produjo un error</Text>
-                    <Text style={{ marginBottom: 10 }}>{String(this.state.error)}</Text>
+                <SafeAreaView style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20, backgroundColor: 'white' }}>
+                    <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 10, color: 'red' }}>Se produjo un error</Text>
+                    <Text style={{ marginBottom: 10, color: 'black' }}>{String(this.state.error)}</Text>
                     <TouchableOpacity
                         onPress={() => {
                             if (typeof DevSettings !== 'undefined' && DevSettings.reload) {
@@ -159,7 +159,7 @@ class ErrorBoundary extends React.Component {
                         }}
                         style={{ backgroundColor: '#2563EB', padding: 10, borderRadius: 8 }}
                     >
-                        <Text style={{ color: 'white' }}>Recargar</Text>
+                        <Text style={{ color: 'white', fontWeight: 'bold' }}>Recargar Aplicación</Text>
                     </TouchableOpacity>
                 </SafeAreaView>
             );
@@ -1658,7 +1658,7 @@ function MainApp() {
                         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
                         keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}
                     >
-                        <ScrollView style={{ flex: 1, backgroundColor: '#F8F9FA' }} contentContainerStyle={{ paddingBottom: 100 }} keyboardShouldPersistTaps="handled">
+                        <ScrollView style={{ flex: 1, backgroundColor: '#F8F9FA' }} contentContainerStyle={{ paddingBottom: 300 }} keyboardShouldPersistTaps="handled">
                             <SectionDivider />
                             <ServiceForm
                                 onSubmit={createRequest} // Acceso directo para pruebas, idealmente pasar por handleCreateNewRequest
@@ -1918,7 +1918,7 @@ function MainApp() {
                         onBack={() => setView('home')}
                         onRefresh={onRefresh} // NEW: Allow pull-to-refresh
                         refreshing={refreshing}
-                        onGoToProfile={() => setView('professional-profile')}
+                        onGoToProfile={() => setView('profile')}
                     />
                 )}
 

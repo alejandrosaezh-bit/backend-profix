@@ -29,8 +29,22 @@ const ServiceForm = ({ onSubmit, isLoggedIn, onTriggerLogin, initialCategory, in
     const locationInputRef = useRef(null);
 
     useEffect(() => {
-        if (initialCategory) setFormData(prev => ({ ...prev, category: initialCategory }));
-        if (initialSubcategory) setFormData(prev => ({ ...prev, subcategory: initialSubcategory }));
+        let shouldFocus = false;
+        if (initialCategory) {
+            setFormData(prev => ({ ...prev, category: initialCategory }));
+        }
+        if (initialSubcategory) {
+            setFormData(prev => ({ ...prev, subcategory: initialSubcategory }));
+            shouldFocus = true;
+        }
+
+        if (shouldFocus) {
+            setTimeout(() => {
+                if (titleInputRef.current) {
+                    titleInputRef.current.focus();
+                }
+            }, 500);
+        }
     }, [initialCategory, initialSubcategory]);
 
     // ... (rest of logic same until render) ...

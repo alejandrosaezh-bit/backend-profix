@@ -18862,3 +18862,5 @@
 [2026-03-06T16:36:46.792Z] START GET /api/chats
 [2026-03-06T16:36:47.272Z] END GET /api/chats - Status: 200 (480ms) Size: 65031 bytes [User: 6941cfdcfd8ac2c570c363fa / alejandrosaezh@gmail.com]
 [2026-03-06T16:36:48.015Z] END GET /api/jobs/me - Status: 200 (1537ms) Size: 140147 bytes [User: 6941cfdcfd8ac2c570c363fa / alejandrosaezh@gmail.com]
+[2026-03-06T22:36:47.715Z] START GET /api/auth/me
+[2026-03-06T22:36:47.752Z] END GET /api/auth/me - Status: 401 (42ms) Size: 38 bytes [No User]
