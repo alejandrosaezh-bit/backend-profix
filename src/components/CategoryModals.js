@@ -4,7 +4,7 @@ import styles from '../styles/globalStyles';
 
 export const CategoryGridModal = ({ visible, onClose, onSelect, categories }) => {
     return (
-        <Modal visible={visible} transparent={true} animationType="slide" onRequestClose={onClose}>
+        <Modal visible={visible} transparent={true} animationType="fade" onRequestClose={onClose}>
             <View style={styles.categoryGridModalOverlay}>
                 <View style={styles.categoryGridModalContent}>
                     <View style={styles.categoryGridHeader}>
@@ -43,7 +43,7 @@ export const CategoryGridModal = ({ visible, onClose, onSelect, categories }) =>
 
 export const SubcategoryGridModal = ({ visible, onClose, onSelect, subcategories, categoryName, color, iconColor }) => {
     return (
-        <Modal visible={visible} transparent={true} animationType="slide" onRequestClose={onClose}>
+        <Modal visible={visible} transparent={true} animationType="fade" onRequestClose={onClose}>
             <View style={styles.categoryGridModalOverlay}>
                 <View style={styles.categoryGridModalContent}>
                     <View style={styles.categoryGridHeader}>

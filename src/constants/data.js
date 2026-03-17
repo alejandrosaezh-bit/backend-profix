@@ -72,7 +72,7 @@ export const LOCATIONS_DATA = {
 export const FLAT_ZONES_SUGGESTIONS = [];
 Object.keys(LOCATIONS_DATA).forEach(city => {
     LOCATIONS_DATA[city].forEach(muni => {
-        FLAT_ZONES_SUGGESTIONS.push(`${muni}, ${city} `);
+        FLAT_ZONES_SUGGESTIONS.push(`${muni}, ${city}`);
     });
 });
 

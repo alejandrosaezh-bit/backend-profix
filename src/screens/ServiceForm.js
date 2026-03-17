@@ -1,9 +1,9 @@
-import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Image, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Keyboard, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
+import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { CategoryGridModal, SubcategoryGridModal } from '../components/CategoryModals';
 import { CATEGORY_EXAMPLES, FLAT_ZONES_SUGGESTIONS, HOME_COPY_OPTIONS } from '../constants/data';
 import { ChevronDown, ChevronRight, MapPin } from '../constants/icons';
@@ -11,8 +11,25 @@ import styles from '../styles/globalStyles';
 import { showAlert } from '../utils/helpers';
 import { compressImage } from '../utils/imageCompressor';
 
-const ServiceForm = ({ onSubmit, isLoggedIn, onTriggerLogin, initialCategory, initialSubcategory, categories = [], allSubcategories = {}, currentUser, dynamicCopy }) => {
+const ServiceForm = ({ onSubmit, isLoggedIn, onTriggerLogin, initialCategory, initialSubcategory, categories = [], allSubcategories = {}, currentUser, dynamicCopy, scrollTo }) => {
     const copy = dynamicCopy || HOME_COPY_OPTIONS[0];
+    const [coords, setCoords] = useState({});
+
+    const handleLayout = (key, event) => {
+        if (!event || !event.nativeEvent || !event.nativeEvent.layout) return;
+        const layoutY = event.nativeEvent.layout.y;
+        setCoords(prev => ({ ...prev, [key]: layoutY }));
+    };
+
+    const handleFocus = (key) => {
+        if (scrollTo && coords[key] !== undefined) {
+            // Offset matemático exacto calibrado (+90px)
+            // Esto compensa el paddingTop del ServiceForm y el Divider superior para que 
+            // el título quede EXACTAMENTE debajo de la barra "Profesional Cercano".
+            scrollTo(coords[key] + 90);
+        }
+    };
+
     const [formData, setFormData] = useState({
         category: initialCategory || '', subcategory: initialSubcategory || '', title: '', description: '', location: ''
     });
@@ -72,6 +89,8 @@ const ServiceForm = ({ onSubmit, isLoggedIn, onTriggerLogin, initialCategory, in
     };
 
     const handleLocateMe = async () => {
+        handleFocus('location');
+        Keyboard.dismiss(); // Cierra el teclado inmediatamente en la misma acción
         setIsLocating(true);
         setLocationDetected(false);
         try {
@@ -96,7 +115,7 @@ const ServiceForm = ({ onSubmit, isLoggedIn, onTriggerLogin, initialCategory, in
                     city = 'Gran Caracas';
                 }
 
-                const formatted = `${zone}, ${city} `;
+                const formatted = `${zone}, ${city}`;
                 setFormData(prev => ({ ...prev, location: formatted }));
                 setLocationDetected(true);
             } else {
@@ -127,6 +146,7 @@ const ServiceForm = ({ onSubmit, isLoggedIn, onTriggerLogin, initialCategory, in
         if (!result.canceled) {
             const compressedBase64 = await compressImage(result.assets[0].uri);
             setImages([...images, compressedBase64]);
+            setTimeout(() => handleFocus('location'), 100);
         }
     };
 
@@ -145,6 +165,7 @@ const ServiceForm = ({ onSubmit, isLoggedIn, onTriggerLogin, initialCategory, in
 
         if (!result.canceled) {
             setVideos([...videos, result.assets[0].uri]);
+            setTimeout(() => handleFocus('location'), 100);
         }
     };
 
@@ -163,6 +184,7 @@ const ServiceForm = ({ onSubmit, isLoggedIn, onTriggerLogin, initialCategory, in
 
         if (!result.canceled) {
             setVideos([...videos, result.assets[0].uri]);
+            setTimeout(() => handleFocus('location'), 100);
         }
     };
 
@@ -182,14 +204,22 @@ const ServiceForm = ({ onSubmit, isLoggedIn, onTriggerLogin, initialCategory, in
         if (!result.canceled) {
             const compressedBase64 = await compressImage(result.assets[0].uri);
             setImages([...images, compressedBase64]);
+            setTimeout(() => handleFocus('location'), 100);
         }
     };
 
     const handlePreSubmit = () => {
-        if (!formData.title || !formData.category) {
-            showAlert('Faltan datos', 'Por favor completa al menos el título y la categoría.');
+        if (!formData.title || !formData.category || !formData.subcategory) {
+            showAlert('Faltan datos', 'Por favor elige una categoría, la especialidad y ponle un título a tu necesidad.');
             return;
         }
+
+        const isLocValid = formData.location && FLAT_ZONES_SUGGESTIONS.includes(formData.location.trim());
+        if (!isLocValid) {
+            showAlert('Ubicación inválida', 'Por favor escribe tu Municipio y selecciónalo de la lista, o presiona el botón rojo para autodetectarlo.\n\nTranquilo, no rastrearemos tu ubicación exacta, solo usaremos el municipio como zona de referencia.');
+            return;
+        }
+
         if (!isLoggedIn) {
             onTriggerLogin({ pendingData: { ...formData, images } });
         } else {
@@ -280,8 +310,8 @@ const ServiceForm = ({ onSubmit, isLoggedIn, onTriggerLogin, initialCategory, in
                     categories={categories}
                     onSelect={(c) => {
                         setFormData({ ...formData, category: c, subcategory: '' });
-                        // Aumentar delay a 600ms para asegurar que el Modal anterior se cierre por completo en Android
-                        setTimeout(() => setShowSubcategoryGrid(true), 600);
+                        // Animación es fade, se puede abrir a los 100ms sin errores
+                        setTimeout(() => setShowSubcategoryGrid(true), 100);
                     }}
                 />
 
@@ -311,16 +341,16 @@ const ServiceForm = ({ onSubmit, isLoggedIn, onTriggerLogin, initialCategory, in
                         setFormData({ ...formData, subcategory: s });
                         // Auto-focus Title after selection - wait for render
                         setTimeout(() => {
+                            handleFocus('title');
                             if (titleInputRef.current) {
                                 titleInputRef.current.focus();
-                                // Optional: Scroll is handled by View layout usually, but we can rely on focus bringing it into view
                             }
                         }, 500);
                     }}
                 />
                 {formData.category && formData.subcategory ? (
                     <>
-                        <View style={styles.inputGroup}>
+                        <View style={styles.inputGroup} onLayout={(e) => handleLayout('title', e)}>
                             <Text style={styles.label}>Ponle un título a tu necesidad</Text>
                             <TextInput
                                 ref={titleInputRef}
@@ -330,14 +360,16 @@ const ServiceForm = ({ onSubmit, isLoggedIn, onTriggerLogin, initialCategory, in
                                 value={formData.title}
                                 onChangeText={t => setFormData({ ...formData, title: t })}
                                 returnKeyType="next"
+                                onFocus={() => handleFocus('title')}
                                 onSubmitEditing={() => {
+                                    handleFocus('description');
                                     if (descriptionInputRef.current) {
                                         descriptionInputRef.current.focus();
                                     }
                                 }}
                             />
                         </View>
-                        <View style={styles.inputGroup}>
+                        <View style={styles.inputGroup} onLayout={(e) => handleLayout('description', e)}>
                             <Text style={styles.label}>Explícanos qué sucede</Text>
                             <TextInput
                                 ref={descriptionInputRef}
@@ -349,7 +381,9 @@ const ServiceForm = ({ onSubmit, isLoggedIn, onTriggerLogin, initialCategory, in
                                 onChangeText={t => setFormData({ ...formData, description: t })}
                                 blurOnSubmit={true}
                                 returnKeyType="next"
+                                onFocus={() => handleFocus('description')}
                                 onSubmitEditing={() => {
+                                    handleFocus('location');
                                     if (locationInputRef.current) {
                                         locationInputRef.current.focus();
                                     }
@@ -358,7 +392,7 @@ const ServiceForm = ({ onSubmit, isLoggedIn, onTriggerLogin, initialCategory, in
                         </View>
                     </>
                 ) : null}
-                <View style={[styles.inputGroup, { zIndex: 10 }]}>
+                <View style={[styles.inputGroup, { zIndex: 10 }]} onLayout={(e) => handleLayout('location', e)}>
                     <Text style={styles.label}>¿Dónde necesitas el servicio?</Text>
 
                     <Text style={[styles.privacyNote, { textAlign: 'left', marginBottom: 8, marginTop: 4 }]}>
@@ -375,11 +409,18 @@ const ServiceForm = ({ onSubmit, isLoggedIn, onTriggerLogin, initialCategory, in
                                 value={formData.location}
                                 onChangeText={handleLocationChange}
                                 returnKeyType="done"
+                                onFocus={() => handleFocus('location')}
                                 onSubmitEditing={() => {
                                     // Cuando se le da Enter/Realiz en ubicación, baja el teclado para ver los anexos
                                     if (locationInputRef.current) {
                                         locationInputRef.current.blur();
                                     }
+                                    
+                                    if (formData.location && formData.location.length > 2 && !FLAT_ZONES_SUGGESTIONS.includes(formData.location.trim())) {
+                                        showAlert('Precisión de Ubicación', 'No pudimos verificar esa zona. Por favor escribe tu Municipio y selecciónalo de las sugerencias, o toca el botón a la derecha para autodetectar tu ubicación (Solo tomaremos el municipio, no tu ubicación exacta).');
+                                    }
+
+                                    handleFocus('media');
                                 }}
                             />
                             {locationDetected && (
@@ -417,8 +458,13 @@ const ServiceForm = ({ onSubmit, isLoggedIn, onTriggerLogin, initialCategory, in
                             )}
                         </TouchableOpacity>
                     </View>
+                    {(!formData.location || !FLAT_ZONES_SUGGESTIONS.includes(formData.location.trim())) && formData.location.length > 2 && !showSuggestions && (
+                        <Text style={{ color: '#EF4444', fontSize: 13, marginTop: 8 }}>
+                            Por favor selecciona un municipio de la lista o autodetecta tu zona.
+                        </Text>
+                    )}
                 </View>
-                <View style={[styles.inputGroup, { marginTop: 15 }]}>
+                <View style={[styles.inputGroup, { marginTop: 15 }]} onLayout={(e) => handleLayout('media', e)}>
                     <Text style={styles.label}>Complementa con una imagen o Vídeo</Text>
                     <Text style={{ fontSize: 12, color: '#6B7280', marginTop: -2, marginBottom: 5, fontStyle: 'italic' }}>*Añadir multimedia ayuda a recibir mejores presupuestos.</Text>
 
@@ -514,7 +560,13 @@ const ServiceForm = ({ onSubmit, isLoggedIn, onTriggerLogin, initialCategory, in
 
                 </View>
 
-                <TouchableOpacity style={styles.searchButton} onPress={handlePreSubmit}>
+                <TouchableOpacity
+                    style={[
+                        styles.searchButton,
+                        (!formData.title || !formData.category || !formData.subcategory || !formData.location || !FLAT_ZONES_SUGGESTIONS.includes(formData.location.trim())) && { backgroundColor: '#9CA3AF' }
+                    ]}
+                    onPress={handlePreSubmit}
+                >
                     <Text style={styles.searchButtonText}>{copy.buttonText}</Text>
                     <ChevronRight color="white" size={20} />
                 </TouchableOpacity>

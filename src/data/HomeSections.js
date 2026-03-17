@@ -70,7 +70,6 @@ export default function HomeSections({ onSelectCategory }) {
         </View>
       ))}
 
-      <View style={{height: 100}} /> 
     </View>
   );
 }

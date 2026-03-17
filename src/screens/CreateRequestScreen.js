@@ -11,10 +11,13 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View
+  View,
+  Modal
 } from 'react-native';
+import { Feather } from '@expo/vector-icons';
 import { api } from '../utils/api';
 import { compressImage } from '../utils/imageCompressor';
+import { FLAT_ZONES_SUGGESTIONS } from '../constants/data';
 
 // Colores del tema (Naranjas y oscuros)
 const THEME = {
@@ -57,9 +60,36 @@ export default function CreateRequestScreen({ navigation }) {
   const descriptionRef = useRef(null);
   const locationRef = useRef(null);
   const [coords, setCoords] = useState({});
+  const [suggestions, setSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [locationDetected, setLocationDetected] = useState(false);
+
+  const handleLocationChange = (text) => {
+    setLocation(text);
+    setLocationDetected(false);
+    if (text.length > 2) {
+      const filtered = FLAT_ZONES_SUGGESTIONS.filter(z => z.toLowerCase().includes(text.toLowerCase()));
+      setSuggestions(filtered.slice(0, 3));
+      setShowSuggestions(true);
+    } else {
+      setShowSuggestions(false);
+    }
+  };
+
+  const handleSelectSuggestion = (zone) => {
+    setLocation(zone);
+    setShowSuggestions(false);
+    setLocationDetected(true);
+    if (locationRef.current) {
+      locationRef.current.blur();
+    }
+    setTimeout(() => scrollToSection('footer'), 100);
+  };
 
   const handleLayout = (key, event) => {
-    setCoords(prev => ({ ...prev, [key]: event.nativeEvent.layout.y }));
+    if (!event || !event.nativeEvent || !event.nativeEvent.layout) return;
+    const layoutY = event.nativeEvent.layout.y;
+    setCoords(prev => ({ ...prev, [key]: layoutY }));
   };
 
   const scrollToSection = (key) => {
@@ -82,24 +112,25 @@ export default function CreateRequestScreen({ navigation }) {
     }
   };
 
-  // --- LÓGICA DE CÁMARA ---
-  let result = await ImagePicker.launchImageLibraryAsync({
-    mediaTypes: ImagePicker.MediaType.All,
-    quality: 1,
-    allowsMultipleSelection: true,
-    selectionLimit: 10,
-    allowsEditing: false // Explicitly disable cropping
-  });
+  const pickImage = async () => {
+    // --- LÓGICA DE CÁMARA ---
+    let result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaType.All,
+      quality: 1,
+      allowsMultipleSelection: true,
+      selectionLimit: 10,
+      allowsEditing: false // Explicitly disable cropping
+    });
 
-  if (!result.canceled) {
-    const processedImages = await Promise.all(
-      result.assets.map(asset => compressImage(asset.uri))
-    );
-    setImages(prev => [...prev, ...processedImages]);
-  }
-};
+    if (!result.canceled) {
+      const processedImages = await Promise.all(
+        result.assets.map(asset => compressImage(asset.uri))
+      );
+      setImages(prev => [...prev, ...processedImages]);
+    }
+  };
 
-const takePhoto = async () => {
+  const takePhoto = async () => {
   const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
   if (permissionResult.granted === false) return alert("Se requiere permiso de cámara.");
 
@@ -116,7 +147,10 @@ const takePhoto = async () => {
 
 const handleRequest = async () => {
   if (!title.trim()) return Alert.alert('Faltan datos', 'Por favor ingresa un título breve.');
-  if (!location.trim()) return Alert.alert('Faltan datos', 'Por favor ingresa la ubicación.');
+
+  const isLocValid = location && FLAT_ZONES_SUGGESTIONS.includes(location.trim());
+  if (!isLocValid) return Alert.alert('Ubicación inválida', 'Por favor selecciona un municipio válido de la lista proporcionada.');
+
   if (!description.trim()) return Alert.alert('Faltan datos', 'Por favor describe tu problema antes de enviar.');
   if (!category) return Alert.alert('Faltan datos', 'Por favor selecciona una categoría.');
 
@@ -255,23 +289,41 @@ return (
           </View>
 
           {/* 5. UBICACIÓN */}
-          <View onLayout={(e) => handleLayout('location', e)}>
+          <View onLayout={(e) => handleLayout('location', e)} style={{ zIndex: 10 }}>
             <Text style={styles.label}>Ubicación</Text>
             <Text style={{ fontSize: 12, color: '#666', marginBottom: 5 }}>Solo detectaremos tu municipio.</Text>
-            <TextInput
-              ref={locationRef}
-              style={styles.textInputSimple}
-              placeholder="Ej. Tu urbanización, barrio o punto de referencia"
-              value={location}
-              onChangeText={setLocation}
-              onFocus={() => scrollToSection('location')}
-              returnKeyType="done"
-              onSubmitEditing={() => {
-                // Cerrar teclado y mostrar el botón de procesar
-                import('react-native').then(({ Keyboard }) => Keyboard.dismiss());
-                setTimeout(() => scrollToSection('footer'), 100);
-              }}
-            />
+            <View style={{ flex: 1, position: 'relative' }}>
+              <TextInput
+                ref={locationRef}
+                style={[styles.textInputSimple, { marginBottom: 5 }]}
+                placeholder="Ej. Chacao, El Hatillo..."
+                value={location}
+                onChangeText={handleLocationChange}
+                onFocus={() => scrollToSection('location')}
+                returnKeyType="done"
+                onSubmitEditing={() => {
+                  import('react-native').then(({ Keyboard }) => Keyboard.dismiss());
+                }}
+              />
+              {showSuggestions && suggestions.length > 0 && (
+                <View style={[styles.suggestionsContainer, { zIndex: 999 }]}>
+                  {suggestions.map((s, i) => (
+                    <TouchableOpacity
+                      key={i}
+                      style={styles.suggestionItemModal}
+                      onPress={() => handleSelectSuggestion(s)}
+                    >
+                      <Text style={{ color: '#333' }}>{s}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+              {(!location || !FLAT_ZONES_SUGGESTIONS.includes(location.trim())) && location.length > 2 && !showSuggestions && (
+                <Text style={{ color: '#EF4444', fontSize: 12, marginBottom: 15 }}>
+                  Por favor, elige un municipio válido de la lista.
+                </Text>
+              )}
+            </View>
           </View>
 
           {/* 6. PRESUPUESTO */}
@@ -356,9 +408,13 @@ return (
             </View>
 
             <TouchableOpacity
-              style={[styles.submitBtn, loading && { backgroundColor: '#ccc' }]}
+              style={[
+                styles.submitBtn,
+                loading && { backgroundColor: '#ccc' },
+                (!location || !FLAT_ZONES_SUGGESTIONS.includes(location.trim())) && { backgroundColor: '#9CA3AF' }
+              ]}
               onPress={handleRequest}
-              disabled={loading}
+              disabled={loading || !location || !FLAT_ZONES_SUGGESTIONS.includes(location.trim())}
             >
               {loading ? (
                 <ActivityIndicator color="white" />
@@ -496,5 +552,25 @@ const styles = StyleSheet.create({
   modalHeader: { padding: 15, borderBottomWidth: 1, borderColor: '#eee', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   modalTitle: { fontSize: 18, fontWeight: 'bold' },
   modalItem: { padding: 15, borderBottomWidth: 1, borderColor: '#f0f0f0' },
-  modalItemText: { fontSize: 16, color: '#333' }
+  modalItemText: { fontSize: 16, color: '#333' },
+  suggestionsContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    position: 'absolute',
+    top: 50,
+    left: 0,
+    right: 0,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+  },
+  suggestionItemModal: {
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6'
+  }
 });

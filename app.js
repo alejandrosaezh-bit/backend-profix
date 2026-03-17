@@ -202,6 +202,7 @@ function MainApp() {
     const { socket } = useSocket(); // Access socket
     const isLoggedIn = !!userToken;
     const currentUser = userInfo;
+    const homeScrollViewRef = useRef(null);
 
     // --- HELPER: MATCHING LOGIC ---
     const isJobMatchingProfile = useCallback((job, user) => {
@@ -1658,9 +1659,10 @@ function MainApp() {
                         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
                         keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}
                     >
-                        <ScrollView style={{ flex: 1, backgroundColor: '#F8F9FA' }} contentContainerStyle={{ paddingBottom: 300 }} keyboardShouldPersistTaps="handled">
+                        <ScrollView ref={homeScrollViewRef} style={{ flex: 1, backgroundColor: '#F8F9FA' }} contentContainerStyle={{ paddingBottom: 50 }} keyboardShouldPersistTaps="handled">
                             <SectionDivider />
                             <ServiceForm
+                                scrollTo={(y) => homeScrollViewRef.current?.scrollTo({ y, animated: true })}
                                 onSubmit={createRequest} // Acceso directo para pruebas, idealmente pasar por handleCreateNewRequest
                                 isLoggedIn={isLoggedIn}
                                 onTriggerLogin={(data) => { setPendingRequestData(data.pendingData); setShowAuth(true); }}
@@ -2059,15 +2061,19 @@ function MainApp() {
 }
 
 
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+
 export default function App() {
     return (
-        <AuthProvider>
-            <ErrorBoundary>
-                <SocketProvider>
-                    <MainApp />
-                </SocketProvider>
-            </ErrorBoundary>
-        </AuthProvider>
+        <SafeAreaProvider>
+            <AuthProvider>
+                <ErrorBoundary>
+                    <SocketProvider>
+                        <MainApp />
+                    </SocketProvider>
+                </ErrorBoundary>
+            </AuthProvider>
+        </SafeAreaProvider>
     );
 }
 
