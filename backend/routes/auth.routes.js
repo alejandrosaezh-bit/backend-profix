@@ -18,7 +18,7 @@ const generateToken = (id) => {
 // @access  Public
 router.post('/register', [
     body('name').trim().notEmpty().withMessage('El nombre es obligatorio').escape(),
-    body('email').isEmail().normalizeEmail().withMessage('Email inválido'),
+    body('email').isEmail().toLowerCase().trim().withMessage('Email inválido'),
     body('password').isLength({ min: 6 }).withMessage('La contraseña debe tener al menos 6 caracteres'),
     body('cedula').trim().notEmpty().withMessage('La cédula es obligatoria').escape(),
     body('phone').optional().trim().escape()
@@ -82,7 +82,7 @@ router.post('/register', [
 // @route   POST /api/auth/login
 // @access  Public
 router.post('/login', [
-    body('email').isEmail().normalizeEmail().withMessage('Email inválido'),
+    body('email').isEmail().toLowerCase().trim().withMessage('Email inválido'),
     body('password').notEmpty().withMessage('Contraseña es obligatoria')
 ], async (req, res) => {
     console.log("-> /login request started");
@@ -96,7 +96,14 @@ router.post('/login', [
         console.log("-> parsed body, email:", email);
 
         console.time("FindUser");
-        const user = await User.findOne({ email }).select('+password');
+        let user = await User.findOne({ email }).select('+password');
+        
+        // Fallback for old accounts saved with stripped dots (gmail only)
+        if (!user && email.includes('@gmail.com')) {
+            const [localPart, domain] = email.split('@');
+            const dotlessEmail = localPart.replace(/\./g, '') + '@' + domain;
+            user = await User.findOne({ email: dotlessEmail }).select('+password');
+        }
         console.timeEnd("FindUser");
         console.log("-> user found?", !!user);
 
