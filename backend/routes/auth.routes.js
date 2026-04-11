@@ -351,4 +351,98 @@ router.post('/google', async (req, res) => {
     }
 });
 
+const sendEmail = require('../utils/sendEmail');
+
+// @desc    Solicitar recuperación de contraseña (envía código por email)
+// @route   POST /api/auth/forgot-password
+// @access  Public
+router.post('/forgot-password', async (req, res) => {
+    try {
+        const { email } = req.body;
+        const user = await User.findOne({ email });
+
+        if (!user) {
+            return res.status(404).json({ message: 'No existe una cuenta con ese correo electrónico' });
+        }
+
+        // Generar un código de 6 dígitos
+        const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
+
+        // Guardar código y expiración (15 minutos)
+        user.resetPasswordCode = resetCode;
+        user.resetPasswordExpire = Date.now() + 15 * 60 * 1000;
+        await user.save();
+
+        // Enviar email
+        try {
+            await sendEmail({
+                email: user.email,
+                subject: 'Solicitud de recuperación de contraseña en ProFix',
+                message: `Has solicitado recuperar tu contraseña.\n\nUsa el siguiente código de 6 dígitos para restablecerla:\n\n${resetCode}\n\nEste código expira en 15 minutos.\nSi no solicitaste esto, ignora este correo.`,
+                html: `
+                    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #ddd; border-radius: 10px;">
+                        <h2 style="color: #EA580C; text-align: center;">ProFix App</h2>
+                        <p style="font-size: 16px;">Hola <b>${user.name}</b>,</p>
+                        <p style="font-size: 16px;">Has solicitado recuperar tu contraseña. Usa el siguiente código para restablecerla:</p>
+                        <div style="text-align: center; margin: 30px 0;">
+                            <span style="font-size: 32px; font-weight: bold; background-color: #F8F9FA; padding: 10px 20px; border-radius: 8px; letter-spacing: 5px;">${resetCode}</span>
+                        </div>
+                        <p style="font-size: 14px; color: #666;">Este código expira en 15 minutos. Si no solicitaste este cambio, puedes ignorar este correo.</p>
+                        <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+                        <p style="font-size: 12px; color: #aaa; text-align: center;">El equipo de ProFix</p>
+                    </div>
+                `
+            });
+
+            res.json({ success: true, message: 'Correo enviado. Revisa tu bandeja de entrada.' });
+        } catch (emailError) {
+            console.error("Error enviando email:", emailError);
+            user.resetPasswordCode = undefined;
+            user.resetPasswordExpire = undefined;
+            await user.save();
+            return res.status(500).json({ message: 'Error al enviar el correo. Inténtalo más tarde.' });
+        }
+    } catch (error) {
+        console.error("Forgot Password Error:", error);
+        res.status(500).json({ message: 'Error en el servidor' });
+    }
+});
+
+// @desc    Restablecer contraseña usando código
+// @route   POST /api/auth/reset-password
+// @access  Public
+router.post('/reset-password', async (req, res) => {
+    try {
+        const { email, code, newPassword } = req.body;
+
+        if (!email || !code || !newPassword) {
+            return res.status(400).json({ message: 'Faltan datos obligatorios' });
+        }
+
+        const user = await User.findOne({ 
+            email, 
+            resetPasswordCode: code,
+            resetPasswordExpire: { $gt: Date.now() } // Verificar que no haya expirado
+        });
+
+        if (!user) {
+            return res.status(400).json({ message: 'Código inválido o ha expirado. Por favor solicita uno nuevo.' });
+        }
+
+        // Encriptar nueva contraseña
+        const salt = await bcrypt.genSalt(10);
+        user.password = await bcrypt.hash(newPassword, salt);
+
+        // Limpiar campos de reset
+        user.resetPasswordCode = undefined;
+        user.resetPasswordExpire = undefined;
+        await user.save();
+
+        res.json({ success: true, message: 'Contraseña actualizada exitosamente. Ya puedes iniciar sesión.' });
+    } catch (error) {
+        console.error("Reset Password Error:", error);
+        res.status(500).json({ message: 'Error en el servidor' });
+    }
+});
+
 module.exports = router;

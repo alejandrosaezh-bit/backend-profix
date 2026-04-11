@@ -160,6 +160,30 @@ export const api = {
         }
         return res.json();
     },
+    forgotPassword: async (email) => {
+        const res = await fetchWithTimeout(`${API_URL}/auth/forgot-password`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email })
+        });
+        if (!res.ok) {
+            const errorData = await res.json();
+            throw new Error(errorData.message || 'Error al solicitar recuperación');
+        }
+        return res.json();
+    },
+    resetPassword: async (email, code, newPassword) => {
+        const res = await fetchWithTimeout(`${API_URL}/auth/reset-password`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, code, newPassword })
+        });
+        if (!res.ok) {
+            const errorData = await res.json();
+            throw new Error(errorData.message || 'Error al restablecer contraseña');
+        }
+        return res.json();
+    },
 
     // --- TRABAJOS (JOBS) ---
     createJob: async (jobData) => {

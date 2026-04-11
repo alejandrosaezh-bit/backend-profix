@@ -1,6 +1,6 @@
 import { Feather } from '@expo/vector-icons';
 import { useContext, useEffect, useState } from 'react';
-import { Keyboard, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
+import { Keyboard, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View, Modal, Alert } from 'react-native';
 import { AuthContext } from '../context/AuthContext';
 import { api } from '../utils/api';
 import { OTA_VERSION } from '../utils/version';
@@ -11,6 +11,14 @@ export default function LoginScreen({ navigation }) {
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
+  // Recovery States
+  const [showRecoveryModal, setShowRecoveryModal] = useState(false);
+  const [recoveryStep, setRecoveryStep] = useState(1);
+  const [recoveryEmail, setRecoveryEmail] = useState('');
+  const [recoveryCode, setRecoveryCode] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [isRecovering, setIsRecovering] = useState(false);
+
   useEffect(() => {
     const showSubscription = Keyboard.addListener('keyboardDidShow', () => setKeyboardVisible(true));
     const hideSubscription = Keyboard.addListener('keyboardDidHide', () => setKeyboardVisible(false));
@@ -20,6 +28,43 @@ export default function LoginScreen({ navigation }) {
       hideSubscription.remove();
     };
   }, []);
+
+  const handleRequestRecovery = async () => {
+    if (!recoveryEmail) {
+      Alert.alert('Error', 'Ingresa tu correo electrónico');
+      return;
+    }
+    setIsRecovering(true);
+    try {
+      await api.forgotPassword(recoveryEmail);
+      setRecoveryStep(2);
+      Alert.alert('Éxito', 'Te hemos enviado un código a tu correo');
+    } catch (e) {
+      Alert.alert('Error', e.message);
+    } finally {
+      setIsRecovering(false);
+    }
+  };
+
+  const handleResetPassword = async () => {
+    if (!recoveryCode || !newPassword) {
+      Alert.alert('Error', 'Completa el código y tu nueva contraseña');
+      return;
+    }
+    setIsRecovering(true);
+    try {
+      await api.resetPassword(recoveryEmail, recoveryCode, newPassword);
+      Alert.alert('Éxito', 'Contraseña actualizada. Ya puedes iniciar sesión.');
+      setShowRecoveryModal(false);
+      setRecoveryStep(1);
+      setRecoveryCode('');
+      setNewPassword('');
+    } catch (e) {
+      Alert.alert('Error', e.message);
+    } finally {
+      setIsRecovering(false);
+    }
+  };
 
   // Form States
   const [email, setEmail] = useState('');
@@ -173,6 +218,12 @@ export default function LoginScreen({ navigation }) {
           </TouchableOpacity>
         </View>
 
+        {!isRegistering && (
+          <TouchableOpacity onPress={() => setShowRecoveryModal(true)} style={{ alignItems: 'flex-end', marginBottom: 15, marginTop: -5 }}>
+            <Text style={{ color: '#2563EB', fontWeight: 'bold' }}>¿Olvidaste tu contraseña?</Text>
+          </TouchableOpacity>
+        )}
+
         {errorMessage ? (
           <View style={{ marginBottom: 15, padding: 10, backgroundColor: '#FEF2F2', borderRadius: 8, borderWidth: 1, borderColor: '#FCA5A5' }}>
             <Text style={{ color: '#DC2626', textAlign: 'center', fontWeight: 'bold' }}>{errorMessage}</Text>
@@ -237,6 +288,71 @@ export default function LoginScreen({ navigation }) {
           {content}
         </TouchableWithoutFeedback>
       )}
+
+      {/* Modal de Recuperación */}
+      <Modal visible={showRecoveryModal} animationType="slide" transparent>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 }}>
+          <View style={{ backgroundColor: 'white', padding: 25, borderRadius: 24, elevation: 5 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#111827' }}>Recuperar Contraseña</Text>
+              <TouchableOpacity onPress={() => { setShowRecoveryModal(false); setRecoveryStep(1); }}>
+                <Feather name="x" size={24} color="#4B5563" />
+              </TouchableOpacity>
+            </View>
+
+            {recoveryStep === 1 ? (
+              <>
+                <Text style={{ color: '#4B5563', marginBottom: 15 }}>Ingresa tu correo y te enviaremos un código para restablecer tu contraseña.</Text>
+                <View style={styles.inputGroup}>
+                  <Feather name="mail" size={20} color="#000000" style={styles.inputIcon} />
+                  <TextInput
+                    placeholder="Correo electrónico"
+                    style={styles.input}
+                    value={recoveryEmail}
+                    onChangeText={setRecoveryEmail}
+                    autoCapitalize="none"
+                    keyboardType="email-address"
+                  />
+                </View>
+                <TouchableOpacity style={styles.authButton} onPress={handleRequestRecovery} disabled={isRecovering}>
+                  <Text style={styles.authButtonText}>{isRecovering ? 'Enviando...' : 'Enviar Código'}</Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <>
+                <Text style={{ color: '#4B5563', marginBottom: 15 }}>Revisa tu correo ({recoveryEmail}) e ingresa el código de 6 dígitos.</Text>
+                <View style={styles.inputGroup}>
+                  <Feather name="key" size={20} color="#000000" style={styles.inputIcon} />
+                  <TextInput
+                    placeholder="Código de 6 dígitos"
+                    style={styles.input}
+                    value={recoveryCode}
+                    onChangeText={setRecoveryCode}
+                    keyboardType="number-pad"
+                  />
+                </View>
+                <View style={styles.inputGroup}>
+                  <Feather name="lock" size={20} color="#000000" style={styles.inputIcon} />
+                  <TextInput
+                    placeholder="Nueva contraseña"
+                    style={styles.input}
+                    value={newPassword}
+                    onChangeText={setNewPassword}
+                    secureTextEntry
+                  />
+                </View>
+                <TouchableOpacity style={styles.authButton} onPress={handleResetPassword} disabled={isRecovering}>
+                  <Text style={styles.authButtonText}>{isRecovering ? 'Guardando...' : 'Guardar y Entrar'}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={{ marginTop: 15, alignItems: 'center' }} onPress={() => setRecoveryStep(1)}>
+                  <Text style={{ color: '#2563EB', fontWeight: 'bold' }}>Solicitar otro código</Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
     </KeyboardAvoidingView>
   );
 }

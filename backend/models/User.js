@@ -10,6 +10,8 @@ const userSchema = mongoose.Schema({
     phone: { type: String },
     avatar: { type: String },
     pushToken: { type: String },
+    resetPasswordCode: { type: String }, // For password recovery
+    resetPasswordExpire: { type: Date },
 
     // Campos específicos para Profesionales
     isActive: { type: Boolean, default: true }, // Soft delete status
