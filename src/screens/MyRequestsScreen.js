@@ -4,51 +4,7 @@ import { FlatList, Platform, RefreshControl, StyleSheet, Text, TouchableOpacity,
 import BriefcaseLoader from '../components/BriefcaseLoader';
 import { api } from '../utils/api';
 
-// Icon mapping matching Admin Panel & app.js (Expanded)
-const CAT_ICONS = {
-  'home': { lib: Feather, name: 'home' },
-  'car': { lib: FontAwesome5, name: 'car' },
-  'heart': { lib: Feather, name: 'heart' },
-  'monitor': { lib: Feather, name: 'monitor' },
-  'scissors': { lib: Feather, name: 'scissors' },
-  'calendar': { lib: Feather, name: 'calendar' },
-  'cat': { lib: FontAwesome5, name: 'cat' },
-  'briefcase': { lib: Feather, name: 'briefcase' },
-  'tool': { lib: Feather, name: 'tool' },
-  'truck': { lib: Feather, name: 'truck' },
-  'shopping-bag': { lib: Feather, name: 'shopping-bag' },
-  'book': { lib: Feather, name: 'book' },
-  'music': { lib: Feather, name: 'music' },
-  'camera': { lib: Feather, name: 'camera' },
-  'smile': { lib: Feather, name: 'smile' },
-  'map-pin': { lib: Feather, name: 'map-pin' },
-  'wifi': { lib: Feather, name: 'wifi' },
-  'gift': { lib: Feather, name: 'gift' },
-  'coffee': { lib: Feather, name: 'coffee' },
-  'smartphone': { lib: Feather, name: 'smartphone' },
-  'droplet': { lib: Feather, name: 'droplet' },
-  'zap': { lib: Feather, name: 'zap' },
-  'lock': { lib: Feather, name: 'lock' },
-  'trash-2': { lib: Feather, name: 'trash-2' },
-  'wind': { lib: Feather, name: 'wind' },
-  'hammer': { lib: MaterialCommunityIcons, name: 'hammer' },
-  'wrench': { lib: MaterialCommunityIcons, name: 'wrench' },
-  'pipe-wrench': { lib: MaterialCommunityIcons, name: 'pipe-wrench' },
-  'paint-brush': { lib: FontAwesome5, name: 'paint-brush' },
-  'broom': { lib: MaterialCommunityIcons, name: 'broom' },
-  'flower': { lib: MaterialCommunityIcons, name: 'flower' },
-  'paw': { lib: FontAwesome5, name: 'paw' },
-  'baby-carriage': { lib: FontAwesome5, name: 'baby-carriage' },
-  'tshirt': { lib: FontAwesome5, name: 'tshirt' },
-  'utensils': { lib: FontAwesome5, name: 'utensils' },
-  'air-conditioner': { lib: MaterialCommunityIcons, name: 'air-conditioner' },
-  'snowflake': { lib: MaterialCommunityIcons, name: 'snowflake' },
-  'fan': { lib: MaterialCommunityIcons, name: 'fan' },
-  'water': { lib: MaterialCommunityIcons, name: 'water' },
-  'lightbulb-on': { lib: MaterialCommunityIcons, name: 'lightbulb-on' },
-  'shredder': { lib: MaterialCommunityIcons, name: 'shredder' },
-  'phone': { lib: MaterialCommunityIcons, name: 'phone' }
-};
+import { CAT_ICONS } from '../constants/icons';
 
 export default function MyRequestsScreen({ navigation, allRequests: propsAllRequests, onRefresh: propsOnRefresh, categories: globalCategories = [] }) {
   const [requests, setRequests] = useState([]);

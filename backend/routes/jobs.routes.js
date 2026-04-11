@@ -10,6 +10,7 @@ const Category = require('../models/Category');
 const JobInteraction = require('../models/JobInteraction');
 const Review = require('../models/Review');
 const { protect } = require('../middleware/authMiddleware');
+const { GamificationService } = require('../services/GamificationService');
 
 // --- PUSH NOTIFICATION HELPER ---
 const sendPushNotification = async (pushToken, title, body, data = {}) => {
@@ -170,6 +171,15 @@ router.post('/:id/rate', protect, async (req, res) => {
                 pro.rating = totalRating / proJobs.length;
                 pro.reviewsCount = proJobs.length;
                 await pro.save();
+
+                // --- GAMIFICACIÓN: VALORACIONES ---
+                if (rating <= 3) {
+                    await GamificationService.addPoints(pro._id, 'REVIEW_POOR', job._id);
+                } else if (rating === 4) {
+                    await GamificationService.addPoints(pro._id, 'REVIEW_4_STAR', job._id);
+                } else if (rating === 5) {
+                    await GamificationService.addPoints(pro._id, 'REVIEW_5_STAR', job._id);
+                }
             }
         }
 
@@ -348,6 +358,11 @@ router.post('/:id/offers', protect, async (req, res) => {
         };
 
         job.offers.push(offer);
+
+        // --- GAMIFICACIÓN: PRIMERO EN COTIZAR ---
+        if (job.offers.length === 1) {
+            await GamificationService.addPoints(req.user._id, 'FIRST_TO_QUOTE', job._id);
+        }
 
         // TIMELINE EVENT: Offer Sent
         job.projectHistory.push({
@@ -531,6 +546,9 @@ router.put('/:id/assign', protect, async (req, res) => {
         job.professional = professionalId;
         job.status = 'in_progress';
         job.trackingStatus = 'contracted';
+
+        // --- GAMIFICACIÓN: PRESUPUESTO GANADO ---
+        await GamificationService.addPoints(professionalId, 'QUOTE_WON', job._id);
 
         // TIMELINE EVENT: Contract Accepted
         job.projectHistory.push({
@@ -758,6 +776,13 @@ router.put('/:id/close', protect, async (req, res) => {
         job.closureReason = closureReason;
         if (hiredProId) {
             job.hiredProId = hiredProId;
+            
+            // --- GAMIFICACIÓN: TRABAJO COMPLETADO EN PLAZOS ---
+            // Asumimos que si fue contratado y se cierra, se ganó los puntos (Idealmente se valida tracking de tiempos)
+            const trueProfessional = hiredProId || job.professional;
+            if (trueProfessional) {
+                 await GamificationService.addPoints(trueProfessional, 'JOB_COMPLETED_IN_TIME', job._id);
+            }
         }
         job.closedAt = Date.now();
 
@@ -913,7 +938,7 @@ router.get('/', async (req, res) => {
 
                 // --- NEW: Populate chats for this user (Optimized) ---
                 const startChat = Date.now(); const chats = await Chat.find({ participants: userId })
-                    .select('_id job participants lastMessage lastMessageDate messages.read messages.sender messages.content') // Optimized fields
+                    .select('_id job participants lastMessage lastMessageDate unreadCounts') // Optimized fields
                     .populate('participants', 'name email avatar role')
                     .lean();
 
@@ -944,11 +969,8 @@ router.get('/', async (req, res) => {
                         const finalProId = proParticipant ? (proParticipant._id || proParticipant) : ((userId.toString() !== jobClientIdStr) ? userId : null);
                         const finalProName = proParticipant ? proParticipant.name : ((userId.toString() !== jobClientIdStr) ? (currentUser ? currentUser.name : 'Profesional') : 'Usuario');
 
-                        // OPTIMIZATION: Calc unread count using lightweight messages
-                        // or trust pre-calculated values if we switch to aggregation later.
-                        const unreadCount = (chat.messages || []).filter(m =>
-                            m.sender && m.sender.toString() !== userId.toString() && !m.read
-                        ).length;
+                        const unreadCountsMap = chat.unreadCounts || {};
+                        const unreadCount = unreadCountsMap[userId.toString()] || 0;
 
                         return {
                             id: chat._id,
@@ -1003,7 +1025,7 @@ router.get('/me', protect, async (req, res) => {
             return res.status(401).json({ message: 'Usuario no autenticado o no encontrado en DB.' });
         }
         const clientJobs = await Job.find({ client: req.user._id })
-            .select('-images -workPhotos -clientManagement -projectHistory -conversations')
+            .select('-conversations')
             .populate('client', 'name avatar email')
             .populate('category', 'name color icon')
             .populate('offers.proId', 'name email avatar rating reviewsCount')
@@ -1041,18 +1063,17 @@ router.get('/me', protect, async (req, res) => {
 
         console.log(`[GET /me] Searching for user chats...`);
         const allUserChats = await Chat.find({ participants: req.user._id })
-            .select('_id job participants lastMessage lastMessageDate messages.read messages.sender messages.content')
+            .select('_id job participants lastMessage lastMessageDate unreadCounts')
             .populate('participants', 'name email role avatar')
             .populate('job', '_id client')
             .sort({ lastMessageDate: -1 })
             .lean();
 
-        // Calculate unread count manually and omit full messages array to save bandwidth
+        // Calculate unread count manually from unreadCounts map
         allUserChats.forEach(chat => {
-            chat.unreadCount = (chat.messages || []).filter(m =>
-                m.sender && m.sender.toString() !== req.user._id.toString() && !m.read
-            ).length;
-            delete chat.messages; // Optimization
+            const counts = chat.unreadCounts || {};
+            chat.unreadCount = counts[req.user._id.toString()] || 0;
+            delete chat.messages; // Optimization - should be empty anyway
         });
 
         console.log(`[GET /me] Found ${allUserChats.length} chats for user ${req.user.name}`);
@@ -1106,7 +1127,7 @@ router.get('/me', protect, async (req, res) => {
             console.log(`[GET /me DEBUG] Fetching ${uniqueJobIdsToFetch.length} extra jobs:`, uniqueJobIdsToFetch);
             try {
                 const fetchedJobs = await Job.find({ _id: { $in: uniqueJobIdsToFetch } })
-                    .select('-images -workPhotos -clientManagement -projectHistory -conversations')
+                    .select('-conversations')
                     .populate('category', 'name color icon')
                     .populate('client', 'name email avatar')
                     .populate('offers.proId', 'name email avatar rating reviewsCount')
@@ -1334,6 +1355,41 @@ router.get('/:id', async (req, res) => {
                 const token = req.headers.authorization.split(' ')[1];
                 const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret_dev_key');
                 const userId = decoded.id;
+
+                // -------- MODIFICACIÓN DE PAYWALL (SUSCRIPCIONES) ----------
+                if (job.client._id.toString() !== userId) {
+                    const reqUser = await User.findById(userId).select('role subscription');
+                    if (reqUser && reqUser.role === 'professional') {
+                        // Comprobar si ya interactuó o cotizó
+                        const existingInt = await JobInteraction.findOne({ job: job._id, user: userId });
+                        if (!existingInt) {
+                            // Validar Paywall
+                            let sub = reqUser.subscription || { plan: 'FREE', jobsUnlockedThisCycle: 0, status: 'ACTIVE' };
+                            let limit = sub.plan === 'FREE' ? 3 : (sub.plan === 'PRO' ? 10 : 999999);
+                            
+                            // Evaluación pasiva de expiración
+                            const now = Date.now();
+                            const cycleStart = new Date(sub.cycleStartDate || now).getTime();
+                            if ((now - cycleStart) / (1000 * 60 * 60 * 24) >= 30) {
+                                sub.jobsUnlockedThisCycle = 0;
+                                sub.cycleStartDate = new Date();
+                                if (sub.plan !== 'FREE' && sub.validUntil && new Date(sub.validUntil).getTime() < now) {
+                                    sub.plan = 'FREE';
+                                }
+                                limit = sub.plan === 'FREE' ? 3 : (sub.plan === 'PRO' ? 10 : 999999);
+                            }
+                            
+                            if (sub.jobsUnlockedThisCycle >= limit) {
+                                return res.status(403).json({ message: 'PAYWALL', originalJobId: job._id, isPaywalled: true });
+                            }
+                            
+                            // Desbloquear (+1 al consumo)
+                            sub.jobsUnlockedThisCycle += 1;
+                            await User.findByIdAndUpdate(userId, { subscription: sub });
+                        }
+                    }
+                }
+                // -----------------------------------------------------------
 
                 // Buscar chats asociados a este trabajo
                 let chatQuery = { job: job._id };

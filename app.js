@@ -486,15 +486,19 @@ function MainApp() {
         allRequests.forEach(req => {
             const isClientJob = areIdsEqual(req.clientId, myId);
 
+            // Evitar notificaciones fantasma de solicitudes archivadas o perdidas
+            const archivedStatuses = ['canceled', 'closed', 'ELIMINADA', 'Cerrada', 'TERMINADO', 'FINALIZADA', 'rejected', 'lost', 'rated', 'completed', 'Archivada', 'archived'];
+            const isJobArchived = archivedStatuses.includes(req.status) || archivedStatuses.includes(req.proInteractionStatus);
+
             // Lógica de Cliente: Solo contar si yo soy el dueño de la solicitud
             if (isClientJob) {
                 // Notificaciones de nuevas ofertas pendientes de revisar
-                if (req.offers?.some(o => o.status === 'pending' && !o.seenByClient)) {
+                if (!isJobArchived && req.offers?.some(o => o.status === 'pending' && !o.seenByClient)) {
                     clientUpdateCount++;
                 }
 
                 // Mensajes sin leer en mis solicitudes
-                if (req.conversations) {
+                if (!isJobArchived && req.conversations) {
                     req.conversations.forEach(c => {
                         clientChatCount += (c.unreadCount || 0);
                     });
@@ -503,15 +507,15 @@ function MainApp() {
 
             // Lógica de Profesional
             // 1. Trabajos nuevos que coinciden con mi perfil (Buscador) O que tienen actualizaciones sin leer (ej: oferta aceptada)
-            const isMarketNew = isJobMatchingProfile(req, currentUser) && req.proInteractionStatus === 'new';
-            const hasUpdate = req.proInteractionHasUnread === true;
+            const isMarketNew = !isJobArchived && isJobMatchingProfile(req, currentUser) && req.proInteractionStatus === 'new';
+            const hasUpdate = !isJobArchived && req.proInteractionHasUnread === true;
 
             if (isMarketNew || hasUpdate) {
                 proUpdateCount++;
             }
 
             // 2. Mensajes sin leer en chats donde soy el profesional interactuando
-            if (req.conversations) {
+            if (!isJobArchived && req.conversations) {
                 req.conversations.forEach(c => {
                     // Solo sumar si este chat específico me pertenece a mí como profesional
                     if (areIdsEqual(c.proId, myId)) {
@@ -593,11 +597,12 @@ function MainApp() {
 
         // Filter jobs that are either 'new' or have unread updates
         const marketJobIds = [];
-        const hasUnreadItems = allRequests.some(req => {
+        let hasUnreadItems = false;
+        allRequests.forEach(req => {
             const isMatching = isJobMatchingProfile(req, currentUser) && req.proInteractionStatus === 'new';
             const hasUpdate = req.proInteractionHasUnread === true;
             if (isMatching) marketJobIds.push(req.id || req._id);
-            return isMatching || hasUpdate;
+            if (isMatching || hasUpdate) hasUnreadItems = true;
         });
 
         if (!hasUnreadItems) return;
@@ -1561,8 +1566,14 @@ function MainApp() {
             if (!catMatch) return false;
 
             // --- 2. FILTROS DE NEGOCIO (Matching de Perfil) ---
+            
+            // PRIMERO: EXCLUIR los trabajos donde yo mismo soy el cliente (JAMÁS mostrarlos en ofertas profesionales)
+            const myId = currentUser?._id || currentUser?.id;
+            const jobClientId = job.client?._id || job.client?.id || job.client || job.clientId;
+            if (myId && jobClientId && areIdsEqual(myId, jobClientId)) return false;
+
             // SIEMPRE mostrar si ya estoy involucrado o soy el profesional asignado
-            if (job.isVirtual || job.professional || (job.offers && job.offers.some(o => areIdsEqual(o.proId, currentUser?._id)))) return true;
+            if (job.isVirtual || (job.professional && areIdsEqual(job.professional?._id || job.professional, myId)) || (job.offers && job.offers.some(o => areIdsEqual(o.proId?._id || o.proId, myId)))) return true;
 
             return isJobMatchingProfile(job, currentUser);
         });
@@ -1587,8 +1598,8 @@ function MainApp() {
                     </View>
                 </Animated.View>
 
-                <Text style={{ marginTop: 30, color: '#1E293B', fontWeight: 'bold', fontSize: 20, letterSpacing: 0.5 }}>
-                    Iniciando Profesional Cercano...
+                <Text style={{ marginTop: 30, color: '#1E293B', fontWeight: 'bold', fontSize: 20, letterSpacing: 0.5, textAlign: 'center', paddingHorizontal: 20 }}>
+                    Conectando con nuestra base de datos...
                 </Text>
             </View>
         );
@@ -1596,7 +1607,7 @@ function MainApp() {
 
     return (
         <SafeAreaView style={styles.container}>
-            <StatusBar barStyle="dark-content" backgroundColor="white" />
+            <StatusBar style="dark" backgroundColor="#FFFFFF" />
 
             {/* HEADER (No mostrar en detalles) */}
             {view === 'home' || view === 'my-requests' || view === 'profile' || view === 'chat-list' || view === 'request-detail-client' || view === 'job-detail-pro' || view === 'chat-detail' ? (

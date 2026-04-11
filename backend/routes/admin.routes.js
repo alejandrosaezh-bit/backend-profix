@@ -7,6 +7,7 @@ const Business = require('../models/Business');
 const Job = require('../models/Job');
 const Chat = require('../models/Chat');
 const JobInteraction = require('../models/JobInteraction');
+const PaymentReceipt = require('../models/PaymentReceipt');
 
 // --- GESTIÓN DE USUARIOS ---
 
@@ -575,6 +576,70 @@ router.delete('/businesses/:id', async (req, res) => {
         } else {
             res.status(404).json({ message: 'Negocio no encontrado' });
         }
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
+// --- GESTIÓN DE SUSCRIPCIONES Y PAGOS ---
+
+// Obtener todos los pagos (filtrable por status)
+router.get('/payments', async (req, res) => {
+    try {
+        const query = req.query.status ? { status: req.query.status } : {};
+        const payments = await PaymentReceipt.find(query)
+            .populate('professionalId', 'name email phone')
+            .sort({ createdAt: -1 });
+        res.json(payments);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
+// Aprobar o Rechazar pago (Activar suscripción)
+router.put('/payments/:id/resolve', async (req, res) => {
+    try {
+        const { status, rejectionReason } = req.body;
+        const payment = await PaymentReceipt.findById(req.params.id);
+
+        if (!payment) {
+            return res.status(404).json({ message: 'Pago no encontrado' });
+        }
+
+        if (payment.status !== 'PENDING') {
+            return res.status(400).json({ message: 'Este pago ya fue resuelto previamente.' });
+        }
+
+        if (status === 'APPROVED') {
+            payment.status = 'APPROVED';
+            payment.resolvedAt = new Date();
+            
+            // Actualizar cuenta del usuario
+            const user = await User.findById(payment.professionalId);
+            if (user) {
+                user.subscription = {
+                    plan: payment.requestedPlan,
+                    status: 'ACTIVE',
+                    validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // +30 días
+                    jobsUnlockedThisCycle: 0,
+                    cycleStartDate: new Date()
+                };
+                await user.save();
+            }
+        } else if (status === 'REJECTED') {
+            payment.status = 'REJECTED';
+            payment.rejectionReason = rejectionReason || 'Pago no verificado.';
+            payment.resolvedAt = new Date();
+
+            await User.findByIdAndUpdate(payment.professionalId, {
+                'subscription.status': 'ACTIVE' // Vuelve a su estado anterior (pierde pending)
+            });
+        } else {
+            return res.status(400).json({ message: 'Estatus inválido' });
+        }
+
+        await payment.save();
+        res.json(payment);
     } catch (error) {
         res.status(500).json({ message: error.message });
     }

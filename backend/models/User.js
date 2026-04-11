@@ -28,6 +28,40 @@ const userSchema = mongoose.Schema({
             isActive: { type: Boolean, default: true }
         }, { _id: false })
     },
+    
+    // Sistema de Gamificación - Temporadas Trimestrales
+    gamification: {
+        currentLevel: { 
+            type: Number, 
+            enum: [1, 2, 3, 4], 
+            default: 1 
+        },
+        projectedLevel: { 
+            type: Number, 
+            enum: [1, 2, 3, 4], 
+            default: 1 
+        },
+        currentSeasonPoints: { type: Number, default: 0 },
+        lastSeasonReset: { type: Date }
+    },
+    
+    // Monetización - Planes de Suscripción (FREE, PRO, ELITE)
+    subscription: {
+        plan: { 
+            type: String, 
+            enum: ['FREE', 'PRO', 'ELITE'], 
+            default: 'FREE' 
+        },
+        status: { 
+            type: String, 
+            enum: ['ACTIVE', 'PENDING_UPGRADE', 'EXPIRED'], 
+            default: 'ACTIVE' 
+        },
+        validUntil: { type: Date }, // Fecha de corte del mes
+        jobsUnlockedThisCycle: { type: Number, default: 0 }, // Consumidos en el mes de este plan
+        cycleStartDate: { type: Date, default: Date.now } // Ultimo reseteo de contador
+    },
+    
     rating: { type: Number, default: 0 },
     reviewsCount: { type: Number, default: 0 },
 

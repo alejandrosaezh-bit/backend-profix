@@ -574,10 +574,10 @@ const ProjectTimeline = ({ job, userMode, currentUser, onConfirmStart, onAddTime
                 </View>
             )}
 
-            {/* SECCIÓN DE VALORACIÓN (Always visible, but disabled if not finished) */}
+            {/* SECCIÓN DE VALORACIÓN (Always visible, but disabled if not finished or not the winner) */}
             {(showSection === 'all' || showSection === 'rating') && (
-                <View style={[styles.managementCard, !isFinished && { backgroundColor: '#F8FAFC', borderColor: '#E2E8F0', padding: 0, overflow: 'hidden' }]}>
-                    <View style={[{ padding: 20 }, !isFinished && { opacity: 0.4 }]}>
+                <View style={[styles.managementCard, !(isFinished && (userMode === 'client' || isITheWinner)) && { backgroundColor: '#F8FAFC', borderColor: '#E2E8F0', padding: 0, overflow: 'hidden' }]}>
+                    <View style={[{ padding: 20 }, !(isFinished && (userMode === 'client' || isITheWinner)) && { opacity: 0.4 }]}>
                         <Text style={styles.managementTitle}>{customTitle || 'Valoración del Servicio'}</Text>
                         {((userMode === 'client' && job.clientRated) || (userMode === 'pro' && job.proRated)) ? (
                             <View style={{ alignItems: 'center', padding: 20, backgroundColor: '#ECFDF5', borderRadius: 16, marginTop: 15 }}>
@@ -591,7 +591,7 @@ const ProjectTimeline = ({ job, userMode, currentUser, onConfirmStart, onAddTime
                             </View>
                         ) : (
                             <View style={{ position: 'relative' }}>
-                                {!isFinished && (
+                                {!(isFinished && (userMode === 'client' || isITheWinner)) && (
                                     <View style={{
                                         position: 'absolute',
                                         top: -20, left: -20, right: -20, bottom: -20, // Cover the paddings
@@ -605,16 +605,18 @@ const ProjectTimeline = ({ job, userMode, currentUser, onConfirmStart, onAddTime
                                             <Feather name="lock" size={24} color="#94A3B8" />
                                         </View>
                                         <Text style={{ color: '#64748B', fontWeight: 'bold', fontSize: 13, marginTop: 12, textAlign: 'center', paddingHorizontal: 40 }}>
-                                            Esta sección se activará cuando termines un trabajo.
+                                            {(isFinished && userMode === 'pro' && !isITheWinner) 
+                                                ? "Solicitud no contratada. Bloqueado."
+                                                : "Esta sección se activará cuando termines un trabajo."}
                                         </Text>
                                     </View>
                                 )}
-                                <View style={{ marginTop: 15, pointerEvents: isFinished ? 'auto' : 'none', opacity: isFinished ? 1 : 0.3 }}>
+                                <View style={{ marginTop: 15, pointerEvents: (isFinished && (userMode === 'client' || isITheWinner)) ? 'auto' : 'none', opacity: (isFinished && (userMode === 'client' || isITheWinner)) ? 1 : 0.3 }}>
                                     <RatingForm
                                         onSubmit={handleRatingSubmit}
                                         revieweeName={revieweeName}
                                         isForPro={userMode === 'client'}
-                                        isBlocked={!isFinished}
+                                        isBlocked={!(isFinished && (userMode === 'client' || isITheWinner))}
                                     />
                                 </View>
                             </View>

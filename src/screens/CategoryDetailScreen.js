@@ -1,7 +1,8 @@
-import { Feather, FontAwesome5 } from '@expo/vector-icons';
+import { Feather, FontAwesome5, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
 import { Image, Linking, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { api } from '../utils/api';
+import { CAT_ICONS } from '../constants/icons';
 
 export default function CategoryDetailScreen({ category, subcategories, onBack, onSelectSubcategory }) {
     const [ads, setAds] = useState([]);
@@ -32,6 +33,37 @@ export default function CategoryDetailScreen({ category, subcategories, onBack, 
             </View>
 
             <ScrollView contentContainerStyle={styles.content}>
+
+                {/* SUBCATEGORÍAS */}
+                <Text style={styles.sectionTitle}>¿Qué necesitas?</Text>
+                <View style={styles.subcatGrid}>
+                    {subcategories.map((sub, index) => {
+                        const subName = typeof sub === 'object' ? sub.name : sub;
+                        
+                        // Dynamic Icon Logic
+                        let IconComponent = Feather;
+                        let iconName = "layers";
+                        
+                        if (typeof sub === 'object' && sub.icon && CAT_ICONS[sub.icon]) {
+                            const iconData = CAT_ICONS[sub.icon];
+                            IconComponent = iconData.lib;
+                            iconName = iconData.name;
+                        } else if (category && category.icon && CAT_ICONS[category.icon]) {
+                            const iconData = CAT_ICONS[category.icon];
+                            IconComponent = iconData.lib;
+                            iconName = iconData.name;
+                        }
+                        
+                        return (
+                            <TouchableOpacity key={index} style={styles.subcatCard} onPress={() => onSelectSubcategory(subName)}>
+                                <View style={[styles.iconCircle, { backgroundColor: category.color || '#FFF7ED', marginBottom: 6 }]}>
+                                    <IconComponent name={iconName} size={24} color={category.iconColor || '#EA580C'} />
+                                </View>
+                                <Text style={[styles.subcatText, { textAlign: 'center' }]} numberOfLines={2}>{subName}</Text>
+                            </TouchableOpacity>
+                        );
+                    })}
+                </View>
 
                 {/* ADS DESIGN V2 */}
                 {ads.map((biz) => (
@@ -93,22 +125,6 @@ export default function CategoryDetailScreen({ category, subcategories, onBack, 
                         </View>
                     </View>
                 ))}
-
-                {/* SUBCATEGORÍAS */}
-                <Text style={styles.sectionTitle}>¿Qué necesitas?</Text>
-                <View style={styles.subcatGrid}>
-                    {subcategories.map((sub, index) => {
-                        const subName = typeof sub === 'object' ? sub.name : sub;
-                        return (
-                            <TouchableOpacity key={index} style={styles.subcatCard} onPress={() => onSelectSubcategory(subName)}>
-                                <View style={[styles.iconCircle, { backgroundColor: category.color || '#FFF7ED', marginBottom: 6 }]}>
-                                    <Feather name="layers" size={24} color={category.iconColor || '#EA580C'} />
-                                </View>
-                                <Text style={[styles.subcatText, { textAlign: 'center' }]} numberOfLines={2}>{subName}</Text>
-                            </TouchableOpacity>
-                        );
-                    })}
-                </View>
 
                 <View style={{ height: 50 }} />
             </ScrollView>

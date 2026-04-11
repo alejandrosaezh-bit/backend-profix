@@ -3,7 +3,7 @@ import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacit
 
 export function ClientStatistics({ allMyRequests, completedRequests, hiredRequests }) {
     return (
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', width: '100%', paddingVertical: 15, borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#F3F4F6', marginBottom: 25 }}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', width: '100%', paddingVertical: 5 }}>
             <View style={styles.statBox}>
                 <View style={[styles.statIconContainer, { backgroundColor: '#DBEAFE' }]}>
                     <Feather name="clipboard" size={20} color="#2563EB" />
@@ -64,44 +64,56 @@ export function RequestHorizontalList({ title, requests, emptyMessage, getStatus
 
 export function ClientReviewsList({ reviews, isLoading }) {
     return (
-        <View style={{ width: '100%', marginBottom: 10 }}>
-            <Text style={[styles.sectionTitle, { paddingHorizontal: 0, fontSize: 18, marginBottom: 10 }]}>Referencias Recibidas</Text>
+        <View style={{ width: '100%', marginBottom: 10, alignSelf: 'stretch', marginHorizontal: -20, paddingVertical: 10 }}>
+            <View style={{ paddingHorizontal: 20 }}>
+                <Text style={[styles.sectionTitle, { paddingHorizontal: 0, fontSize: 18, marginBottom: 15 }]}>Valoraciones Recibidas</Text>
+            </View>
+            
             {isLoading ? (
                 <ActivityIndicator size="small" color="#EA580C" style={{ marginVertical: 20 }} />
             ) : reviews.length === 0 ? (
-                <Text style={{ color: '#999', fontStyle: 'italic' }}>Aún no hay opiniones de profesionales.</Text>
+                <View style={{ paddingHorizontal: 20 }}>
+                    <Text style={{ color: '#999', fontStyle: 'italic' }}>Aún no hay opiniones de profesionales.</Text>
+                </View>
             ) : (
-                <View style={{ marginTop: 5 }}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingLeft: 20, paddingRight: 20 }}>
                     {reviews.map((review, idx) => (
-                        <View key={review._id || idx} style={[styles.reviewCard, { elevation: 0, borderWidth: 1, borderColor: '#F1F5F9', boxShadow: 'none' }]}>
-                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <View key={review._id || idx} style={[styles.reviewCard, { width: 160, marginRight: 16, marginBottom: 0, padding: 16, elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, borderWidth: 1, borderColor: '#F1F5F9', borderRadius: 20 }]}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+                                {review.reviewer?.avatar ? (
                                     <Image
-                                        source={{ uri: review.reviewer?.avatar || 'https://placehold.co/100' }}
-                                        style={{ width: 30, height: 30, borderRadius: 15, marginRight: 8 }}
+                                        source={{ uri: review.reviewer.avatar }}
+                                        style={{ width: 36, height: 36, borderRadius: 18, marginRight: 10 }}
                                     />
-                                    <View>
-                                        <Text style={{ fontWeight: 'bold', fontSize: 13 }}>{review.reviewer?.name || 'Profesional'}</Text>
-                                        <View style={{ flexDirection: 'row' }}>
-                                            {[...Array(5)].map((_, i) => (
-                                                <FontAwesome5 key={i} name="star" solid={i < review.rating} size={10} color="#FBBF24" />
-                                            ))}
-                                        </View>
+                                ) : (
+                                    <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#EFF6FF', justifyContent: 'center', alignItems: 'center', marginRight: 10 }}>
+                                        <Feather name="user" size={16} color="#2563EB" />
                                     </View>
+                                )}
+                                <View style={{ flex: 1 }}>
+                                    <Text style={{ fontWeight: 'bold', fontSize: 14, color: '#1E293B' }} numberOfLines={1}>{review.reviewer?.name || 'Profesional'}</Text>
+                                    <Text style={{ fontSize: 11, color: '#94A3B8' }} numberOfLines={1}>Hace poco</Text>
                                 </View>
-                                <Text style={{ fontSize: 10, color: '#9CA3AF' }}>{new Date(review.createdAt).toLocaleDateString()}</Text>
                             </View>
-                            <Text style={{ marginTop: 8, color: '#4B5563', fontSize: 13, fontStyle: 'italic', paddingLeft: 38 }}>
-                                "{review.comment || 'Sin comentarios'}"
+                            
+                            <View style={{ flexDirection: 'row', marginBottom: 8 }}>
+                                {[...Array(5)].map((_, i) => (
+                                    <FontAwesome5 key={i} name="star" solid={i < review.rating} size={10} color="#FBBF24" style={{ marginRight: 2 }} />
+                                ))}
+                            </View>
+                            
+                            <Text style={{ color: '#4B5563', fontSize: 13, lineHeight: 18 }} numberOfLines={3}>
+                                "{review.comment || 'Buen cliente.'}"
                             </Text>
+                            
                             {review.job && (
-                                <Text style={{ marginTop: 4, fontSize: 10, color: '#6B7280', paddingLeft: 38 }}>
-                                    Trabajo: {review.job.title || 'Servicio'}
+                                <Text style={{ marginTop: 10, fontSize: 9, color: '#94A3B8', fontWeight: 'bold' }} numberOfLines={1}>
+                                    TRABAJO: {(review.job.title || 'Servicio').toUpperCase()}
                                 </Text>
                             )}
                         </View>
                     ))}
-                </View>
+                </ScrollView>
             )}
         </View>
     );
@@ -122,15 +134,7 @@ export function ClientSettingsList({ onEditProfile, onSwitchMode }) {
                 <Feather name="chevron-right" size={20} color="#9CA3AF" />
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.settingRow}>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <View style={[styles.iconBox, { backgroundColor: '#F0FDF4' }]}>
-                        <Feather name="star" size={20} color="#16A34A" />
-                    </View>
-                    <Text style={styles.settingText}>Mis Suscripciones</Text>
-                </View>
-                <Feather name="chevron-right" size={20} color="#9CA3AF" />
-            </TouchableOpacity>
+
 
             <TouchableOpacity style={styles.settingRow}>
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>

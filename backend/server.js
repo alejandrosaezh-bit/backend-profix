@@ -9,6 +9,7 @@ const adminRoutes = require('./routes/admin.routes');
 const publicRoutes = require('./routes/public.routes');
 const chatRoutes = require('./routes/chat.routes');
 const messageRoutes = require('./routes/messages.routes');
+const subscriptionRoutes = require('./routes/subscription.routes');
 const { notFound, errorHandler } = require('./middleware/errorMiddleware');
 
 const helmet = require('helmet');
@@ -16,10 +17,14 @@ const rateLimit = require('express-rate-limit');
 const mongoSanitize = require('express-mongo-sanitize');
 const hpp = require('hpp');
 const xss = require('xss-clean');
+const initCronJobs = require('./scripts/cronJobs');
 
 dotenv.config({ path: path.join(__dirname, '.env') });
 // Conectar a Base de Datos
 connectDB();
+
+// Iniciar subrutinas (Cron Jobs)
+initCronJobs();
 
 const app = express();
 
@@ -88,6 +93,9 @@ app.use('/api/chats', chatRoutes);
 
 // Rutas de Mensajes
 app.use('/api/messages', messageRoutes);
+
+// Rutas de Suscripción / Pagos
+app.use('/api/subscriptions', subscriptionRoutes);
 
 // Error Middleware
 app.use(notFound);

@@ -196,7 +196,8 @@ export const ProCategoryConfig = ({
 export const ProAccountSettings = ({
     startEditingPersonal,
     handleResetApplicationData,
-    onSwitchMode
+    onSwitchMode,
+    onOpenSubscriptions
 }) => {
     return (
         <View style={[
@@ -231,6 +232,16 @@ export const ProAccountSettings = ({
                         <Feather name="bell" size={18} color="#16A34A" />
                     </View>
                     <Text style={styles.settingText}>Notificaciones</Text>
+                </View>
+                <Feather name="chevron-right" size={18} color="#9CA3AF" />
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.settingRow} onPress={onOpenSubscriptions}>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <View style={[styles.iconBox, { backgroundColor: '#FEF3C7' }]}>
+                        <Feather name="star" size={18} color="#D97706" />
+                    </View>
+                    <Text style={styles.settingText}>Mis Suscripciones</Text>
                 </View>
                 <Feather name="chevron-right" size={18} color="#9CA3AF" />
             </TouchableOpacity>

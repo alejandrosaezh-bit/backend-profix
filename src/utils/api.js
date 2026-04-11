@@ -593,6 +593,19 @@ export const api = {
         }
         return res.json();
     },
+    reportSubscriptionPayment: async (paymentData) => {
+        const headers = await getHeaders();
+        const res = await fetchWithTimeout(`${API_URL}/subscription/report`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify(paymentData)
+        });
+        if (!res.ok) {
+            const errorText = await res.text();
+            throw new Error(errorText || 'Error al reportar pago');
+        }
+        return res.json();
+    },
     togglePortfolioItem: async (mediaUrl, category) => {
         const headers = await getHeaders();
         const res = await fetchWithTimeout(`${API_URL}/auth/portfolio`, {

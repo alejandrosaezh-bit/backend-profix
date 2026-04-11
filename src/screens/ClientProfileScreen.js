@@ -156,15 +156,15 @@ export default function ClientProfileScreen({ user, isOwner, onBack, onLogout, o
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} bounces={false}>
         {/* Header Cliente (Orange Banner) */}
-        <View style={styles.blueHeader}>
-          <View style={styles.headerTop}>
+        <View style={[styles.blueHeader, { borderBottomLeftRadius: 32, borderBottomRightRadius: 32, paddingBottom: 35 }]}>
+          <View style={[styles.headerTop, { paddingTop: Platform.OS === 'ios' ? 44 : 10, marginBottom: 5 }]}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <Text style={styles.headerTitle}>Mi Perfil</Text>
               <View style={styles.versionBadge}>
                 <Text style={styles.versionText}>V36.0</Text>
               </View>
             </View>
-            <TouchableOpacity onPress={onLogout} style={styles.logoutButtonHeader}>
+            <TouchableOpacity onPress={onLogout} style={[styles.logoutButtonHeader, { marginLeft: 10 }]}>
               <Feather name="log-out" size={20} color="white" />
             </TouchableOpacity>
           </View>
@@ -176,7 +176,7 @@ export default function ClientProfileScreen({ user, isOwner, onBack, onLogout, o
                 <Feather name="edit-2" size={14} color="white" />
               </TouchableOpacity>
             </View>
-            <View style={{ marginLeft: 20, flex: 1 }}>
+            <View style={{ marginLeft: 20, flex: 1, justifyContent: 'center' }}>
               <Text style={styles.headerName} numberOfLines={1}>{editedUser.name}</Text>
               <View style={styles.headerRating}>
                 <FontAwesome5 name="star" solid size={14} color="#FBBF24" />
@@ -195,62 +195,81 @@ export default function ClientProfileScreen({ user, isOwner, onBack, onLogout, o
               completedRequests={completedRequests}
               hiredRequests={hiredRequests}
             />
+          </View>
 
-            {/* PORTAFOLIO DE TRABAJOS */}
-            <View style={{ width: '100%', marginBottom: 25 }}>
-              <Text style={[styles.sectionTitle, { paddingHorizontal: 0, fontSize: 18, marginBottom: 10 }]}>Portafolio de Trabajos</Text>
-              {(() => {
-                const portfolioFolders = [];
-                if (user?.profiles) {
-                  const profilesObj = user.profiles instanceof Map ? Object.fromEntries(user.profiles) : user.profiles;
-                  Object.keys(profilesObj).forEach(cat => {
-                    if (profilesObj[cat]?.gallery && profilesObj[cat].gallery.length > 0) {
-                      portfolioFolders.push({
-                        category: cat,
-                        subcategories: profilesObj[cat].subcategories || [],
-                        images: profilesObj[cat].gallery
-                      });
-                    }
-                  });
-                }
-
-                if (portfolioFolders.length === 0) {
-                  return (
-                    <View style={styles.emptyContainer}>
-                      <Feather name="folder" size={40} color="#E2E8F0" />
-                      <Text style={styles.emptyText}>No hay trabajos en el portafolio.</Text>
-                    </View>
-                  );
-                }
-
-                return (
-                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }}>
-                    {portfolioFolders.map((folder, index) => (
-                      <TouchableOpacity key={index} style={styles.folderCard} onPress={() => setSelectedGallery(folder.images)}>
-                        <View style={styles.folderTab} />
-                        <View style={styles.folderContent}>
-                          <Image source={{ uri: folder.images[0] }} style={styles.folderImage} />
-                          <View style={styles.folderInfo}>
-                            <Text style={styles.folderTitle} numberOfLines={2}>{folder.category}</Text>
-                            <Text style={{ fontSize: 11, color: '#64748B', marginTop: 2, marginBottom: 2 }} numberOfLines={1}>
-                              {folder.subcategories.length > 0 ? folder.subcategories.join(', ') : 'Servicios generales'}
-                            </Text>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
-                              <Feather name="image" size={10} color="#94A3B8" />
-                              <Text style={styles.folderCount}>{folder.images.length} fotos</Text>
-                            </View>
-                          </View>
-                        </View>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                );
-              })()}
+          {/* PORTAFOLIO DE TRABAJOS (AIRBNB STYLE) */}
+          <View style={{ marginBottom: 25, marginTop: 25, marginHorizontal: -20 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15, paddingHorizontal: 20 }}>
+              <Text style={[styles.sectionTitle, { paddingHorizontal: 0, fontSize: 18, marginBottom: 0 }]}>Portafolio de Trabajos</Text>
+              <TouchableOpacity style={styles.arrowButton}>
+                <Feather name="arrow-right" size={16} color="#111827" />
+              </TouchableOpacity>
             </View>
 
-            {/* OPINIONES / REFERENCIAS REALES */}
-            <ClientReviewsList reviews={reviews} isLoading={isLoadingReviews} />
+            {(() => {
+              const portfolioFolders = [];
+              const clientJobs = completedRequests || [];
+
+              clientJobs.forEach(job => {
+                const jobImagesInPortfolio = [];
+                const jobMedia = [];
+                if (job.images) jobMedia.push(...job.images);
+                if (job.workPhotos) jobMedia.push(...job.workPhotos);
+                if (job.projectHistory) {
+                    job.projectHistory.forEach(ev => { if (ev.mediaUrl) jobMedia.push(ev.mediaUrl); });
+                }
+                if (job.clientManagement?.beforePhotos) {
+                    job.clientManagement.beforePhotos.forEach(p => { if (p.url) jobMedia.push(p.url); });
+                }
+                if (job.clientManagement?.payments) {
+                    job.clientManagement.payments.forEach(p => { if (p.evidenceUrl) jobMedia.push(p.evidenceUrl); });
+                }
+                
+                const uniqueJobMedia = [...new Set(jobMedia)];
+                
+                if (uniqueJobMedia.length > 0) {
+                    portfolioFolders.push({
+                        category: job.title || 'Trabajo completado',
+                        subcategories: [(job.subCategory || 'General')],
+                        images: uniqueJobMedia
+                    });
+                }
+              });
+
+              if (portfolioFolders.length === 0) {
+                return (
+                  <View style={[styles.emptyContainer, { marginHorizontal: 20 }]}>
+                    <Feather name="folder" size={40} color="#E2E8F0" />
+                    <Text style={styles.emptyText}>No hay trabajos en el portafolio.</Text>
+                  </View>
+                );
+              }
+
+              // Card de Airbnb ancha para previsualizar el siguiente ítem
+              return (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingRight: 20, paddingLeft: 20 }}>
+                  {portfolioFolders.map((folder, index) => (
+                    <TouchableOpacity key={index} style={styles.airbnbCard} onPress={() => setSelectedGallery(folder.images)}>
+                      <Image source={{ uri: folder.images[0] }} style={styles.airbnbImage} resizeMode="cover" />
+                      <View style={styles.airbnbInfo}>
+                        <Text style={styles.airbnbTitle} numberOfLines={1}>{folder.category}</Text>
+                        <Text style={styles.airbnbSubtitle} numberOfLines={1}>
+                          {folder.subcategories.length > 0 ? folder.subcategories.join(', ') : 'Servicios generales'}
+                        </Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
+                          <Feather name="image" size={12} color="#6B7280" />
+                          <Text style={styles.airbnbCount}>{folder.images.length} fotos</Text>
+                        </View>
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              );
+            })()}
           </View>
+
+          {/* OPINIONES / REFERENCIAS REALES */}
+          <ClientReviewsList reviews={reviews} isLoading={isLoadingReviews} />
 
           {/* SETTINGS LINKS */}
           <ClientSettingsList onEditProfile={() => setIsEditing(true)} onSwitchMode={onSwitchMode} />
@@ -298,8 +317,8 @@ const styles = StyleSheet.create({
   },
   blueHeader: {
     backgroundColor: '#EA580C',
-    paddingTop: Platform.OS === 'ios' ? 44 : 20,
-    paddingBottom: 35,
+    paddingTop: Platform.OS === 'ios' ? 44 : 5,
+    paddingBottom: 25,
     paddingHorizontal: 24,
     borderBottomLeftRadius: 36,
     borderBottomRightRadius: 36,
@@ -313,11 +332,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 25,
-    marginTop: 10,
+    marginBottom: 15,
+    marginTop: 0,
   },
   headerTitle: {
-    fontSize: 24,
+    fontSize: 18,
     fontWeight: 'bold',
     color: 'white',
   },
@@ -421,13 +440,11 @@ const styles = StyleSheet.create({
     padding: 20,
     borderRadius: 24,
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#FFF7ED',
-    elevation: 5,
-    shadowColor: '#EA580C',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
     marginBottom: 0
   },
   ratingContainer: {
@@ -466,51 +483,50 @@ const styles = StyleSheet.create({
   },
   emptyContainer: { alignItems: 'center', paddingVertical: 10 },
   emptyText: { color: '#94A3B8', fontSize: 13, textAlign: 'center', marginTop: 15, paddingHorizontal: 20 },
-  folderCard: {
-    width: '48%',
-    marginBottom: 16,
-    position: 'relative',
-    marginTop: 10,
+  airbnbCard: {
+    width: 140,
+    marginRight: 16,
   },
-  folderTab: {
-    width: '45%',
-    height: 12,
-    backgroundColor: '#2563EB',
-    borderTopLeftRadius: 6,
-    borderTopRightRadius: 6,
-    left: 0,
-    zIndex: 1
+  airbnbImage: {
+    width: 140,
+    height: 140,
+    borderRadius: 16,
+    marginBottom: 8,
+    backgroundColor: '#F3F4F6'
   },
-  folderContent: {
-    backgroundColor: 'white',
-    borderTopRightRadius: 12,
-    borderBottomLeftRadius: 12,
-    borderBottomRightRadius: 12,
-    overflow: 'hidden',
-    zIndex: 2,
-    borderWidth: 1,
-    borderColor: '#F1F5F9',
+  airbnbInfo: {
+    paddingHorizontal: 2,
   },
-  folderImage: {
-    width: '100%',
-    height: 80,
-    borderTopRightRadius: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
-  },
-  folderInfo: {
-    padding: 8,
-  },
-  folderTitle: {
-    fontSize: 11,
+  airbnbTitle: {
+    fontSize: 15,
     fontWeight: 'bold',
-    color: '#1E293B',
+    color: '#111827',
   },
-  folderCount: {
-    fontSize: 10,
-    color: '#94A3B8',
+  airbnbSubtitle: {
+    fontSize: 13,
+    color: '#6B7280',
+    marginTop: 2,
+  },
+  airbnbCount: {
+    fontSize: 12,
+    color: '#6B7280',
     marginLeft: 4,
   },
+  arrowButton: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'white',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...Platform.select({
+      web: { boxShadow: '0px 2px 4px rgba(0,0,0,0.05)' },
+      default: { elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2 }
+    })
+  },
+
   sectionTitle: {
     fontSize: 14,
     fontWeight: 'bold',

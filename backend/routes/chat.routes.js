@@ -5,6 +5,7 @@ const Chat = require('../models/Chat');
 const User = require('../models/User');
 const Job = require('../models/Job');
 const { protect } = require('../middleware/authMiddleware');
+const { GamificationService } = require('../services/GamificationService');
 const https = require('https'); // For Expo Push
 
 // @desc    Obtener chats del usuario
@@ -142,6 +143,12 @@ router.post('/', protect, async (req, res) => {
         });
 
         const savedChat = await newChat.save();
+
+        // --- GAMIFICACIÓN: PRIMERO EN SALUDAR ---
+        // Si quien crea el chat NO es el cliente, asumimos que es el Profesional contactando primero
+        if (!iAmClient) {
+            await GamificationService.addPoints(req.user._id, 'FIRST_TO_GREET', jobId);
+        }
 
         // LINK CHAT TO JOB
         if (jobId) {
@@ -342,24 +349,22 @@ router.put('/:id/read', protect, async (req, res) => {
 
         const userIdStr = req.user._id.toString();
 
-        // 1. Marcar el contador directo a 0 en la DB (O(1))
-        await Chat.updateOne(
-            { _id: chat._id },
-            { $set: { [`unreadCounts.${userIdStr}`]: 0 } }
-        );
+        // 1. Marcar el contador directo a 0 en memoria
+        if (!chat.unreadCounts) {
+            chat.unreadCounts = new Map();
+        }
+        chat.unreadCounts.set(userIdStr, 0);
+        chat.markModified('unreadCounts');
 
         // 2. Marcar como leídos todos los mensajes donde el remitente NO es el usuario actual
-        let changed = false;
+        let changed = true; // Forzamos true porque cambiamos unreadCounts
         chat.messages.forEach(m => {
             if (m.sender.toString() !== userIdStr && !m.read) {
                 m.read = true;
-                changed = true;
             }
         });
 
-        if (changed) {
-            await chat.save();
-        }
+        await chat.save();
 
         res.json({ success: true });
     } catch (error) {
