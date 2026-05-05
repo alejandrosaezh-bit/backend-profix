@@ -14,7 +14,7 @@ const sendEmail = async (options) => {
 
     // Define the email options
     const mailOptions = {
-        from: 'ProFix App <soporte@profesionalcercano.com>',
+        from: 'Profesional Cercano <soporte@profesionalcercano.com>',
         to: options.email,
         subject: options.subject,
         text: options.message,

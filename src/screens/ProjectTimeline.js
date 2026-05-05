@@ -315,7 +315,7 @@ const ProjectTimeline = ({ job, userMode, currentUser, onConfirmStart, onAddTime
                                         currentStage === 0 ? "Registra el estado inicial del sitio antes de comenzar." :
                                             currentStage === 1 ? "Sube avances del proceso para dar tranquilidad al cliente." :
                                                 currentStage === 2 ? "Registra el resultado final para cerrar el servicio con éxito." :
-                                                    "Trabajo finalizado. ¡Gracias por usar ProFix!"
+                                                    "Trabajo finalizado. ¡Gracias por usar Profesional Cercano!"
                                     ) : (
                                         currentStage === 0 ? "El profesional está preparando el inicio de la labor." :
                                             currentStage === 1 ? "El trabajo está en curso. Revisa el historial para ver fotos del avance." :

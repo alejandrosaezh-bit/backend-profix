@@ -384,11 +384,11 @@ router.post('/forgot-password', async (req, res) => {
         try {
             await sendEmail({
                 email: user.email,
-                subject: 'Solicitud de recuperación de contraseña en ProFix',
+                subject: 'Solicitud de recuperación de contraseña en Profesional Cercano',
                 message: `Has solicitado recuperar tu contraseña.\n\nUsa el siguiente código de 6 dígitos para restablecerla:\n\n${resetCode}\n\nEste código expira en 15 minutos.\nSi no solicitaste esto, ignora este correo.`,
                 html: `
                     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #ddd; border-radius: 10px;">
-                        <h2 style="color: #EA580C; text-align: center;">ProFix App</h2>
+                        <h2 style="color: #EA580C; text-align: center;">Profesional Cercano</h2>
                         <p style="font-size: 16px;">Hola <b>${user.name}</b>,</p>
                         <p style="font-size: 16px;">Has solicitado recuperar tu contraseña. Usa el siguiente código para restablecerla:</p>
                         <div style="text-align: center; margin: 30px 0;">
@@ -396,7 +396,7 @@ router.post('/forgot-password', async (req, res) => {
                         </div>
                         <p style="font-size: 14px; color: #666;">Este código expira en 15 minutos. Si no solicitaste este cambio, puedes ignorar este correo.</p>
                         <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
-                        <p style="font-size: 12px; color: #aaa; text-align: center;">El equipo de ProFix</p>
+                        <p style="font-size: 12px; color: #aaa; text-align: center;">El equipo de Profesional Cercano</p>
                     </div>
                 `
             });
