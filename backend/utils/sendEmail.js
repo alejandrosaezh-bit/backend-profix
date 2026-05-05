@@ -3,16 +3,18 @@ const nodemailer = require('nodemailer');
 const sendEmail = async (options) => {
     // Create a transporter
     const transporter = nodemailer.createTransport({
-        service: 'gmail',
+        host: process.env.EMAIL_HOST || 'smtp.ionos.es',
+        port: process.env.EMAIL_PORT || 465,
+        secure: parseInt(process.env.EMAIL_PORT || 465, 10) === 465, // true para 465, false para 587
         auth: {
-            user: process.env.EMAIL_USER || 'soporte.profix.app@gmail.com', // Dummy default if not set
-            pass: process.env.EMAIL_PASS || 'tu_contraseña_de_aplicacion' 
+            user: process.env.EMAIL_USER || 'soporte@profesionalcercano.com',
+            pass: process.env.EMAIL_PASS || 'tu_contraseña' 
         }
     });
 
     // Define the email options
     const mailOptions = {
-        from: 'ProFix App <noply@profixapp.com>',
+        from: 'ProFix App <soporte@profesionalcercano.com>',
         to: options.email,
         subject: options.subject,
         text: options.message,
