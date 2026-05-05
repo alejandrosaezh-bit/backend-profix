@@ -4,7 +4,7 @@ import { Feather } from '@expo/vector-icons';
 import styles from '../styles/globalStyles';
 import api from '../utils/api';
 
-const NotificationPreferencesModal = ({ visible, onClose, user, onUpdate }) => {
+const NotificationPreferencesModal = ({ visible, onClose, user, onUpdate, mode = 'client' }) => {
     const [preferences, setPreferences] = useState({});
     const [loading, setLoading] = useState(false);
     
@@ -94,22 +94,30 @@ const NotificationPreferencesModal = ({ visible, onClose, user, onUpdate }) => {
                     </View>
 
                     <ScrollView style={localStyles.scrollArea} showsVerticalScrollIndicator={false}>
-                        <Text style={localStyles.sectionTitle}>Como Cliente</Text>
-                        <View style={localStyles.sectionCard}>
-                            {renderPreferenceRow("Nuevos Mensajes (Chats)", "client_new_messages")}
-                            {renderPreferenceRow("Nuevos Presupuestos", "client_new_quotes")}
-                            {renderPreferenceRow("Actualizaciones de Estado", "client_status_updates")}
-                            {renderPreferenceRow("Valoraciones", "client_reviews")}
-                        </View>
+                        {mode === 'client' && (
+                            <>
+                                <Text style={localStyles.sectionTitle}>Como Cliente</Text>
+                                <View style={localStyles.sectionCard}>
+                                    {renderPreferenceRow("Nuevos Mensajes (Chats)", "client_new_messages")}
+                                    {renderPreferenceRow("Nuevos Presupuestos", "client_new_quotes")}
+                                    {renderPreferenceRow("Actualizaciones de Estado", "client_status_updates")}
+                                    {renderPreferenceRow("Valoraciones", "client_reviews")}
+                                </View>
+                            </>
+                        )}
 
-                        <Text style={localStyles.sectionTitle}>Como Profesional</Text>
-                        <View style={localStyles.sectionCard}>
-                            {renderPreferenceRow("Nuevas Solicitudes", "prof_new_requests")}
-                            {renderPreferenceRow("Nuevos Mensajes (Chats)", "prof_new_messages")}
-                            {renderPreferenceRow("Respuestas a Presupuestos", "prof_quote_responses")}
-                            {renderPreferenceRow("Avances del Cliente", "prof_status_updates")}
-                            {renderPreferenceRow("Valoraciones", "prof_reviews")}
-                        </View>
+                        {mode === 'pro' && (
+                            <>
+                                <Text style={localStyles.sectionTitle}>Como Profesional</Text>
+                                <View style={localStyles.sectionCard}>
+                                    {renderPreferenceRow("Nuevas Solicitudes", "prof_new_requests")}
+                                    {renderPreferenceRow("Nuevos Mensajes (Chats)", "prof_new_messages")}
+                                    {renderPreferenceRow("Respuestas a Presupuestos", "prof_quote_responses")}
+                                    {renderPreferenceRow("Avances del Cliente", "prof_status_updates")}
+                                    {renderPreferenceRow("Valoraciones", "prof_reviews")}
+                                </View>
+                            </>
+                        )}
                         <View style={{height: 20}} />
                     </ScrollView>
 

@@ -1151,6 +1151,7 @@ export default function ProfessionalProfileScreen({
                     onClose={() => setShowNotifications(false)} 
                     user={user}
                     onUpdate={onUpdate}
+                    mode="pro"
                 />
             </ScrollView>
 

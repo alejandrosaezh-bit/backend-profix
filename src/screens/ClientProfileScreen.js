@@ -317,6 +317,7 @@ export default function ClientProfileScreen({ user, isOwner, onBack, onLogout, o
         onClose={() => setShowNotifications(false)} 
         user={user}
         onUpdate={onUpdate}
+        mode="client"
       />
 
     </View>
