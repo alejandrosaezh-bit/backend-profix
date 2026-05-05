@@ -186,6 +186,7 @@ router.put('/profile', protect, async (req, res) => {
             if (req.body.phone) updateFields.phone = req.body.phone;
             if (req.body.cedula) updateFields.cedula = req.body.cedula;
             if (req.body.pushToken) updateFields.pushToken = req.body.pushToken;
+            if (req.body.notificationPreferences) updateFields.notificationPreferences = req.body.notificationPreferences;
 
             if (Object.keys(updateFields).length > 0) {
                 console.log("[PUT /profile] Performing lightweight update:", Object.keys(updateFields));
@@ -214,6 +215,7 @@ router.put('/profile', protect, async (req, res) => {
         if (req.body.avatar) user.avatar = req.body.avatar;
         if (req.body.cedula) user.cedula = req.body.cedula;
         if (req.body.pushToken) user.pushToken = req.body.pushToken;
+        if (req.body.notificationPreferences) user.notificationPreferences = req.body.notificationPreferences;
 
         if (req.body.profiles) {
             console.log("Updating profiles via user.save() (Map replacement)...");

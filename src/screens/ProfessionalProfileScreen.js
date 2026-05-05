@@ -21,6 +21,7 @@ import {
 import { ProSubscriptionModal } from '../components/profile/ProSubscriptionModal';
 import { ProGamificationModal } from '../components/profile/ProGamificationModal';
 import { ProCategorySelectionModal, ProPersonalEditModal, ProProfileEditModal } from '../components/profile/ProProfileModals';
+import NotificationPreferencesModal from '../components/NotificationPreferencesModal';
 import { api } from '../utils/api';
 import { getProStatus } from '../utils/helpers';
 import { compressAvatar, compressImage } from '../utils/imageCompressor';
@@ -72,6 +73,7 @@ export default function ProfessionalProfileScreen({
     const [isEditingPersonal, setIsEditingPersonal] = useState(false); // Personal Data Editing
     const [isSubscriptionsVisible, setIsSubscriptionsVisible] = useState(false); // Subscriptions Modal
     const [isGamificationVisible, setIsGamificationVisible] = useState(false); // Gamification Modal
+    const [showNotifications, setShowNotifications] = useState(false); // Notification Preferences
     const [personalData, setPersonalData] = useState({}); // Temp state for personal data editing
     const [reviews, setReviews] = useState([]);
     const [selectedGallery, setSelectedGallery] = useState(null);
@@ -1081,6 +1083,7 @@ export default function ProfessionalProfileScreen({
                         handleResetApplicationData={handleResetApplicationData}
                         onSwitchMode={onSwitchMode}
                         onOpenSubscriptions={() => setIsSubscriptionsVisible(true)}
+                        onOpenNotifications={() => setShowNotifications(true)}
                     />
                 )}
 
@@ -1141,6 +1144,11 @@ export default function ProfessionalProfileScreen({
                     setPersonalData={setPersonalData}
                     pickMainImage={pickMainImage}
                     handleSavePersonal={handleSavePersonal}
+                />
+
+                <NotificationPreferencesModal 
+                    visible={showNotifications} 
+                    onClose={() => setShowNotifications(false)} 
                 />
             </ScrollView>
 

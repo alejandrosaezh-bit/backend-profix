@@ -67,6 +67,22 @@ const userSchema = mongoose.Schema({
     rating: { type: Number, default: 0 },
     reviewsCount: { type: Number, default: 0 },
 
+    // Preferencias de Notificaciones
+    notificationPreferences: {
+        // CLIENT PREFERENCES
+        client_new_messages: { push: { type: Boolean, default: true }, email: { type: Boolean, default: true } },
+        client_new_quotes: { push: { type: Boolean, default: true }, email: { type: Boolean, default: true } },
+        client_status_updates: { push: { type: Boolean, default: true }, email: { type: Boolean, default: true } },
+        client_reviews: { push: { type: Boolean, default: true }, email: { type: Boolean, default: true } },
+        
+        // PROFESSIONAL PREFERENCES
+        prof_new_requests: { push: { type: Boolean, default: true }, email: { type: Boolean, default: true } },
+        prof_new_messages: { push: { type: Boolean, default: true }, email: { type: Boolean, default: true } },
+        prof_quote_responses: { push: { type: Boolean, default: true }, email: { type: Boolean, default: true } },
+        prof_status_updates: { push: { type: Boolean, default: true }, email: { type: Boolean, default: true } },
+        prof_reviews: { push: { type: Boolean, default: true }, email: { type: Boolean, default: true } }
+    },
+
     createdAt: { type: Date, default: Date.now }
 });
 // Indexes for performance optimization on common search fields

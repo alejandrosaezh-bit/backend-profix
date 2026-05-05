@@ -197,7 +197,8 @@ export const ProAccountSettings = ({
     startEditingPersonal,
     handleResetApplicationData,
     onSwitchMode,
-    onOpenSubscriptions
+    onOpenSubscriptions,
+    onOpenNotifications
 }) => {
     return (
         <View style={[
@@ -226,7 +227,7 @@ export const ProAccountSettings = ({
                 <Feather name="chevron-right" size={18} color="#9CA3AF" />
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.settingRow}>
+            <TouchableOpacity style={styles.settingRow} onPress={onOpenNotifications}>
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                     <View style={[styles.iconBox, { backgroundColor: '#F0FDF4' }]}>
                         <Feather name="bell" size={18} color="#16A34A" />

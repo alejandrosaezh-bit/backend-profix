@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { ClientReviewsList, ClientSettingsList, ClientStatistics } from '../components/profile/ClientProfileComponents';
 import { ClientEditProfileModal } from '../components/profile/ClientProfileModals';
+import NotificationPreferencesModal from '../components/NotificationPreferencesModal';
 import { api } from '../utils/api';
 import { areIdsEqual } from '../utils/helpers';
 import { compressAvatar } from '../utils/imageCompressor';
@@ -22,6 +23,7 @@ import { clearRequests } from '../utils/requests';
 
 export default function ClientProfileScreen({ user, isOwner, onBack, onLogout, onUpdate, requests = [], onSwitchMode }) {
   const [isEditing, setIsEditing] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
   const [editedUser, setEditedUser] = useState({ ...user });
   const [reviews, setReviews] = useState([]);
   const [isLoadingReviews, setIsLoadingReviews] = useState(false);
@@ -272,7 +274,11 @@ export default function ClientProfileScreen({ user, isOwner, onBack, onLogout, o
           <ClientReviewsList reviews={reviews} isLoading={isLoadingReviews} />
 
           {/* SETTINGS LINKS */}
-          <ClientSettingsList onEditProfile={() => setIsEditing(true)} onSwitchMode={onSwitchMode} />
+          <ClientSettingsList 
+            onEditProfile={() => setIsEditing(true)} 
+            onSwitchMode={onSwitchMode} 
+            onOpenNotifications={() => setShowNotifications(true)} 
+          />
 
         </View>
       </ScrollView>
@@ -305,6 +311,11 @@ export default function ClientProfileScreen({ user, isOwner, onBack, onLogout, o
           </ScrollView>
         </View>
       </Modal>
+
+      <NotificationPreferencesModal 
+        visible={showNotifications} 
+        onClose={() => setShowNotifications(false)} 
+      />
 
     </View>
   );

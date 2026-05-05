@@ -119,7 +119,7 @@ export function ClientReviewsList({ reviews, isLoading }) {
     );
 }
 
-export function ClientSettingsList({ onEditProfile, onSwitchMode }) {
+export function ClientSettingsList({ onEditProfile, onSwitchMode, onOpenNotifications }) {
     return (
         <View style={[styles.section, { marginTop: 24 }]}>
             <Text style={styles.sectionTitle}>Ajustes de Cuenta</Text>
@@ -136,7 +136,7 @@ export function ClientSettingsList({ onEditProfile, onSwitchMode }) {
 
 
 
-            <TouchableOpacity style={styles.settingRow}>
+            <TouchableOpacity style={styles.settingRow} onPress={onOpenNotifications}>
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                     <View style={[styles.iconBox, { backgroundColor: '#E0E7FF' }]}>
                         <Feather name="bell" size={20} color="#4F46E5" />
