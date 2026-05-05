@@ -1,12 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, Switch, Modal, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { useAuth } from '../context/AuthContext';
 import styles from '../styles/globalStyles';
 import api from '../utils/api';
 
-const NotificationPreferencesModal = ({ visible, onClose }) => {
-    const { user, setUser } = useAuth();
+const NotificationPreferencesModal = ({ visible, onClose, user, onUpdate }) => {
     const [preferences, setPreferences] = useState({});
     const [loading, setLoading] = useState(false);
     
@@ -44,7 +42,7 @@ const NotificationPreferencesModal = ({ visible, onClose }) => {
         try {
             const res = await api.put('/auth/profile', { notificationPreferences: preferences });
             if (res.data) {
-                setUser(res.data);
+                if (onUpdate) onUpdate(res.data);
                 onClose();
             }
         } catch (error) {
