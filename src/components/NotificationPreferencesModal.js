@@ -60,10 +60,10 @@ const NotificationPreferencesModal = ({ visible, onClose, user, onUpdate, mode =
                 <Text style={localStyles.rowLabel}>{label}</Text>
                 <View style={localStyles.togglesContainer}>
                     <View style={localStyles.toggleWrapper}>
-                        <Feather name="bell" size={14} color="#666" style={{ marginBottom: 4 }} />
+                        <Feather name="smartphone" size={14} color="#666" style={{ marginBottom: 4 }} />
                         <Switch
-                            trackColor={{ false: "#d1d5db", true: "#fdba74" }}
-                            thumbColor={pref.push ? "#EA580C" : "#f4f3f4"}
+                            trackColor={{ false: "#d1d5db", true: mode === 'client' ? "#fdba74" : "#bfdbfe" }}
+                            thumbColor={pref.push ? (mode === 'client' ? "#EA580C" : "#2563EB") : "#f4f3f4"}
                             onValueChange={() => handleToggle(key, 'push')}
                             value={pref.push}
                         />
@@ -71,8 +71,8 @@ const NotificationPreferencesModal = ({ visible, onClose, user, onUpdate, mode =
                     <View style={localStyles.toggleWrapper}>
                         <Feather name="mail" size={14} color="#666" style={{ marginBottom: 4 }} />
                         <Switch
-                            trackColor={{ false: "#d1d5db", true: "#fdba74" }}
-                            thumbColor={pref.email ? "#EA580C" : "#f4f3f4"}
+                            trackColor={{ false: "#d1d5db", true: mode === 'client' ? "#fdba74" : "#bfdbfe" }}
+                            thumbColor={pref.email ? (mode === 'client' ? "#EA580C" : "#2563EB") : "#f4f3f4"}
                             onValueChange={() => handleToggle(key, 'email')}
                             value={pref.email}
                         />
@@ -96,7 +96,7 @@ const NotificationPreferencesModal = ({ visible, onClose, user, onUpdate, mode =
                     <ScrollView style={localStyles.scrollArea} showsVerticalScrollIndicator={false}>
                         {mode === 'client' && (
                             <>
-                                <Text style={localStyles.sectionTitle}>Como Cliente</Text>
+                                <Text style={[localStyles.sectionTitle, { color: '#EA580C' }]}>Como Cliente</Text>
                                 <View style={localStyles.sectionCard}>
                                     {renderPreferenceRow("Nuevos Mensajes (Chats)", "client_new_messages")}
                                     {renderPreferenceRow("Nuevos Presupuestos", "client_new_quotes")}
@@ -108,7 +108,7 @@ const NotificationPreferencesModal = ({ visible, onClose, user, onUpdate, mode =
 
                         {mode === 'pro' && (
                             <>
-                                <Text style={localStyles.sectionTitle}>Como Profesional</Text>
+                                <Text style={[localStyles.sectionTitle, { color: '#2563EB' }]}>Como Profesional</Text>
                                 <View style={localStyles.sectionCard}>
                                     {renderPreferenceRow("Nuevas Solicitudes", "prof_new_requests")}
                                     {renderPreferenceRow("Nuevos Mensajes (Chats)", "prof_new_messages")}
@@ -123,11 +123,27 @@ const NotificationPreferencesModal = ({ visible, onClose, user, onUpdate, mode =
 
                     <View style={localStyles.footer}>
                         <TouchableOpacity 
-                            style={[styles.primaryButton, { width: '100%', opacity: loading ? 0.7 : 1 }]} 
+                            style={{
+                                backgroundColor: mode === 'client' ? '#EA580C' : '#2563EB',
+                                paddingVertical: 16,
+                                borderRadius: 16,
+                                alignItems: 'center',
+                                flexDirection: 'row',
+                                justifyContent: 'center',
+                                opacity: loading ? 0.7 : 1,
+                                elevation: 4,
+                                shadowColor: mode === 'client' ? '#EA580C' : '#2563EB',
+                                shadowOffset: { width: 0, height: 4 },
+                                shadowOpacity: 0.3,
+                                shadowRadius: 8
+                            }} 
                             onPress={handleSave}
                             disabled={loading}
                         >
-                            <Text style={styles.primaryButtonText}>{loading ? 'Guardando...' : 'Guardar Preferencias'}</Text>
+                            <Feather name="save" size={18} color="white" style={{ marginRight: 8 }} />
+                            <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 16 }}>
+                                {loading ? 'Guardando...' : 'Guardar Preferencias'}
+                            </Text>
                         </TouchableOpacity>
                     </View>
                 </View>
@@ -171,7 +187,6 @@ const localStyles = StyleSheet.create({
     sectionTitle: {
         fontSize: 16,
         fontWeight: '700',
-        color: '#EA580C',
         marginTop: 20,
         marginBottom: 10,
         textTransform: 'uppercase',
