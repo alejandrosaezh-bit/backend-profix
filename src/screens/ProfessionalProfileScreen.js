@@ -97,20 +97,13 @@ export default function ProfessionalProfileScreen({
         const fetchData = async () => {
             if (!user?._id) return;
             try {
-                // 1. Reviews
-                const reviewsData = await api.getProfessionalReviews(user._id);
-                setReviews(reviewsData || []);
+                // Execute both network requests in parallel for maximum speed
+                const [reviewsData, allJobs] = await Promise.all([
+                    api.getProfessionalReviews(user._id),
+                    isOwner ? api.getMyJobs({ role: 'pro' }) : api.getJobs({ professional: user._id })
+                ]);
 
-                // 2. Real Jobs Stats
-                let allJobs = [];
-                if (isOwner) {
-                    // If owner, get all jobs I'm involved in (Offered, Contacted, Assigned)
-                    allJobs = await api.getMyJobs({ role: 'pro' });
-                } else {
-                    // If public view, only show assigned/completed jobs publically?
-                    // For now keeping it consistent with public availability
-                    allJobs = await api.getJobs({ professional: user._id });
-                }
+                setReviews(reviewsData || []);
 
                 if (Array.isArray(allJobs)) {
                     setJobsList(allJobs);
