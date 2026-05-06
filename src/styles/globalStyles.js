@@ -14,13 +14,13 @@ export default StyleSheet.create({
         justifyContent: 'space-between',
         paddingHorizontal: 24,
         paddingVertical: 10,
-        backgroundColor: 'white',
+        backgroundColor: 'rgba(255,255,255,0.98)',
         borderBottomWidth: 0,
-        elevation: 5,
-        shadowColor: '#EA580C',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 10,
+        elevation: 8,
+        shadowColor: '#94A3B8',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.12,
+        shadowRadius: 12,
         zIndex: 10
     },
     headerLeft: { flexDirection: 'row', alignItems: 'center' },
@@ -161,11 +161,16 @@ export default StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'center',
         padding: 16, // Reduced form 20
-        borderRadius: 16,
+        borderRadius: 20,
         alignItems: 'center',
-        minHeight: 56, // Reduced from 64
+        minHeight: 60, // Reduced from 64
         marginTop: 16, // Reduced from 20
-        marginBottom: 12 // Drastically reduced from 30
+        marginBottom: 12, // Drastically reduced from 30
+        shadowColor: '#EA580C',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.3,
+        shadowRadius: 12,
+        elevation: 8
     },
     searchButtonText: { color: 'white', fontWeight: 'bold', fontSize: 17, marginRight: 8 },
 
@@ -207,19 +212,29 @@ export default StyleSheet.create({
     reqCard: {
         backgroundColor: 'white',
         padding: 20,
-        borderRadius: 16,
-        marginBottom: 12,
+        borderRadius: 24,
+        marginBottom: 16,
         borderWidth: 1,
-        borderColor: '#E5E7EB'
+        borderColor: '#F8FAFC',
+        shadowColor: '#94A3B8',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.1,
+        shadowRadius: 12,
+        elevation: 4
     },
-    proHeaderCard: { backgroundColor: '#2563EB', padding: 24, borderRadius: 16, marginBottom: 20 },
+    proHeaderCard: { backgroundColor: '#2563EB', padding: 24, borderRadius: 24, marginBottom: 20, shadowColor: '#2563EB', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.3, shadowRadius: 15, elevation: 8 },
     jobCard: {
         backgroundColor: 'white',
         padding: 20,
-        borderRadius: 16,
-        marginBottom: 12,
+        borderRadius: 24,
+        marginBottom: 16,
         borderWidth: 1,
-        borderColor: '#E5E7EB'
+        borderColor: '#F8FAFC',
+        shadowColor: '#94A3B8',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.1,
+        shadowRadius: 12,
+        elevation: 4
     },
     offerCard: {
         backgroundColor: 'white',
@@ -241,8 +256,8 @@ export default StyleSheet.create({
         backgroundColor: 'white',
         borderTopWidth: 1,
         borderColor: '#E5E7EB',
-        paddingBottom: Platform.OS === 'android' ? 55 : 30, // Aumentado para evitar solapamiento
-        minHeight: 90 // Aumentado mínimamente
+        paddingBottom: Platform.OS === 'ios' ? 20 : 15,
+        minHeight: 70
     },
     navItem: { alignItems: 'center', padding: 8, flex: 1, minHeight: 48 },
 
@@ -302,16 +317,16 @@ export default StyleSheet.create({
     // ESTILOS FORMULARIO SEPARADO
     serviceFormCard: {
         backgroundColor: 'white',
-        borderRadius: 24,
+        borderRadius: 28,
         marginHorizontal: 4,
         borderWidth: 1,
-        borderColor: '#FFF7ED',
-        elevation: 5,
-        shadowColor: '#EA580C',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 10,
-        paddingHorizontal: 20,
+        borderColor: '#F8FAFC',
+        elevation: 8,
+        shadowColor: '#94A3B8',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.15,
+        shadowRadius: 15,
+        paddingHorizontal: 24,
         paddingTop: 15,
         paddingBottom: 25,
     },
