@@ -11,7 +11,7 @@ const User = require('../models/User');
 // 1. Obtener todas las categorías
 router.get('/categories', async (req, res) => {
     try {
-        const categories = await Category.find({ isActive: true });
+        const categories = await Category.find({ isActive: true }).lean();
         res.json(categories);
     } catch (error) {
         res.status(500).json({ message: error.message });
@@ -21,7 +21,7 @@ router.get('/categories', async (req, res) => {
 // 2. Obtener artículos del blog
 router.get('/articles', async (req, res) => {
     try {
-        const articles = await Article.find().sort({ createdAt: -1 }); // Más recientes primero
+        const articles = await Article.find().sort({ createdAt: -1 }).lean(); // Más recientes primero
         res.json(articles);
     } catch (error) {
         res.status(500).json({ message: error.message });
@@ -88,7 +88,8 @@ router.get('/professionals/:id/reviews', async (req, res) => {
 router.get('/professionals/:id', async (req, res) => {
     try {
         const user = await User.findById(req.params.id)
-            .select('name email avatar phone rating profiles createdAt role'); // Excluir password, etc.
+            .select('name email avatar phone rating profiles createdAt role')
+            .lean(); // Excluir password, etc.
         if (!user) return res.status(404).json({ message: 'Profesional no encontrado' });
         res.json(user);
     } catch (error) {

@@ -1025,7 +1025,7 @@ router.get('/me', protect, async (req, res) => {
             return res.status(401).json({ message: 'Usuario no autenticado o no encontrado en DB.' });
         }
         const clientJobs = await Job.find({ client: req.user._id })
-            .select('-conversations')
+            .select('-conversations -images -workPhotos -projectHistory -clientManagement')
             .populate('client', 'name avatar email')
             .populate('category', 'name color icon')
             .populate('offers.proId', 'name email avatar rating reviewsCount')
@@ -1127,7 +1127,7 @@ router.get('/me', protect, async (req, res) => {
             console.log(`[GET /me DEBUG] Fetching ${uniqueJobIdsToFetch.length} extra jobs:`, uniqueJobIdsToFetch);
             try {
                 const fetchedJobs = await Job.find({ _id: { $in: uniqueJobIdsToFetch } })
-                    .select('-conversations')
+                    .select('-conversations -images -workPhotos -projectHistory -clientManagement')
                     .populate('category', 'name color icon')
                     .populate('client', 'name email avatar')
                     .populate('offers.proId', 'name email avatar rating reviewsCount')
