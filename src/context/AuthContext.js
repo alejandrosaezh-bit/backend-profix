@@ -6,7 +6,7 @@ import { clearSession, getSession, saveSession } from '../utils/session';
 export const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
-    const [isLoading, setIsLoading] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
     const [userToken, setUserToken] = useState(null);
     const [userInfo, setUserInfo] = useState(null);
 
@@ -105,6 +105,9 @@ export const AuthProvider = ({ children }) => {
                     setUserInfo(storedUserInfo);
                 }
 
+                // UNBLOCK UI INSTANTLY: We have local session
+                setIsLoading(false);
+
                 // Intentar obtener datos frescos del backend (con timeout implícito si el login es lento)
                 // Usamos un timeout manual aquí para no bloquear la app
                 const fetchPromise = api.getMe();
@@ -131,12 +134,14 @@ export const AuthProvider = ({ children }) => {
                 console.log("[AuthContext] No session found.");
                 setUserToken(null);
                 setUserInfo(null);
+                setIsLoading(false); // Unblock UI for new users
             }
         } catch (error) {
             console.error("[AuthContext] isLoggedIn overall error:", error);
-        } finally {
-            console.log("[AuthContext] isLoggedIn finished, setting isLoading to false.");
             setIsLoading(false);
+        } finally {
+            console.log("[AuthContext] isLoggedIn finished.");
+            // setIsLoading(false) is already handled dynamically to unblock early
         }
     };
 
