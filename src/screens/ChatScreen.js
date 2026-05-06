@@ -85,12 +85,13 @@ export default function ChatScreen({ request, currentUser, userMode, onBack, onS
         setLocalMessages(prev => {
           // Robust duplicate check
           const msgId = data.message.id || data.message._id;
-          const exists = prev.some(m => (m.id && m.id === msgId) || (m.text === data.message.content && Math.abs(new Date(m.timestamp) - new Date(data.message.createdAt)) < 2000));
+          const msgContent = data.message.text || data.message.content;
+          const exists = prev.some(m => (m.id && m.id === msgId) || (m.text === msgContent && Math.abs(new Date(m.timestamp) - new Date(data.message.createdAt)) < 2000));
           if (exists) return prev;
 
           const incomingMsg = {
             id: msgId,
-            text: data.message.content,
+            text: msgContent,
             sender: data.message.sender === 'client' ? 'client' : 'pro',
             timestamp: data.message.createdAt || new Date().toISOString(),
             media: data.message.media,
