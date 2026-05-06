@@ -1,5 +1,6 @@
 import { Feather, FontAwesome5 } from '@expo/vector-icons';
-import { Text, TouchableOpacity, View } from 'react-native';
+import { Platform, Text, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import styles from '../styles/globalStyles';
 
 export default function BottomNav({
@@ -12,10 +13,12 @@ export default function BottomNav({
     setShowAuth,
     markAllProInteractionsAsRead
 }) {
+    const insets = useSafeAreaInsets();
+    
     if (view === 'admin') return null;
 
     return (
-        <View style={styles.bottomNav}>
+        <View style={[styles.bottomNav, { paddingBottom: Math.max(insets.bottom, Platform.OS === 'ios' ? 20 : 15) }]}>
             <TouchableOpacity style={styles.navItem} onPress={() => {
                 if (view === 'home' && isLoggedIn) loadRequests();
                 if (userMode === 'pro') markAllProInteractionsAsRead();
