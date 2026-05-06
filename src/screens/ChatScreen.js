@@ -114,8 +114,24 @@ export default function ChatScreen({ request, currentUser, userMode, onBack, onS
         console.log("App went to background, leaving chat room");
         socket.emit('leave_chat', currentConversation.id);
       } else if (nextAppState === 'active') {
-        console.log("App came to foreground, re-joining chat room");
+        console.log("App came to foreground, re-joining chat room and fetching fresh messages");
         socket.emit('join_chat', currentConversation.id);
+
+        api.getChatDetails(currentConversation.id)
+          .then(freshChat => {
+            if (freshChat && freshChat.messages) {
+              const mappedMessages = freshChat.messages.map(msg => ({
+                id: msg._id || msg.id,
+                text: msg.content || msg.text,
+                sender: msg.sender,
+                timestamp: msg.createdAt,
+                media: msg.media,
+                mediaType: msg.mediaType
+              }));
+              setLocalMessages(mappedMessages);
+            }
+          })
+          .catch(err => console.warn("Error fetching fresh messages on foreground:", err));
       }
     };
     
