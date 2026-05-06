@@ -76,9 +76,9 @@ export function ClientReviewsList({ reviews, isLoading }) {
                     <Text style={{ color: '#999', fontStyle: 'italic' }}>Aún no hay opiniones de profesionales.</Text>
                 </View>
             ) : (
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingLeft: 20, paddingRight: 20 }}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingLeft: 20, paddingRight: 20, paddingBottom: 15, paddingTop: 5 }}>
                     {reviews.map((review, idx) => (
-                        <View key={review._id || idx} style={[styles.reviewCard, { width: 160, marginRight: 16, marginBottom: 0, padding: 16, elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, borderWidth: 1, borderColor: '#F1F5F9', borderRadius: 20 }]}>
+                        <View key={review._id || idx} style={[styles.reviewCard, { width: 160, marginRight: 16, marginBottom: 0, padding: 16, elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, borderWidth: 1, borderColor: '#F1F5F9', borderRadius: 20 }]}>
                             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
                                 {review.reviewer?.avatar ? (
                                     <Image

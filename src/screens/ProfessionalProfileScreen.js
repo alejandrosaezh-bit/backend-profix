@@ -97,13 +97,25 @@ export default function ProfessionalProfileScreen({
         const fetchData = async () => {
             if (!user?._id) return;
             try {
-                // Execute both network requests in parallel for maximum speed
-                const [reviewsData, allJobs] = await Promise.all([
-                    api.getProfessionalReviews(user._id),
-                    isOwner ? api.getMyJobs({ role: 'pro' }) : api.getJobs({ professional: user._id })
-                ]);
-
+                // Execute network requests independently so one failure doesn't break both
+                let reviewsData = [];
+                try {
+                    reviewsData = await api.getProfessionalReviews(user._id);
+                } catch (e) {
+                    console.error("Error fetching pro reviews:", e);
+                }
                 setReviews(reviewsData || []);
+
+                let allJobs = [];
+                try {
+                    if (isOwner) {
+                        allJobs = await api.getMyJobs({ role: 'pro' });
+                    } else {
+                        allJobs = await api.getJobs({ professional: user._id });
+                    }
+                } catch (e) {
+                    console.error("Error fetching pro jobs:", e);
+                }
 
                 if (Array.isArray(allJobs)) {
                     setJobsList(allJobs);
@@ -617,7 +629,7 @@ export default function ProfessionalProfileScreen({
                                             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15, paddingHorizontal: 24 }}>
                                                 <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#111827' }}>Valoraciones Recibidas</Text>
                                             </View>
-                                            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingLeft: 24, paddingRight: 24 }}>
+                                            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingLeft: 24, paddingRight: 24, paddingBottom: 15, paddingTop: 5 }}>
                                                 {catReviews && catReviews.length > 0 ? (
                                                     catReviews.map((r, i) => (
                                                         <View key={i} style={{ backgroundColor: 'white', padding: 16, borderRadius: 20, marginRight: 16, width: 160, elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, borderWidth: 1, borderColor: '#F1F5F9' }}>
@@ -1031,10 +1043,10 @@ export default function ProfessionalProfileScreen({
                             {/* RESEÑAS PRIVADAS */}
                             <View style={{ marginBottom: 25, marginHorizontal: -24 }}>
                                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15, paddingHorizontal: 24 }}>
-                                    <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#111827' }}>Valoraciones Recibidas</Text>
-                                </View>
-                                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingLeft: 24, paddingRight: 24 }}>
-                                    {catReviews && catReviews.length > 0 ? (
+                                                <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#111827' }}>Valoraciones Recibidas</Text>
+                                            </View>
+                                            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingLeft: 24, paddingRight: 24, paddingBottom: 15, paddingTop: 5 }}>
+                                                {catReviews && catReviews.length > 0 ? (
                                         catReviews.map((r, i) => (
                                             <View key={i} style={{ backgroundColor: 'white', padding: 16, borderRadius: 20, marginRight: 16, width: 160, elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, borderWidth: 1, borderColor: '#F1F5F9' }}>
                                                 <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
