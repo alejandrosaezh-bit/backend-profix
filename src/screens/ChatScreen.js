@@ -11,7 +11,8 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View
+  View,
+  AppState
 } from 'react-native';
 import { useSocket } from '../context/SocketContext';
 import { API_URL, api } from '../utils/api';
@@ -107,8 +108,23 @@ export default function ChatScreen({ request, currentUser, userMode, onBack, onS
 
     socket.on('receive_message', handleReceiveMessage);
 
+    // Handle AppState changes so we leave the room when the app goes to the background
+    const handleAppStateChange = (nextAppState) => {
+      if (nextAppState.match(/inactive|background/)) {
+        console.log("App went to background, leaving chat room");
+        socket.emit('leave_chat', currentConversation.id);
+      } else if (nextAppState === 'active') {
+        console.log("App came to foreground, re-joining chat room");
+        socket.emit('join_chat', currentConversation.id);
+      }
+    };
+    
+    const appStateSubscription = AppState.addEventListener('change', handleAppStateChange);
+
     return () => {
       socket.off('receive_message', handleReceiveMessage);
+      socket.emit('leave_chat', currentConversation.id);
+      appStateSubscription.remove();
     };
   }, [socket, currentConversation?.id, isActingAsPro]);
 
