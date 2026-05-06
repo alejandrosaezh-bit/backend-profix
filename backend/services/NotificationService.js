@@ -104,12 +104,17 @@ class NotificationService {
                 };
             }
 
-            // Theme color (Orange for clients, Blue for pros based on eventKey prefix)
-            const color = eventKey.startsWith('prof_') ? '#2563EB' : '#EA580C';
+            // Theme color and targetRole (Orange for clients, Blue for pros based on eventKey prefix)
+            const isProEvent = eventKey.startsWith('prof_');
+            const color = isProEvent ? '#2563EB' : '#EA580C';
+            const targetRole = isProEvent ? 'pro' : 'client';
+
+            // Enrich push data with targetRole
+            const enrichedData = { ...data, targetRole };
 
             // Send Push
             if (prefs.push && user.pushToken) {
-                await this.sendPushNotification(user.pushToken, title, body, data);
+                await this.sendPushNotification(user.pushToken, title, body, enrichedData);
             }
 
             // Send Email
@@ -120,7 +125,7 @@ class NotificationService {
                         email: user.email,
                         subject: title,
                         message: body,
-                        html: htmlContent
+                        html: this.buildHtmlEmail(title, body, buttonText, buttonUrl ? `${buttonUrl}?role=${targetRole}` : null, color)
                     });
                     console.log(`[NotificationService] Email sent to ${user.email} for ${eventKey}`);
                 } catch (emailErr) {
