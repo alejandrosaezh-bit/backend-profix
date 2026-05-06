@@ -252,26 +252,39 @@ router.post('/:id/messages', protect, async (req, res) => {
             if (receiverId) {
                 const receiverUser = await User.findById(receiverId);
                 if (receiverUser) {
-                    // Determine role: if receiver is the client of the job, then it's a client_new_messages, else prof_new_messages
-                    const jobDoc = await Job.findById(chat.job).select('client');
-                    const isClient = jobDoc && jobDoc.client.toString() === receiverId.toString();
-                    const eventKey = isClient ? 'client_new_messages' : 'prof_new_messages';
+                    // Check if receiver is actively in the chat room (suppress push if they are)
+                    const io = req.app.get('socketio');
+                    let isReceiverActive = false;
+                    if (io) {
+                        const room = io.sockets.adapter.rooms.get(req.params.id);
+                        if (room && room.size > 1) {
+                            isReceiverActive = true;
+                            console.log(`[Push Suppressed] Receiver is currently active in chat room ${req.params.id}`);
+                        }
+                    }
 
-                    await NotificationService.notifyUser({
-                        userId: receiverId,
-                        eventKey: eventKey,
-                        title: req.user.name,
-                        body: content,
-                        data: {
-                            chatId: chat._id,
-                            jobId: chat.job,
-                            type: 'chat',
-                            senderId: req.user._id,
-                            senderName: req.user.name
-                        },
-                        buttonText: 'Responder',
-                        buttonUrl: `profix://chat/${chat._id}`
-                    });
+                    if (!isReceiverActive) {
+                        // Determine role: if receiver is the client of the job, then it's a client_new_messages, else prof_new_messages
+                        const jobDoc = await Job.findById(chat.job).select('client');
+                        const isClient = jobDoc && jobDoc.client.toString() === receiverId.toString();
+                        const eventKey = isClient ? 'client_new_messages' : 'prof_new_messages';
+
+                        await NotificationService.notifyUser({
+                            userId: receiverId,
+                            eventKey: eventKey,
+                            title: req.user.name,
+                            body: content,
+                            data: {
+                                chatId: chat._id,
+                                jobId: chat.job,
+                                type: 'chat',
+                                senderId: req.user._id,
+                                senderName: req.user.name
+                            },
+                            buttonText: 'Responder',
+                            buttonUrl: `profix://chat/${chat._id}`
+                        });
+                    }
                 }
             }
 

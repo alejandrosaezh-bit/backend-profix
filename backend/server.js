@@ -119,6 +119,11 @@ io.on('connection', (socket) => {
         console.log(`💬 Socket ${socket.id} joined chat room: ${chatId}`);
     });
 
+    socket.on('leave_chat', (chatId) => {
+        socket.leave(chatId);
+        console.log(`👋 Socket ${socket.id} left chat room: ${chatId}`);
+    });
+
     socket.on('join_user_dates', (userId) => {
         if (!userId) return;
         socket.join(`user_${userId}`);
