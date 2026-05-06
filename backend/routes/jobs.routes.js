@@ -11,54 +11,9 @@ const JobInteraction = require('../models/JobInteraction');
 const Review = require('../models/Review');
 const { protect } = require('../middleware/authMiddleware');
 const { GamificationService } = require('../services/GamificationService');
+const NotificationService = require('../services/NotificationService');
 
-// --- PUSH NOTIFICATION HELPER ---
-const sendPushNotification = async (pushToken, title, body, data = {}) => {
-    if (!pushToken) return;
-
-    // By default, assume job-related push
-    data.type = data.type || 'job_update';
-
-    const message = {
-        to: pushToken,
-        sound: 'default',
-        channelId: 'default',
-        title: title,
-        body: body,
-        data: data,
-    };
-
-    const dataString = JSON.stringify([message]); // Expo expects array
-
-    const options = {
-        hostname: 'exp.host',
-        path: '/--/api/v2/push/send',
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'Accept-Encoding': 'gzip, deflate',
-            'Content-Length': dataString.length,
-        },
-    };
-
-    try {
-        const req = https.request(options, (res) => {
-            res.on('data', (d) => {
-                // process.stdout.write(d); // Optional log
-            });
-        });
-
-        req.on('error', (e) => {
-            console.error('Error sending push notification:', e);
-        });
-
-        req.write(dataString);
-        req.end();
-    } catch (e) {
-        console.error("Exception sending push:", e);
-    }
-};
+// --- NOTIFICATION HELPER MOVED TO NotificationService ---
 
 // --- HELPER STATUS CALCULATOR ---
 const calculateJobStatuses = (job, userId) => {
@@ -418,13 +373,16 @@ router.post('/:id/offers', protect, async (req, res) => {
         // --- NOTIFICATION TRIGGERS ---
         // 1. Push Notification to Client
         const clientUser = await User.findById(job.client);
-        if (clientUser && clientUser.pushToken) {
-            sendPushNotification(
-                clientUser.pushToken,
-                'Nueva Oferta Recibida',
-                `Has recibido una oferta de ${req.user.name} por ${offer.currency ? offer.currency : '$'}${offer.amount}`,
-                { jobId: job._id, type: 'new_offer' }
-            );
+        if (clientUser) {
+            await NotificationService.notifyUser({
+                userId: job.client,
+                eventKey: 'client_new_quotes',
+                title: 'Nueva Oferta Recibida',
+                body: `Has recibido un presupuesto de ${req.user.name} por ${offer.currency ? offer.currency : '$'}${offer.amount}.`,
+                data: { jobId: job._id, type: 'new_offer' },
+                buttonText: 'Ver Presupuesto',
+                buttonUrl: `profix://job/${job._id}`
+            });
         }
 
         // 2. Socket Event (Global or Room)
@@ -580,13 +538,16 @@ router.put('/:id/assign', protect, async (req, res) => {
         // --- NOTIFICATION TRIGGERS ---
         // 1. Notify the WINNER (Professional)
         const proUser = await User.findById(professionalId);
-        if (proUser && proUser.pushToken) {
-            sendPushNotification(
-                proUser.pushToken,
-                '¡Oferta Aceptada!',
-                `El cliente ha aceptado tu oferta para "${job.title}". ¡Prepárate para trabajar!`,
-                { jobId: job._id, type: 'offer_accepted' }
-            );
+        if (proUser) {
+            await NotificationService.notifyUser({
+                userId: professionalId,
+                eventKey: 'prof_quote_responses',
+                title: '¡Oferta Aceptada!',
+                body: `El cliente ha aceptado tu presupuesto para "${job.title}". ¡Prepárate para trabajar!`,
+                data: { jobId: job._id, type: 'offer_accepted' },
+                buttonText: 'Ver Solicitud',
+                buttonUrl: `profix://job/${job._id}`
+            });
         }
 
         // 2. Socket Event
@@ -689,13 +650,16 @@ router.put('/:id/start-confirm', protect, async (req, res) => {
         // --- NOTIFICATION TRIGGERS ---
         // Notify Client that work started
         const clientUser = await User.findById(job.client);
-        if (clientUser && clientUser.pushToken) {
-            sendPushNotification(
-                clientUser.pushToken,
-                'Trabajo Iniciado',
-                `El profesional ha marcado el inicio del trabajo: ${job.title}`,
-                { jobId: job._id, type: 'work_started' }
-            );
+        if (clientUser) {
+            await NotificationService.notifyUser({
+                userId: job.client,
+                eventKey: 'client_status_updates',
+                title: 'Trabajo Iniciado',
+                body: `El profesional ha marcado el inicio del trabajo: ${job.title}`,
+                data: { jobId: job._id, type: 'work_started' },
+                buttonText: 'Ver Detalles',
+                buttonUrl: `profix://job/${job._id}`
+            });
         }
 
         const io = req.app.get('socketio');
@@ -1553,13 +1517,16 @@ router.put('/:id/finish', protect, async (req, res) => {
             // NOTIFY CLIENT
             try {
                 const client = await User.findById(job.client);
-                if (client && client.pushToken) {
-                    await sendPushNotification(
-                        client.pushToken,
-                        "Trabajo Finalizado",
-                        "El profesional ha marcado el trabajo como finalizado. Por favor valida y califica.",
-                        { type: 'job_update', jobId: job._id }
-                    );
+                if (client) {
+                    await NotificationService.notifyUser({
+                        userId: job.client,
+                        eventKey: 'client_status_updates',
+                        title: 'Trabajo Finalizado',
+                        body: 'El profesional ha marcado el trabajo como finalizado. Por favor valida y califica.',
+                        data: { type: 'job_update', jobId: job._id },
+                        buttonText: 'Calificar Trabajo',
+                        buttonUrl: `profix://job/${job._id}`
+                    });
                 }
             } catch (e) {
                 console.error("Error sending finish notification:", e);

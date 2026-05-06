@@ -4,6 +4,8 @@ const mongoose = require('mongoose');
 const Chat = require('../models/Chat');
 const User = require('../models/User');
 const Job = require('../models/Job');
+const JobInteraction = require('../models/JobInteraction');
+const NotificationService = require('../services/NotificationService');
 const { protect } = require('../middleware/authMiddleware');
 const { GamificationService } = require('../services/GamificationService');
 const https = require('https'); // For Expo Push
@@ -248,43 +250,28 @@ router.post('/:id/messages', protect, async (req, res) => {
             });
 
             if (receiverId) {
-                const receiverUser = await User.findById(receiverId).select('pushToken');
-                if (receiverUser && receiverUser.pushToken) {
-                    try {
-                        const pushBody = {
-                            to: receiverUser.pushToken,
-                            sound: 'default',
-                            title: req.user.name,
-                            body: content,
-                            channelId: 'default',
-                            data: {
-                                chatId: chat._id,
-                                jobId: chat.job,
-                                type: 'chat',
-                                senderId: req.user._id,
-                                senderName: req.user.name
-                            }
-                        };
+                const receiverUser = await User.findById(receiverId);
+                if (receiverUser) {
+                    // Determine role: if receiver is the client of the job, then it's a client_new_messages, else prof_new_messages
+                    const jobDoc = await Job.findById(chat.job).select('client');
+                    const isClient = jobDoc && jobDoc.client.toString() === receiverId.toString();
+                    const eventKey = isClient ? 'client_new_messages' : 'prof_new_messages';
 
-                        const data = JSON.stringify(pushBody);
-                        const options = {
-                            hostname: 'exp.host',
-                            path: '/--/api/v2/push/send',
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'Content-Length': Buffer.byteLength(data),
-                            },
-                        };
-
-                        const reqPush = https.request(options, (resPush) => { });
-                        reqPush.on('error', (e) => console.error("Push Error:", e));
-                        reqPush.write(data);
-                        reqPush.end();
-
-                    } catch (pushErr) {
-                        console.error("Push Notification Failed:", pushErr);
-                    }
+                    await NotificationService.notifyUser({
+                        userId: receiverId,
+                        eventKey: eventKey,
+                        title: req.user.name,
+                        body: content,
+                        data: {
+                            chatId: chat._id,
+                            jobId: chat.job,
+                            type: 'chat',
+                            senderId: req.user._id,
+                            senderName: req.user.name
+                        },
+                        buttonText: 'Responder',
+                        buttonUrl: `profix://chat/${chat._id}`
+                    });
                 }
             }
 
