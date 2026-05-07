@@ -2,12 +2,16 @@
 import { Feather, FontAwesome5 } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as Notifications from 'expo-notifications'; // Import Notifications
+import * as NavigationBar from 'expo-navigation-bar';
+import * as Linking from 'expo-linking';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StatusBar } from 'expo-status-bar';
 import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import {
     Animated,
     Easing,
     Image,
+    Keyboard,
     KeyboardAvoidingView,
     LogBox,
     Modal,
@@ -287,10 +291,35 @@ function MainApp() {
     }, []);
 
     // --- ESTADO UI/NAV ---
-    const [userMode, setUserMode] = useState('client');
+    const [userMode, setRawUserMode] = useState('client');
     const [showAuth, setShowAuth] = useState(false);
     const [view, setView] = useState('home');
-    const { allRequests, setAllRequests, allChats, setAllChats, refreshing, setRefreshing, counts, setCounts, loadRequests, loadChats, onRefresh } = useAppData({ isLoggedIn, currentUser, userMode, view });
+    const [isAppReady, setIsAppReady] = useState(false);
+
+    // Persist mode on change
+    const setUserMode = useCallback(async (mode) => {
+        setRawUserMode(mode);
+        try {
+            await AsyncStorage.setItem('lastActiveMode', mode);
+        } catch (e) {
+            console.warn("Failed to save lastActiveMode", e);
+        }
+    }, []);
+
+    // Load initial mode
+    useEffect(() => {
+        const loadInitialMode = async () => {
+            try {
+                const storedMode = await AsyncStorage.getItem('lastActiveMode');
+                if (storedMode === 'client' || storedMode === 'pro') {
+                    setRawUserMode(storedMode);
+                }
+            } catch (e) {}
+            setIsAppReady(true);
+        };
+        loadInitialMode();
+    }, []);
+    const { allRequests, setAllRequests, allChats, setAllChats, refreshing, setRefreshing, counts, setCounts, loadRequests, loadChats, onRefresh } = useAppData({ isLoggedIn, isLoadingAuth: isLoading, currentUser, userMode, view });
     const [selectedCategory, setSelectedCategory] = useState(null);
     const [selectedSubcategory, setSelectedSubcategory] = useState(null);
     const [selectedBlogPost, setSelectedBlogPost] = useState(null);
@@ -312,12 +341,19 @@ function MainApp() {
                         const targetChatId = data.chatId ? String(data.chatId) : null;
                         const isChat = data.type === 'chat' || data.chatId;
 
-                        console.log(`[Notification Opened] Redirecting to ${isChat ? 'chat' : 'job details'} for job/chat:`, targetJobId || targetChatId);
+                        // NEW: Switch to correct mode if payload specifies it
+                        let activeMode = userMode;
+                        if (data.targetRole && (data.targetRole === 'client' || data.targetRole === 'pro')) {
+                            activeMode = data.targetRole;
+                            setUserMode(activeMode);
+                        }
+
+                        console.log(`[Notification Opened] Redirecting to ${isChat ? 'chat' : 'job details'} for job/chat:`, targetJobId || targetChatId, 'in mode:', activeMode);
 
                         const routeToCorrectView = (jobRequest) => {
                             setSelectedRequest(jobRequest);
                             if (isChat) {
-                                const targetId = data.senderId || (userMode === 'client' ? (jobRequest.proId?._id || jobRequest.proId) : (jobRequest.client?._id || jobRequest.client));
+                                const targetId = data.senderId || (activeMode === 'client' ? (jobRequest.proId?._id || jobRequest.proId) : (jobRequest.client?._id || jobRequest.client));
                                 const initialChatRequest = {
                                     ...jobRequest,
                                     targetUser: { id: targetId, name: data.senderName || 'Usuario' },
@@ -327,7 +363,7 @@ function MainApp() {
                                 setPreviousView('chat-list');
                                 setView('chat-detail');
                             } else {
-                                setView(userMode === 'client' ? 'request-detail-client' : 'job-detail-pro');
+                                setView(activeMode === 'client' ? 'request-detail-client' : 'job-detail-pro');
                             }
                         };
 
@@ -366,7 +402,47 @@ function MainApp() {
         };
     }, [allRequests, loadRequests, userMode]);
 
-    // --- ANIMATION FOR LOADER ---
+    // --- EMAIL DEEP LINKING (profix://) ---
+    useEffect(() => {
+        const handleDeepLink = (event) => {
+            const url = event.url;
+            if (!url) return;
+            console.log("[Deep Linking] Opened with URL:", url);
+
+            // Handle profix://job/:id or profix://chat/:id
+            const parsedUrl = Linking.parse(url);
+            const pathSegments = parsedUrl.path ? parsedUrl.path.split('/').filter(Boolean) : [];
+            const host = parsedUrl.hostname; // e.g. 'job' or 'chat'
+            const id = pathSegments[0]; // e.g. '12345'
+            const queryParams = parsedUrl.queryParams || {};
+
+            let activeMode = userMode;
+            if (queryParams.role === 'client' || queryParams.role === 'pro') {
+                activeMode = queryParams.role;
+                setUserMode(activeMode);
+            }
+
+            if (host === 'job' && id) {
+                handleOpenJobDetail(id, activeMode === 'client' ? 'request-detail-client' : 'job-detail-pro');
+            } else if (host === 'chat' && id) {
+                // To simplify, we just send them to chat list or they can use the normal deep link routing
+                setView('chat-list');
+            }
+        };
+
+        const subscription = Linking.addEventListener('url', handleDeepLink);
+        
+        // Handle initial URL if app was closed
+        Linking.getInitialURL().then((url) => {
+            if (url) handleDeepLink({ url });
+        });
+
+        return () => {
+            if (subscription && subscription.remove) {
+                subscription.remove();
+            }
+        };
+    }, [userMode]);    // --- ANIMATION FOR LOADER ---
     const spinValue = useRef(new Animated.Value(0)).current;
     const isAnimating = useRef(false);
 
@@ -726,15 +802,25 @@ function MainApp() {
                 }
             };
 
-            // 2. Update via API
-            await api.updateProfile({ profiles: updatedProfiles });
-
-            // 3. Refresh user state (this will update currentUser and trigger re-render of Timeline)
-            const freshUser = await api.getMe();
-            await updateUser(freshUser);
-            await saveSession(freshUser);
+            // 2. Optimistic update (instant feedback)
+            const updatedUser = { ...currentUser, profiles: updatedProfiles };
+            await updateUser(updatedUser);
+            saveSession(updatedUser).catch(e => console.warn("Error saving session optimistically:", e));
 
             showAlert("¡Listo!", message);
+
+            // 3. Update via API in background
+            api.updateProfile({ profiles: updatedProfiles }).then(async () => {
+                const freshUser = await api.getMe();
+                updateUser(freshUser);
+                saveSession(freshUser);
+            }).catch(error => {
+                console.error("Error toggling portfolio photo:", error);
+                // Revert if failed
+                updateUser(currentUser);
+                saveSession(currentUser);
+                showAlert("Error", "No se pudo sincronizar el portafolio con el servidor.");
+            });
         } catch (error) {
             console.error("Error toggling portfolio photo:", error);
             showAlert("Error", "No se pudo actualizar el portafolio: " + (error.message || "Error desconocido"));
@@ -2075,6 +2161,25 @@ function MainApp() {
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 export default function App() {
+    useEffect(() => {
+        if (Platform.OS === 'android') {
+            const hideNavBar = async () => {
+                await NavigationBar.setVisibilityAsync("hidden");
+                await NavigationBar.setBehaviorAsync("overlay-swipe");
+            };
+            
+            hideNavBar();
+            
+            const keyboardDidHideListener = Keyboard.addListener('keyboardDidHide', () => {
+                hideNavBar();
+            });
+            
+            return () => {
+                keyboardDidHideListener.remove();
+            };
+        }
+    }, []);
+
     return (
         <SafeAreaProvider>
             <AuthProvider>
