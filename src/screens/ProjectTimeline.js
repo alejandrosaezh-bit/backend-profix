@@ -672,6 +672,31 @@ const ProjectTimeline = ({ job, userMode, currentUser, onConfirmStart, onAddTime
                                                 </Text>
                                             </View>
                                             <Text style={{ fontSize: 13, color: '#4B5563', lineHeight: 18 }}>{e.description}</Text>
+                                            
+                                            {e.mediaUrl && (() => {
+                                                const actorId = (e.actor?._id || e.actor)?.toString();
+                                                const clientId = (job.client?._id || job.clientId || job.client)?.toString();
+                                                const proId = (job.professional?._id || job.professionalId || job.professional)?.toString();
+                                                
+                                                let authorText = "";
+                                                if (isMe) {
+                                                    authorText = `Subido por: ${currentUser?.name || 'Mí'} (${userMode === 'pro' ? 'Profesional' : 'Cliente'})`;
+                                                } else if (actorId === clientId) {
+                                                    authorText = `Subido por: ${job.clientName || job.client?.name || 'Cliente'} (Cliente)`;
+                                                } else if (actorId === proId) {
+                                                    authorText = `Subido por: ${job.professional?.name || 'Profesional'} (Profesional)`;
+                                                } else if (e.actor?.name) {
+                                                    authorText = `Subido por: ${e.actor.name}`;
+                                                } else {
+                                                    authorText = `Subido por el ${userMode === 'client' ? 'Profesional' : 'Cliente'}`;
+                                                }
+
+                                                return (
+                                                    <Text style={{ fontSize: 11, color: '#64748B', marginTop: 4, fontStyle: 'italic', fontWeight: '500' }}>
+                                                        {authorText}
+                                                    </Text>
+                                                );
+                                            })()}
 
                                             {isMe && e.eventType !== 'offer_sent' && e.eventType !== 'offer_accepted' && e.eventType !== 'offer_rejected' && e.eventType !== 'job_created' && (
                                                 <TouchableOpacity
