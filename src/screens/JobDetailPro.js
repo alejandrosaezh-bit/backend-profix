@@ -317,15 +317,42 @@ const JobDetailPro = ({ job: initialJob, onBack, onSendQuote, onOpenChat, proSta
                             <View>
                                 <Text style={{ fontSize: 11, fontWeight: '800', color: '#94A3B8', marginBottom: 15, letterSpacing: 1 }}>FOTOS ADJUNTAS</Text>
                                 <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                                    {job.images.map((img, i) => (
-                                        <TouchableOpacity
-                                            key={i}
-                                            onPress={() => onViewImage(img)}
-                                            activeOpacity={0.9}
-                                        >
-                                            <Image source={{ uri: img }} style={{ width: 140, height: 140, borderRadius: 20, marginRight: 15, borderWidth: 1, borderColor: '#F1F5F9' }} />
-                                        </TouchableOpacity>
-                                    ))}
+                                    {job.images.map((img, i) => {
+                                        const catTitle = typeof job.category === 'object' ? job.category?.name : (categories?.find(c => c._id === job.category || c.id === job.category)?.name || job.category);
+                                        const portfolioGallery = currentUser?.profiles?.[catTitle]?.gallery || [];
+                                        const inPortfolio = portfolioGallery.includes(img);
+                                        return (
+                                            <TouchableOpacity
+                                                key={i}
+                                                onPress={() => onViewImage(img)}
+                                                activeOpacity={0.9}
+                                                style={{ position: 'relative', marginRight: 15 }}
+                                            >
+                                                <Image source={{ uri: img }} style={{ width: 140, height: 140, borderRadius: 20, borderWidth: 1, borderColor: '#F1F5F9' }} />
+                                                {onTogglePortfolio && (
+                                                    <TouchableOpacity
+                                                        onPress={() => onTogglePortfolio(img, catTitle)}
+                                                        style={{
+                                                            position: 'absolute',
+                                                            bottom: 8,
+                                                            right: 8,
+                                                            backgroundColor: inPortfolio ? '#10B981' : 'rgba(0,0,0,0.6)',
+                                                            paddingVertical: 4,
+                                                            paddingHorizontal: 8,
+                                                            borderRadius: 12,
+                                                            flexDirection: 'row',
+                                                            alignItems: 'center'
+                                                        }}
+                                                    >
+                                                        <Feather name={inPortfolio ? "check" : "image"} size={10} color="white" style={{ marginRight: 4 }} />
+                                                        <Text style={{ color: 'white', fontSize: 9, fontWeight: 'bold' }}>
+                                                            {inPortfolio ? "En Portafolio" : "Añadir"}
+                                                        </Text>
+                                                    </TouchableOpacity>
+                                                )}
+                                            </TouchableOpacity>
+                                        );
+                                    })}
                                 </ScrollView>
                             </View>
                         )}

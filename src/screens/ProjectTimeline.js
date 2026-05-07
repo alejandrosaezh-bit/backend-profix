@@ -689,9 +689,14 @@ const ProjectTimeline = ({ job, userMode, currentUser, onConfirmStart, onAddTime
                                                     <TouchableOpacity onPress={() => onViewImage(e.mediaUrl)}>
                                                         <Image source={{ uri: e.mediaUrl }} style={{ width: '100%', height: 180, borderRadius: 12 }} />
                                                     </TouchableOpacity>
-                                                    {isMe && onTogglePortfolio && (
+                                                    {onTogglePortfolio && (
                                                         <TouchableOpacity
-                                                            onPress={() => onTogglePortfolio(e.mediaUrl, categoryTitle)}
+                                                            onPress={() => {
+                                                                onTogglePortfolio(e.mediaUrl, categoryTitle);
+                                                                if (e.isPrivate && isMe) {
+                                                                    handleTogglePrivacy(e);
+                                                                }
+                                                            }}
                                                             style={{
                                                                 position: 'absolute',
                                                                 bottom: 8,

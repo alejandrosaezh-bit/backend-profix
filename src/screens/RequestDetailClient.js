@@ -288,11 +288,36 @@ const RequestDetailClient = ({ request, onBack, onAcceptOffer, onOpenChat, onUpd
 
                                 {(data.images && data.images.length > 0) || isEditing ? (
                                     <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                                        {data.images && data.images.map((img, i) => (
+                                        {data.images && data.images.map((img, i) => {
+                                            const catTitle = typeof data.category === 'object' ? data.category?.name : (categories?.find(c => c._id === data.category || c.id === data.category)?.name || data.category);
+                                            const portfolioGallery = currentUser?.profiles?.[catTitle]?.gallery || [];
+                                            const inPortfolio = portfolioGallery.includes(img);
+                                            return (
                                             <View key={i} style={{ position: 'relative', marginRight: 10 }}>
                                                 <TouchableOpacity onPress={() => onViewImage(img)}>
                                                     <Image source={{ uri: img }} style={{ width: 100, height: 100, borderRadius: 12, borderWidth: 1, borderColor: '#E5E7EB' }} />
                                                 </TouchableOpacity>
+                                                {!isEditing && onTogglePortfolio && (
+                                                    <TouchableOpacity
+                                                        onPress={() => onTogglePortfolio(img, catTitle)}
+                                                        style={{
+                                                            position: 'absolute',
+                                                            bottom: 4,
+                                                            right: 4,
+                                                            backgroundColor: inPortfolio ? '#10B981' : 'rgba(0,0,0,0.6)',
+                                                            paddingVertical: 4,
+                                                            paddingHorizontal: 6,
+                                                            borderRadius: 10,
+                                                            flexDirection: 'row',
+                                                            alignItems: 'center'
+                                                        }}
+                                                    >
+                                                        <Feather name={inPortfolio ? "check" : "image"} size={10} color="white" style={{ marginRight: 4 }} />
+                                                        <Text style={{ color: 'white', fontSize: 9, fontWeight: 'bold' }}>
+                                                            {inPortfolio ? "En Portafolio" : "Añadir"}
+                                                        </Text>
+                                                    </TouchableOpacity>
+                                                )}
                                                 {isEditing && (
                                                     <TouchableOpacity
                                                         style={{ position: 'absolute', top: -8, right: -8, backgroundColor: 'white', borderRadius: 12, width: 24, height: 24, alignItems: 'center', justifyContent: 'center', elevation: 2 }}
@@ -306,7 +331,8 @@ const RequestDetailClient = ({ request, onBack, onAcceptOffer, onOpenChat, onUpd
                                                     </TouchableOpacity>
                                                 )}
                                             </View>
-                                        ))}
+                                        );
+                                        })}
                                     </ScrollView>
                                 ) : (
                                     <View style={{ alignItems: 'center', backgroundColor: '#F8FAFC', padding: 20, borderRadius: 16, borderWidth: 1, borderColor: '#E2E8F0', borderStyle: 'dashed' }}>
