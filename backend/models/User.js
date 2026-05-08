@@ -16,6 +16,7 @@ const userSchema = mongoose.Schema({
     // Campos específicos para Profesionales
     isActive: { type: Boolean, default: true }, // Soft delete status
     isVerified: { type: Boolean, default: false }, // Verificación de identidad
+    acceptsUrgentJobs: { type: Boolean, default: false }, // Disposición a atender Urgencias
     documents: [{ type: String }], // URLs de documentos subidos
     specialties: [{ type: String }], // Categorías que atiende (Legacy simple list)
     profiles: {
@@ -27,6 +28,7 @@ const userSchema = mongoose.Schema({
             gallery: [String],
             experience: String,
             priceRange: String,
+            acceptsUrgentJobs: { type: Boolean, default: false },
             isActive: { type: Boolean, default: true }
         }, { _id: false })
     },

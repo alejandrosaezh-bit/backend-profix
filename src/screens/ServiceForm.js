@@ -31,7 +31,7 @@ const ServiceForm = ({ onSubmit, isLoggedIn, onTriggerLogin, initialCategory, in
     };
 
     const [formData, setFormData] = useState({
-        category: initialCategory || '', subcategory: initialSubcategory || '', title: '', description: '', location: ''
+        category: initialCategory || '', subcategory: initialSubcategory || '', title: '', description: '', location: '', isUrgent: false, exactLocation: null
     });
     const [images, setImages] = useState([]);
     const [videos, setVideos] = useState([]); // Added video state
@@ -47,11 +47,18 @@ const ServiceForm = ({ onSubmit, isLoggedIn, onTriggerLogin, initialCategory, in
 
     useEffect(() => {
         let shouldFocus = false;
+        let isUrgent = false;
+
         if (initialCategory) {
             setFormData(prev => ({ ...prev, category: initialCategory }));
         }
         if (initialSubcategory) {
-            setFormData(prev => ({ ...prev, subcategory: initialSubcategory }));
+            // Determinar si es urgente
+            const catSubs = allSubcategories[initialCategory] || [];
+            const subObj = catSubs.find(s => (typeof s === 'object' ? s.name : s) === initialSubcategory);
+            isUrgent = subObj?.isUrgent || false;
+
+            setFormData(prev => ({ ...prev, subcategory: initialSubcategory, isUrgent }));
             shouldFocus = true;
         }
 
@@ -67,7 +74,7 @@ const ServiceForm = ({ onSubmit, isLoggedIn, onTriggerLogin, initialCategory, in
     // ... (rest of logic same until render) ...
 
     const handleLocationChange = (text) => {
-        setFormData(prev => ({ ...prev, location: text }));
+        setFormData(prev => ({ ...prev, location: text, exactLocation: null }));
         setLocationDetected(false);
         if (text.length > 2) {
             const filtered = FLAT_ZONES_SUGGESTIONS.filter(z => z.toLowerCase().includes(text.toLowerCase()));
@@ -79,7 +86,7 @@ const ServiceForm = ({ onSubmit, isLoggedIn, onTriggerLogin, initialCategory, in
     };
 
     const handleSelectSuggestion = (zone) => {
-        setFormData(prev => ({ ...prev, location: zone }));
+        setFormData(prev => ({ ...prev, location: zone, exactLocation: null }));
         setShowSuggestions(false);
         setLocationDetected(true);
         // Cierra el teclado para mostrar la sección de adjuntos y el botón naranja
@@ -91,6 +98,32 @@ const ServiceForm = ({ onSubmit, isLoggedIn, onTriggerLogin, initialCategory, in
     const handleLocateMe = async () => {
         handleFocus('location');
         Keyboard.dismiss(); // Cierra el teclado inmediatamente en la misma acción
+        
+        if (formData.isUrgent) {
+            Alert.alert(
+                "Ubicación Exacta Requerida",
+                "Al ser una solicitud URGENTE, es recomendable enviar tu ubicación GPS exacta para recibir ayuda más rápido.",
+                [
+                    {
+                        text: "Solo Municipio",
+                        onPress: () => {
+                            performLocateMe(false);
+                        }
+                    },
+                    {
+                        text: "Compartir GPS Exacto",
+                        onPress: () => {
+                            performLocateMe(true);
+                        }
+                    }
+                ]
+            );
+        } else {
+            performLocateMe(false);
+        }
+    };
+
+    const performLocateMe = async (exact = false) => {
         setIsLocating(true);
         setLocationDetected(false);
         try {
@@ -101,23 +134,38 @@ const ServiceForm = ({ onSubmit, isLoggedIn, onTriggerLogin, initialCategory, in
                 return;
             }
 
-            let location = await Location.getCurrentPositionAsync({});
+            let location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
             let address = await Location.reverseGeocodeAsync(location.coords);
 
             if (address && address.length > 0) {
                 const item = address[0];
-                // Construir una ubicación aproximada (Municipio, Ciudad)
-                const zone = item.subregion || item.city || item.region;
-                let city = item.city || item.region || 'Venezuela';
+                
+                if (exact) {
+                    let city = item.city || item.region || item.subregion || '';
+                    let street = item.street || item.name || '';
+                    let addressStr = `${city}, ${street}`.trim().replace(/^,\s*/, '');
+                    if (!addressStr) addressStr = "Ubicación GPS";
+                    
+                    setFormData(prev => ({ 
+                        ...prev, 
+                        location: addressStr, 
+                        exactLocation: { lat: location.coords.latitude, lng: location.coords.longitude, address: addressStr } 
+                    }));
+                    setLocationDetected(true);
+                } else {
+                    // Construir una ubicación aproximada (Municipio, Ciudad)
+                    const zone = item.subregion || item.city || item.region;
+                    let city = item.city || item.region || 'Venezuela';
 
-                // Normalización para Caracas
-                if (city.toLowerCase() === 'caracas' || city.toLowerCase() === 'distrito capital') {
-                    city = 'Gran Caracas';
+                    // Normalización para Caracas
+                    if (city.toLowerCase() === 'caracas' || city.toLowerCase() === 'distrito capital') {
+                        city = 'Gran Caracas';
+                    }
+
+                    const formatted = `${zone}, ${city}`;
+                    setFormData(prev => ({ ...prev, location: formatted, exactLocation: null }));
+                    setLocationDetected(true);
                 }
-
-                const formatted = `${zone}, ${city}`;
-                setFormData(prev => ({ ...prev, location: formatted }));
-                setLocationDetected(true);
             } else {
                 showAlert('Error', 'No pudimos determinar tu zona.');
             }
@@ -338,7 +386,11 @@ const ServiceForm = ({ onSubmit, isLoggedIn, onTriggerLogin, initialCategory, in
                     color={categories.find(c => c.name === formData.category)?.color}
                     iconColor={categories.find(c => c.name === formData.category)?.iconColor}
                     onSelect={(s) => {
-                        setFormData({ ...formData, subcategory: s });
+                        const catSubs = allSubcategories[formData.category] || [];
+                        const subObj = catSubs.find(sub => (typeof sub === 'object' ? sub.name : sub) === s);
+                        const isUrgent = subObj?.isUrgent || false;
+
+                        setFormData({ ...formData, subcategory: s, isUrgent });
                         // Auto-focus Title after selection - wait for render
                         setTimeout(() => {
                             handleFocus('title');

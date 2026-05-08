@@ -271,6 +271,42 @@ export function ProProfileEditModal({
                             })}
                         </View>
 
+                        {/* 1.5 Trabajos Urgentes */}
+                        {(() => {
+                            const selectedSubs = currentCatProfile.subcategories || [];
+                            const urgentSubs = (allSubcategories[categoryKey] || []).filter(sub => {
+                                const subName = typeof sub === 'object' ? sub.name : sub;
+                                const isUrgent = typeof sub === 'object' ? sub.isUrgent : false;
+                                return selectedSubs.includes(subName) && isUrgent;
+                            });
+
+                            if (urgentSubs.length === 0) return null;
+
+                            const urgentNames = urgentSubs.map(s => typeof s === 'object' ? s.name : s).join(', ');
+
+                            return (
+                                <View style={{ marginTop: 25, marginBottom: 10, padding: 16, backgroundColor: currentCatProfile.acceptsUrgentJobs ? '#FEF2F2' : '#F8FAFC', borderRadius: 16, borderWidth: 1, borderColor: currentCatProfile.acceptsUrgentJobs ? '#FECACA' : '#E5E7EB', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                                    <View style={{ flex: 1, paddingRight: 15 }}>
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+                                            <Feather name="alert-triangle" size={18} color={currentCatProfile.acceptsUrgentJobs ? '#EF4444' : '#64748B'} style={{ marginRight: 8 }} />
+                                            <Text style={{ fontSize: 16, fontWeight: 'bold', color: currentCatProfile.acceptsUrgentJobs ? '#991B1B' : '#334155' }}>
+                                                Trabajos Urgentes 24/7
+                                            </Text>
+                                        </View>
+                                        <Text style={{ fontSize: 12, color: currentCatProfile.acceptsUrgentJobs ? '#B91C1C' : '#64748B' }}>
+                                            ¿Deseas recibir solicitudes de {urgentNames} urgentes 24/7? Recibirás notificaciones prioritarias.
+                                        </Text>
+                                    </View>
+                                    <TouchableOpacity
+                                        onPress={() => updateCurrentProfile({ acceptsUrgentJobs: !currentCatProfile.acceptsUrgentJobs })}
+                                        style={{ width: 50, height: 28, borderRadius: 14, backgroundColor: currentCatProfile.acceptsUrgentJobs ? '#EF4444' : '#CBD5E1', justifyContent: 'center', alignItems: currentCatProfile.acceptsUrgentJobs ? 'flex-end' : 'flex-start', paddingHorizontal: 4 }}
+                                    >
+                                        <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: 'white' }} />
+                                    </TouchableOpacity>
+                                </View>
+                            );
+                        })()}
+
                         {/* 2. Zonas */}
                         <Text style={styles.stepTitle}>2. Zonas de Cobertura</Text>
                         <View style={{ borderWidth: 1, borderColor: '#F3F4F6', borderRadius: 16, overflow: 'hidden', backgroundColor: 'white' }}>

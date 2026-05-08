@@ -224,7 +224,7 @@ const CreateQuoteScreen = ({ job, onBack, onSendQuote, currentUser }) => {
                                     <Text style={styles.label}>Descripción</Text>
                                     <TextInput
                                         style={styles.input}
-                                        placeholder="Ej. Retirar papel tapiz"
+                                        placeholderTextColor="#9CA3AF" placeholder="Ej. Retirar papel tapiz"
                                         value={item.description}
                                         onChangeText={(text) => updateItem(item.id, 'description', text)}
                                     />
@@ -233,7 +233,7 @@ const CreateQuoteScreen = ({ job, onBack, onSendQuote, currentUser }) => {
                                     <Text style={styles.label}>Precio ({currency})</Text>
                                     <TextInput
                                         style={styles.input}
-                                        placeholder="0.00"
+                                        placeholderTextColor="#9CA3AF" placeholder="0.00"
                                         keyboardType="numeric"
                                         value={item.price}
                                         onChangeText={(text) => updateItem(item.id, 'price', text)}
@@ -261,7 +261,7 @@ const CreateQuoteScreen = ({ job, onBack, onSendQuote, currentUser }) => {
                         {showDescriptionLine && (
                             <TextInput
                                 style={[styles.input, { marginTop: 10 }]}
-                                placeholder="Descripción general del trabajo..."
+                                placeholderTextColor="#9CA3AF" placeholder="Descripción general del trabajo..."
                                 value={descriptionLine}
                                 onChangeText={setDescriptionLine}
                             />
@@ -277,7 +277,7 @@ const CreateQuoteScreen = ({ job, onBack, onSendQuote, currentUser }) => {
                             <Clock size={20} color="#666" style={{ marginRight: 10 }} />
                             <TextInput
                                 style={styles.flexInput}
-                                placeholder="Ej. 3 días"
+                                placeholderTextColor="#9CA3AF" placeholder="Ej. 3 días"
                                 value={executionTime}
                                 onChangeText={setExecutionTime}
                             />
@@ -335,7 +335,7 @@ const CreateQuoteScreen = ({ job, onBack, onSendQuote, currentUser }) => {
                             )}
                             <TextInput
                                 style={styles.flexInput}
-                                placeholder="DD/MM/YYYY"
+                                placeholderTextColor="#9CA3AF" placeholder="DD/MM/YYYY"
                                 value={startDateText}
                                 onChangeText={handleDateTextChange}
                             />
@@ -371,7 +371,7 @@ const CreateQuoteScreen = ({ job, onBack, onSendQuote, currentUser }) => {
                             <DollarSign size={20} color="#666" style={{ marginRight: 10 }} />
                             <TextInput
                                 style={styles.flexInput}
-                                placeholder="Ej. 50% adelanto"
+                                placeholderTextColor="#9CA3AF" placeholder="Ej. 50% adelanto"
                                 value={paymentTerms}
                                 onChangeText={setPaymentTerms}
                             />
@@ -383,19 +383,19 @@ const CreateQuoteScreen = ({ job, onBack, onSendQuote, currentUser }) => {
                         <Text style={styles.sectionTitle}>Condiciones y Garantías</Text>
                         <TextInput
                             style={[styles.input, { marginBottom: 10 }]}
-                            placeholder="Garantía (Ej. 3 meses por mano de obra)"
+                            placeholderTextColor="#9CA3AF" placeholder="Garantía (Ej. 3 meses por mano de obra)"
                             value={warranty}
                             onChangeText={setWarranty}
                         />
                         <TextInput
                             style={[styles.input, { marginBottom: 10 }]}
-                            placeholder="Condiciones (Ej. Cliente pone materiales)"
+                            placeholderTextColor="#9CA3AF" placeholder="Condiciones (Ej. Cliente pone materiales)"
                             value={conditions}
                             onChangeText={setConditions}
                         />
                         <TextInput
                             style={[styles.input]}
-                            placeholder="Observaciones adicionales"
+                            placeholderTextColor="#9CA3AF" placeholder="Observaciones adicionales"
                             value={observations}
                             onChangeText={setObservations}
                             multiline

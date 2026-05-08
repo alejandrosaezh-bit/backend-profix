@@ -113,7 +113,8 @@ export default function ChatListScreen({ currentUser, requests, chats = [], onSe
                     rawTimestamp: new Date(lastMsg.createdAt || lastMsg.timestamp).getTime(),
                     category: relatedRequest?.category || 'General',
                     isArchived: isArchived,
-                    isFileChat: true
+                    isFileChat: true,
+                    isUrgent: relatedRequest?.isUrgent || chat.job?.isUrgent || false
                 });
             });
         }
@@ -149,7 +150,8 @@ export default function ChatListScreen({ currentUser, requests, chats = [], onSe
                             rawTimestamp: 0,
                             isArchived: isArchived,
                             category: req.category || 'General',
-                            isLegacy: true
+                            isLegacy: true,
+                            isUrgent: req.isUrgent || false
                         });
                     });
                 }
@@ -175,7 +177,11 @@ export default function ChatListScreen({ currentUser, requests, chats = [], onSe
         return chatsWithMeta.filter(chat => {
             if (filterCategory !== 'Todas' && chat.category !== filterCategory) return false;
             return showArchived ? chat.isArchived : !chat.isArchived;
-        }).sort((a, b) => (b.rawTimestamp || 0) - (a.rawTimestamp || 0));
+        }).sort((a, b) => {
+            if (a.isUrgent && !b.isUrgent) return -1;
+            if (!a.isUrgent && b.isUrgent) return 1;
+            return (b.rawTimestamp || 0) - (a.rawTimestamp || 0);
+        });
 
     }, [activeChats, filterCategory, showArchived]);
 
@@ -202,7 +208,7 @@ export default function ChatListScreen({ currentUser, requests, chats = [], onSe
         return (
             <TouchableOpacity
                 style={styles.chatItem}
-                onPress={() => onSelectChat(item.requestData, item.targetUser)}
+                onPress={() => onSelectChat(item.requestData, item.targetUser, null, item.id)}
             >
                 <View style={styles.avatarContainer}>
                     <Image source={{ uri: validUri }} style={styles.avatar} />
@@ -216,7 +222,15 @@ export default function ChatListScreen({ currentUser, requests, chats = [], onSe
                     </View>
 
                     <View style={styles.middleRow}>
-                        <Text style={styles.jobTitle} numberOfLines={1}>{item.requestData.title}</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, paddingRight: 10 }}>
+                            {item.isUrgent && (
+                                <View style={{ backgroundColor: '#FEF2F2', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, marginRight: 6, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#FEE2E2' }}>
+                                    <Feather name="alert-triangle" size={10} color="#DC2626" style={{ marginRight: 4 }} />
+                                    <Text style={{ fontSize: 9, color: '#DC2626', fontWeight: 'bold' }}>URGENTE</Text>
+                                </View>
+                            )}
+                            <Text style={styles.jobTitle} numberOfLines={1}>{item.requestData.title}</Text>
+                        </View>
                     </View>
 
                     <View style={styles.bottomRow}>

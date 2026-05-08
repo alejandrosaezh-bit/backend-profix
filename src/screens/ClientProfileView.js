@@ -1,4 +1,5 @@
-﻿import { Feather, FontAwesome5 } from '@expo/vector-icons';
+import { Feather, FontAwesome5 } from '@expo/vector-icons';
+import { ClientReviewsList } from '../components/profile/ClientProfileComponents';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Dimensions, Image, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { api } from '../utils/api';
@@ -27,7 +28,7 @@ const ClientProfileView = ({ client, visible, onClose }) => {
             try {
                 const [reviewsData, jobsData] = await Promise.all([
                     api.getClientReviews(clientId),
-                    api.getJobs({ client: clientId })
+                    api.getJobs({ client: clientId, include_media: true })
                 ]);
                 setReviews(reviewsData || []);
                 if (Array.isArray(jobsData)) setClientJobs(jobsData);
@@ -91,7 +92,7 @@ const ClientProfileView = ({ client, visible, onClose }) => {
                                         <Text style={styles.headerName} numberOfLines={1}>{name}</Text>
                                         <View style={styles.headerRating}>
                                             <FontAwesome5 name="star" solid size={14} color="#FBBF24" />
-                                            <Text style={styles.headerRatingText}>{ratingDisplay} â€¢ {reviewCount} reseÃ±as</Text>
+                                            <Text style={styles.headerRatingText}>{ratingDisplay} {'\u2022'} {reviewCount} reseñas</Text>
                                         </View>
                                     </View>
                                 </View>
@@ -132,26 +133,41 @@ const ClientProfileView = ({ client, visible, onClose }) => {
                                 </View>
 
                                 {/* PORTAFOLIO DE TRABAJOS */}
-                                <View style={styles.infoCard}>
-                                    <Text style={styles.sectionTitle}>PORTAFOLIO DE TRABAJOS</Text>
+                                <View style={{ marginBottom: 25, marginTop: 25, marginHorizontal: -20 }}>
+                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15, paddingHorizontal: 20 }}>
+                                        <Text style={[styles.sectionTitle, { paddingHorizontal: 0, fontSize: 18, marginBottom: 0, color: '#111827', textTransform: 'none' }]}>Portafolio de Trabajos</Text>
+                                    </View>
                                     {(() => {
                                         const portfolioFolders = [];
-                                        if (client?.profiles) {
-                                            const profilesObj = client.profiles instanceof Map ? Object.fromEntries(client.profiles) : client.profiles;
-                                            Object.keys(profilesObj).forEach(cat => {
-                                                if (profilesObj[cat]?.gallery && profilesObj[cat].gallery.length > 0) {
-                                                    portfolioFolders.push({
-                                                        category: cat,
-                                                        subcategories: profilesObj[cat].subcategories || [],
-                                                        images: profilesObj[cat].gallery
-                                                    });
-                                                }
-                                            });
-                                        }
+                                        
+                                        clientJobs.forEach(job => {
+                                            const jobMedia = [];
+                                            if (job.images) jobMedia.push(...job.images);
+                                            if (job.workPhotos) jobMedia.push(...job.workPhotos);
+                                            if (job.projectHistory) {
+                                                job.projectHistory.forEach(ev => { if (ev.mediaUrl) jobMedia.push(ev.mediaUrl); });
+                                            }
+                                            if (job.clientManagement?.beforePhotos) {
+                                                job.clientManagement.beforePhotos.forEach(p => { if (p.url) jobMedia.push(p.url); });
+                                            }
+                                            if (job.clientManagement?.payments) {
+                                                job.clientManagement.payments.forEach(p => { if (p.evidenceUrl) jobMedia.push(p.evidenceUrl); });
+                                            }
+                                            
+                                            const uniqueJobMedia = [...new Set(jobMedia)];
+                                            
+                                            if (uniqueJobMedia.length > 0) {
+                                                portfolioFolders.push({
+                                                    category: job.title || 'Trabajo completado',
+                                                    subcategories: [(job.subCategory || 'General')],
+                                                    images: uniqueJobMedia
+                                                });
+                                            }
+                                        });
 
                                         if (portfolioFolders.length === 0) {
                                             return (
-                                                <View style={styles.emptyContainer}>
+                                                <View style={[styles.emptyContainer, { marginHorizontal: 20 }]}>
                                                     <Feather name="folder" size={40} color="#E2E8F0" />
                                                     <Text style={styles.emptyText}>No hay trabajos en el portafolio.</Text>
                                                 </View>
@@ -159,66 +175,30 @@ const ClientProfileView = ({ client, visible, onClose }) => {
                                         }
 
                                         return (
-                                            <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }}>
+                                            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingRight: 20, paddingLeft: 20 }}>
                                                 {portfolioFolders.map((folder, index) => (
-                                                    <TouchableOpacity key={index} style={styles.folderCard} onPress={() => setSelectedGallery(folder.images)}>
-                                                        <View style={styles.folderTab} />
-                                                        <View style={styles.folderContent}>
-                                                            <Image source={{ uri: folder.images[0] }} style={styles.folderImage} />
-                                                            <View style={styles.folderInfo}>
-                                                                <Text style={styles.folderTitle} numberOfLines={2}>{folder.category}</Text>
-                                                                <Text style={{ fontSize: 11, color: '#64748B', marginTop: 2, marginBottom: 2 }} numberOfLines={1}>
-                                                                    {folder.subcategories.length > 0 ? folder.subcategories.join(', ') : 'Servicios generales'}
-                                                                </Text>
-                                                                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
-                                                                    <Feather name="image" size={10} color="#94A3B8" />
-                                                                    <Text style={styles.folderCount}>{folder.images.length} fotos</Text>
-                                                                </View>
+                                                    <TouchableOpacity key={index} style={styles.airbnbCard} onPress={() => setSelectedGallery(folder.images)}>
+                                                        <Image source={{ uri: folder.images[0] }} style={styles.airbnbImage} resizeMode="cover" />
+                                                        <View style={styles.airbnbInfo}>
+                                                            <Text style={styles.airbnbTitle} numberOfLines={1}>{folder.category}</Text>
+                                                            <Text style={styles.airbnbSubtitle} numberOfLines={1}>
+                                                                {folder.subcategories.length > 0 ? folder.subcategories.join(', ') : 'Servicios generales'}
+                                                            </Text>
+                                                            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
+                                                                <Feather name="image" size={12} color="#6B7280" />
+                                                                <Text style={styles.airbnbCount}>{folder.images.length} fotos</Text>
                                                             </View>
                                                         </View>
                                                     </TouchableOpacity>
                                                 ))}
-                                            </View>
+                                            </ScrollView>
                                         );
                                     })()}
                                 </View>
 
                                 {/* OPINIONES */}
-                                <View style={styles.infoCard}>
-                                    <Text style={styles.sectionTitle}>OPINIONES DE PROFESIONALES</Text>
-                                    {loading ? (
-                                        <ActivityIndicator color="#2563EB" style={{ marginVertical: 20 }} />
-                                    ) : reviews.length === 0 ? (
-                                        <View style={styles.emptyContainer}>
-                                            <Feather name="message-circle" size={40} color="#E2E8F0" />
-                                            <Text style={styles.emptyText}>Este cliente aÃºn no ha sido valorado por otros profesionales.</Text>
-                                        </View>
-                                    ) : (
-                                        reviews.map((review, idx) => (
-                                            <View key={review._id || idx} style={styles.reviewItem}>
-                                                <View style={styles.reviewHeader}>
-                                                    <View style={styles.reviewerInfo}>
-                                                        <Text style={styles.reviewerName}>{review.reviewer?.name || 'Profesional'}</Text>
-                                                        <View style={styles.reviewStars}>
-                                                            {[...Array(5)].map((_, i) => (
-                                                                <FontAwesome5 key={i} name="star" solid={i < review.rating} size={10} color={i < review.rating ? "#F59E0B" : "#E2E8F0"} style={{ marginRight: 2 }} />
-                                                            ))}
-                                                        </View>
-                                                    </View>
-                                                    <Text style={styles.reviewDate}>{new Date(review.createdAt).toLocaleDateString()}</Text>
-                                                </View>
-                                                <View style={styles.commentBox}>
-                                                    <Text style={styles.reviewComment}>"{review.comment ? review.comment : 'Sin comentario adicional.'}"</Text>
-                                                </View>
-                                            </View>
-                                        ))
-                                    )}
-                                </View>
+                                <ClientReviewsList reviews={reviews} isLoading={loading} />
 
-                                {/* BOTÓN CERRAR FOOTER */}
-                                <TouchableOpacity onPress={onClose} style={styles.footerCloseButton}>
-                                    <Text style={styles.footerCloseText}>Cerrar Perfil</Text>
-                                </TouchableOpacity>
                             </View>
                         </ScrollView>
                     </View>
@@ -363,54 +343,34 @@ const styles = StyleSheet.create({
     emptyContainer: { alignItems: 'center', paddingVertical: 30 },
     emptyText: { color: '#94A3B8', fontSize: 13, textAlign: 'center', marginTop: 15, paddingHorizontal: 20 },
 
-    folderCard: {
-        width: '48%',
-        marginBottom: 16,
-        position: 'relative',
-        marginTop: 10,
+    airbnbCard: {
+        width: 140,
+        marginRight: 16,
     },
-    folderTab: {
-        width: '45%',
-        height: 12,
-        backgroundColor: '#2563EB',
-        borderTopLeftRadius: 8,
-        borderTopRightRadius: 8,
-        position: 'absolute',
-        top: -10,
-        left: 0,
-        zIndex: 1
+    airbnbImage: {
+        width: 140,
+        height: 140,
+        borderRadius: 16,
+        marginBottom: 8,
+        backgroundColor: '#F3F4F6'
     },
-    folderContent: {
-        backgroundColor: 'white',
-        borderTopRightRadius: 12,
-        borderBottomLeftRadius: 12,
-        borderBottomRightRadius: 12,
-        borderTopLeftRadius: 0, // for the tab effect
-        borderColor: '#E2E8F0',
-        borderWidth: 1.5,
-        overflow: 'hidden',
-        zIndex: 2,
+    airbnbInfo: {
+        paddingHorizontal: 2,
     },
-    folderImage: {
-        width: '100%',
-        height: 80,
-        borderTopRightRadius: 10,
-        borderBottomWidth: 1,
-        borderBottomColor: '#F1F5F9',
-    },
-    folderInfo: {
-        padding: 8,
-    },
-    folderTitle: {
-        fontSize: 11,
+    airbnbTitle: {
+        fontSize: 15,
         fontWeight: 'bold',
-        color: '#1E293B',
+        color: '#111827',
     },
-    folderCount: {
-        fontSize: 10,
-        color: '#94A3B8',
+    airbnbSubtitle: {
+        fontSize: 13,
+        color: '#6B7280',
+        marginTop: 2,
+    },
+    airbnbCount: {
+        fontSize: 12,
+        color: '#6B7280',
         marginLeft: 4,
-        fontWeight: '600',
     },
 
     footerCloseButton: {

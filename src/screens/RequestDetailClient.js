@@ -497,11 +497,16 @@ const RequestDetailClient = ({ request, onBack, onAcceptOffer, onOpenChat, onUpd
                                                 <View key={`chat-${index}`} style={{ marginBottom: index === prosToRender.length - 1 ? 0 : 25 }}>
                                                     {/* PRO HEADER */}
                                                     <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 15 }} onPress={() => onViewUserProfile && onViewUserProfile(pro)}>
-                                                        <Image source={{ uri: pro.avatar }} style={{ width: 44, height: 44, borderRadius: 22, marginRight: 10 }} />
-                                                        <View>
-                                                            <Text style={{ fontWeight: 'bold', color: '#1E293B' }}>{pro.name}</Text>
-                                                            <Text style={{ fontSize: 12, color: '#64748B' }}>⭐ {pro.rating || '5.0'}</Text>
+                                                        <Image source={{ uri: pro.avatar }} style={{ width: 44, height: 44, borderRadius: 22, marginRight: 12 }} />
+                                                        <View style={{ flex: 1 }}>
+                                                            <Text style={{ fontWeight: 'bold', color: '#1E293B', fontSize: 15 }}>{pro.name}</Text>
+                                                            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
+                                                                <Text style={{ fontSize: 13, color: '#64748B' }}>⭐ {pro.rating || '5.0'}</Text>
+                                                                <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: '#CBD5E1', marginHorizontal: 6 }} />
+                                                                <Text style={{ fontSize: 13, color: '#2563EB', fontWeight: '600' }}>Ver Perfil</Text>
+                                                            </View>
                                                         </View>
+                                                        <Feather name="chevron-right" size={20} color="#CBD5E1" />
                                                     </TouchableOpacity>
 
                                                     <View style={{ marginBottom: 10 }}>

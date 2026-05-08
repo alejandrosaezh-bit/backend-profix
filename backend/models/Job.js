@@ -30,6 +30,12 @@ const jobSchema = mongoose.Schema({
         type: String, // Dirección simple por ahora
         required: true
     },
+    isUrgent: { type: Boolean, default: false },
+    exactLocation: {
+        lat: Number,
+        lng: Number,
+        address: String
+    },
     status: {
         type: String,
         enum: ['active', 'in_progress', 'completed', 'canceled', 'archived', 'rated'],

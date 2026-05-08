@@ -20,12 +20,20 @@ import {
     ScrollView,
     Text,
     TouchableOpacity,
-    View
+    View,
+    Alert
 } from 'react-native';
 
 // --- IMPORTS DE UTILIDADES ---
 // V13 Update
 import BottomNav from './src/components/BottomNav';
+import CustomAlertModal, { CustomAlertService } from './src/components/CustomAlertModal';
+
+// Override global Alert.alert
+const originalAlert = Alert.alert;
+Alert.alert = (title, message, buttons, options) => {
+    CustomAlertService.alert(title, message, buttons);
+};
 import { AuthContext, AuthProvider } from './src/context/AuthContext';
 import { SocketProvider, useSocket } from './src/context/SocketContext'; // Updated Socket Import
 import AdminScreens from './src/screens/AdminScreens';
@@ -261,6 +269,11 @@ function MainApp() {
                 if (jobSubcategoryName && !profileSubs.some(s => s.trim().toLowerCase() === String(jobSubcategoryName).trim().toLowerCase())) return false;
             }
 
+            // Urgent Check
+            if (job.isUrgent && profile.acceptsUrgentJobs !== true) {
+                return false;
+            }
+
             return true;
         });
     }, []);
@@ -295,6 +308,28 @@ function MainApp() {
     const [showAuth, setShowAuth] = useState(false);
     const [view, setView] = useState('home');
     const [isAppReady, setIsAppReady] = useState(false);
+    const [urgentJobAlert, setUrgentJobAlert] = useState(null);
+
+    useEffect(() => {
+        if (!socket) return;
+
+        const handleUrgentJob = (data) => {
+            console.log("URGENT JOB RECEIVED:", data);
+            if (userMode === 'client') {
+                // Si está en modo cliente, mostramos badge cross-profile
+                // handled en BottomNav, pero también podemos forzar un popup.
+                setUrgentJobAlert(data);
+            } else {
+                setUrgentJobAlert(data);
+            }
+        };
+
+        socket.on('urgent_job_alert', handleUrgentJob);
+
+        return () => {
+            socket.off('urgent_job_alert', handleUrgentJob);
+        };
+    }, [socket, userMode]);
 
     // Persist mode on change
     const setUserMode = useCallback(async (mode) => {
@@ -605,7 +640,7 @@ function MainApp() {
             client: { chats: clientChatCount, updates: clientUpdateCount },
             pro: { chats: proChatCount, updates: proUpdateCount }
         });
-    }, [allRequests, currentUser]);
+    }, [allRequests, allChats, currentUser]);
 
 
 
@@ -1003,7 +1038,7 @@ function MainApp() {
         }
     };
 
-    const handleOpenChat = (request, targetUser, initialMessage = null) => {
+    const handleOpenChat = (request, targetUser, initialMessage = null, directChatId = null) => {
         let finalTarget = targetUser;
         if (!finalTarget) {
             if (currentUser.role === 'professional' || userMode === 'pro') {
@@ -1016,17 +1051,24 @@ function MainApp() {
         }
 
         // FIND CHAT ID TO MARK AS READ
-        let chatIdToMark;
+        let chatIdToMark = directChatId;
         const proId = (userMode === 'client' && finalTarget) ? finalTarget.id : (currentUser?._id || currentUser?.id);
         const conversations = request.conversations || [];
-        const conv = conversations.find(c => areIdsEqual(c.proId?._id || c.proId, proId));
-        if (conv) chatIdToMark = conv.id || conv._id;
+        
+        if (!chatIdToMark) {
+            const conv = conversations.find(c => areIdsEqual(c.proId?._id || c.proId, proId));
+            if (conv) chatIdToMark = conv.id || conv._id;
+        }
+
+        console.log("[handleOpenChat] Optimistic Update Tracking:");
+        console.log("- directChatId:", directChatId);
 
         if (chatIdToMark) {
             api.markChatAsRead(chatIdToMark).catch(e => console.warn("Error marking chat as read:", e));
         }
 
         // MARK AS READ (Local)
+        let foundInRequests = false;
         const updatedRequests = allRequests.map(r => {
             const currentJobId = r.id || r._id;
             const targetJobId = request.id || request._id;
@@ -1040,6 +1082,7 @@ function MainApp() {
                     }
 
                     if (isTarget) {
+                        foundInRequests = true;
                         return { ...c, unreadCount: 0 };
                     }
                     return c;
@@ -1049,6 +1092,26 @@ function MainApp() {
             return r;
         });
         setAllRequests(updatedRequests);
+        console.log("- updated in allRequests?", foundInRequests);
+
+        // Optimistically update allChats
+        let foundInChats = false;
+        if (chatIdToMark) {
+            setAllChats(prev => {
+                if (!prev) return prev;
+                return prev.map(c => {
+                    const cId = c.id || c._id;
+                    if (areIdsEqual(cId, chatIdToMark)) {
+                        foundInChats = true;
+                        return { ...c, unreadCount: 0 };
+                    }
+                    return c;
+                });
+            });
+        }
+        
+        // Use setTimeout to ensure state is set before logging result, or just assume success if matched
+        setTimeout(() => console.log("- updated in allChats?", foundInChats), 50);
 
         if (userMode === 'pro') {
             const rId = request.id || request._id;
@@ -1662,6 +1725,10 @@ function MainApp() {
             if (job.isVirtual || (job.professional && areIdsEqual(job.professional?._id || job.professional, myId)) || (job.offers && job.offers.some(o => areIdsEqual(o.proId?._id || o.proId, myId)))) return true;
 
             return isJobMatchingProfile(job, currentUser);
+        }).sort((a, b) => {
+            if (a.isUrgent && !b.isUrgent) return -1;
+            if (!a.isUrgent && b.isUrgent) return 1;
+            return new Date(b.createdAt) - new Date(a.createdAt);
         });
     }, [jobsWithStatus, filterCategory, showArchivedOffers, currentUser, isJobMatchingProfile]);
 
@@ -1691,17 +1758,33 @@ function MainApp() {
         );
     }
 
+    // Smart Switch Mode Logic
+    const handleSwitchMode = (targetMode) => {
+        setUserMode(targetMode);
+        
+        const targetData = targetMode === 'pro' ? counts.pro : counts.client;
+        const hasChats = (targetData?.chats || 0) > 0;
+        const hasUpdates = (targetData?.updates || 0) > 0;
+
+        if (hasChats && hasUpdates) {
+            setView(targetMode === 'pro' ? 'home' : 'my-requests');
+        } else if (hasChats) {
+            setView('chat-list');
+        } else if (hasUpdates) {
+            setView(targetMode === 'pro' ? 'home' : 'my-requests');
+        }
+    };
+
     return (
         <SafeAreaView style={styles.container}>
             <StatusBar style="dark" backgroundColor="#FFFFFF" />
 
-            {/* HEADER (No mostrar en detalles) */}
-            {view === 'home' || view === 'my-requests' || view === 'profile' || view === 'chat-list' || view === 'request-detail-client' || view === 'job-detail-pro' || view === 'chat-detail' ? (
+            {/* HEADER (Mostrar en perfil y en buscar) */}
+            {view === 'profile' || (view === 'home' && userMode === 'client') ? (
                 <Header
                     userMode={userMode}
                     toggleMode={() => {
                         // ACCESO SECRETO AL ADMIN PANEL
-                        // Verifica nombre "Admin" (insensible a mayúsculas) o email específico
                         const name = currentUser?.name?.trim().toLowerCase();
                         const email = currentUser?.email?.trim().toLowerCase();
 
@@ -1711,28 +1794,26 @@ function MainApp() {
                         }
 
                         const newMode = userMode === 'client' ? 'pro' : 'client';
-                        setUserMode(newMode);
-
+                        
                         // Recargar todo con el modo explícito nuevo
                         loadRequests(newMode);
                         loadChats(newMode);
 
-                        // Lógica de navegación inteligente al cambiar de modo
-                        if (view === 'profile') {
-                            // Si estoy en perfil, mantengo perfil
-                            setView('profile');
-                        } else if (view === 'chat-list' || view === 'chat-detail') {
-                            // Si estoy en chat, mantengo chat (lista)
-                            setView('chat-list');
-                        } else if (userMode === 'client' && view === 'my-requests') {
-                            // Si estoy en Solicitudes (Cliente) -> voy a Presupuestos (Pro Home)
-                            setView('home');
-                        } else if (userMode === 'pro' && view === 'home') {
-                            // Si estoy en Presupuestos (Pro Home) -> voy a Solicitudes (Cliente)
-                            setView('my-requests');
+                        // Determinar si hay notificaciones que dicten la navegación (Smart Routing)
+                        const targetData = newMode === 'pro' ? counts.pro : counts.client;
+                        const hasChats = (targetData?.chats || 0) > 0;
+                        const hasUpdates = (targetData?.updates || 0) > 0;
+
+                        if (hasChats || hasUpdates) {
+                            handleSwitchMode(newMode);
                         } else {
-                            // Comportamiento por defecto para otras pantallas (ej. Home Cliente -> Home Pro)
-                            if (newMode === 'client') {
+                            // Lógica de navegación predeterminada al cambiar de modo si NO hay notificaciones
+                            setUserMode(newMode);
+                            if (view === 'profile') {
+                                setView('profile');
+                            } else if (view === 'chat-list' || view === 'chat-detail') {
+                                setView('chat-list');
+                            } else if (userMode === 'client' && view === 'my-requests') {
                                 setView('home');
                             } else {
                                 setView('home');
@@ -2069,7 +2150,8 @@ function MainApp() {
                             onBack={() => setView('home')}
                             onLogout={handleLogout}
                             onUpdate={handleUpdateProfile}
-                            onSwitchMode={setUserMode}
+                            onSwitchMode={handleSwitchMode}
+                            otherModeCount={(counts.pro?.updates || 0) + (counts.pro?.chats || 0)}
                         />
                     ) : (
                         <View style={{ flex: 1 }}>
@@ -2094,7 +2176,8 @@ function MainApp() {
                                     onBack={() => setView('home')}
                                     onLogout={handleLogout}
                                     onUpdate={handleUpdateProfile}
-                                    onSwitchMode={setUserMode}
+                                    onSwitchMode={handleSwitchMode}
+                                    otherModeCount={(counts.client?.updates || 0) + (counts.client?.chats || 0)}
                                 />
                             </ProfessionalProfileRefresher>
                         </View>
@@ -2153,6 +2236,64 @@ function MainApp() {
             />
 
             {/* El portafolio ahora se gestiona directamente desde la línea de tiempo */}
+            
+            <CustomAlertModal />
+
+            {/* URGENT JOB POPUP */}
+            <Modal visible={!!urgentJobAlert} transparent={true} animationType="slide" onRequestClose={() => setUrgentJobAlert(null)}>
+                <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+                    <View style={{ width: '100%', backgroundColor: 'white', borderRadius: 24, padding: 25, shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.15, shadowRadius: 20, elevation: 10 }}>
+                        <View style={{ alignItems: 'center', marginBottom: 20 }}>
+                            <View style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: '#FEF2F2', justifyContent: 'center', alignItems: 'center', marginBottom: 15 }}>
+                                <Feather name="alert-triangle" size={30} color="#DC2626" />
+                            </View>
+                            <Text style={{ fontSize: 24, fontWeight: '900', color: '#111827', textAlign: 'center', marginBottom: 5 }}>
+                                ¡Emergencia!
+                            </Text>
+                            <Text style={{ fontSize: 15, color: '#4B5563', textAlign: 'center' }}>
+                                Se requiere asistencia urgente
+                            </Text>
+                        </View>
+                        
+                        {urgentJobAlert && (
+                            <View style={{ backgroundColor: '#F8FAFC', borderRadius: 16, padding: 16, marginBottom: 20, borderWidth: 1, borderColor: '#F1F5F9' }}>
+                                <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#1E293B', marginBottom: 4 }}>{urgentJobAlert.title}</Text>
+                                <Text style={{ fontSize: 14, color: '#64748B', marginBottom: 12 }}>{urgentJobAlert.categoryName} - {urgentJobAlert.subcategory}</Text>
+                                
+                                <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+                                    <Feather name="map-pin" size={16} color="#DC2626" style={{ marginRight: 8, marginTop: 2 }} />
+                                    <Text style={{ fontSize: 14, color: '#334155', flex: 1, fontWeight: '500' }}>{urgentJobAlert.location}</Text>
+                                </View>
+                            </View>
+                        )}
+                        
+                        <View style={{ flexDirection: 'row', gap: 12 }}>
+                            <TouchableOpacity 
+                                style={{ flex: 1, paddingVertical: 14, borderRadius: 12, backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center' }}
+                                onPress={() => setUrgentJobAlert(null)}
+                            >
+                                <Text style={{ color: '#64748B', fontWeight: 'bold', fontSize: 15 }}>Descartar</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity 
+                                style={{ flex: 1, paddingVertical: 14, borderRadius: 12, backgroundColor: '#DC2626', alignItems: 'center', justifyContent: 'center' }}
+                                onPress={() => {
+                                    if (userMode !== 'professional') {
+                                        handleSwitchMode('professional');
+                                    }
+                                    const jobId = urgentJobAlert?.jobId;
+                                    setUrgentJobAlert(null);
+                                    if (jobId) {
+                                        // Wait a tiny bit for mode switch if happened
+                                        setTimeout(() => handleOpenJobDetail(jobId), 300);
+                                    }
+                                }}
+                            >
+                                <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 15 }}>Ver Solicitud</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
         </SafeAreaView >
     );
 }

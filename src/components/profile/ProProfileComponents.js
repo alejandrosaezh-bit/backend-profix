@@ -198,7 +198,8 @@ export const ProAccountSettings = ({
     handleResetApplicationData,
     onSwitchMode,
     onOpenSubscriptions,
-    onOpenNotifications
+    onOpenNotifications,
+    otherModeCount = 0
 }) => {
     return (
         <View style={[
@@ -253,8 +254,28 @@ export const ProAccountSettings = ({
                 style={styles.switchModeButton}
                 onPress={() => onSwitchMode && onSwitchMode('client')}
             >
-                <Feather name="repeat" size={16} color="white" style={{ marginRight: 10 }} />
-                <Text style={styles.switchModeButtonText}>Cambiar al Perfil de Cliente</Text>
+                <View style={{ position: 'relative', flexDirection: 'row', alignItems: 'center' }}>
+                    <Feather name="repeat" size={16} color="white" style={{ marginRight: 10 }} />
+                    <Text style={styles.switchModeButtonText}>Cambiar al Perfil de Cliente</Text>
+                    {otherModeCount > 0 && (
+                        <View style={{
+                            position: 'absolute',
+                            top: -12,
+                            right: -25,
+                            backgroundColor: '#EF4444',
+                            borderRadius: 10,
+                            minWidth: 20,
+                            height: 20,
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            borderWidth: 2,
+                            borderColor: 'white',
+                            paddingHorizontal: 4
+                        }}>
+                            <Text style={{ color: 'white', fontSize: 10, fontWeight: 'bold' }}>{otherModeCount}</Text>
+                        </View>
+                    )}
+                </View>
             </TouchableOpacity>
         </View >
     );

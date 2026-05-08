@@ -7,7 +7,7 @@ import { areIdsEqual } from '../utils/helpers';
 import { registerForPushNotificationsAsync } from '../utils/push';
 import { getChats, getRequests, setChats, setRequests } from '../utils/requests';
 
-export function useAppData({ isLoggedIn, currentUser, userMode, view }) {
+export function useAppData({ isLoggedIn, isLoadingAuth, currentUser, userMode, view }) {
     const { socket } = useSocket();
 
     const [allRequests, setAllRequests] = useState([]);
@@ -62,8 +62,8 @@ export function useAppData({ isLoggedIn, currentUser, userMode, view }) {
                 let myJobs = [];
 
                 try {
-                    const fetchMarket = api.getJobs();
-                    const fetchMy = isLoggedIn ? api.getMyJobs({ role: 'pro' }) : Promise.resolve([]);
+                    const fetchMarket = api.getJobs({ include_media: true });
+                    const fetchMy = isLoggedIn ? api.getMyJobs({ role: 'pro', include_media: true }) : Promise.resolve([]);
 
                     const [marketResult, myResult] = await Promise.allSettled([fetchMarket, fetchMy]);
 
@@ -89,7 +89,7 @@ export function useAppData({ isLoggedIn, currentUser, userMode, view }) {
 
                 jobs = Array.from(jobMap.values());
             } else {
-                const allData = isLoggedIn ? await api.getMyJobs({ role: 'client' }) : await api.getJobs();
+                const allData = isLoggedIn ? await api.getMyJobs({ role: 'client', include_media: true }) : await api.getJobs({ include_media: true });
                 if (isLoggedIn && currentUser && allData.length > 0) {
                     jobs = allData;
                     console.log(`[useAppData] Loaded from API (Client). Job 0 status: ${jobs[0].calculatedClientStatus}, title: ${jobs[0].title}`);
@@ -225,7 +225,7 @@ export function useAppData({ isLoggedIn, currentUser, userMode, view }) {
     const lastLoadedViewRef = useRef(null);
 
     useEffect(() => {
-        if (!isLoggedIn) {
+        if (!isLoggedIn && !isLoadingAuth) {
             setAllRequests([]);
             setAllChats([]);
             setCounts({ client: { chats: 0, updates: 0 }, pro: { chats: 0, updates: 0 } });

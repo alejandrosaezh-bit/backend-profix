@@ -1,4 +1,5 @@
 import * as ImagePicker from 'expo-image-picker';
+import * as Location from 'expo-location';
 import { Camera, ChevronDown, ChevronRight, Crosshair, ImagePlus, MapPin, X } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { Alert, Image, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
@@ -39,7 +40,7 @@ const CustomDropdown = ({ label, value, options, onSelect, placeholder }) => {
 
 export default function HomeScreen({ onSubmit, isLoggedIn, onTriggerLogin, initialCategory }) {
     const [formData, setFormData] = useState({
-        category: initialCategory || '', subcategory: '', title: '', description: '', location: ''
+        category: initialCategory || '', subcategory: '', title: '', description: '', location: '', isUrgent: false, exactLocation: null
     });
     const [placeholders, setPlaceholders] = useState({ title: 'Ej. Fuga en el baño', desc: 'Detalles...' });
     const [images, setImages] = useState([]);
@@ -76,12 +77,63 @@ export default function HomeScreen({ onSubmit, isLoggedIn, onTriggerLogin, initi
         let result = await ImagePicker.launchCameraAsync();
         if (!result.canceled) setImages([...images, result.assets[0].uri]);
     };
-    const handleLocateMe = () => {
-        setIsLocating(true);
-        setTimeout(() => {
-            setIsLocating(false);
-            setFormData({ ...formData, location: 'Caracas, Baruta (GPS)' });
-        }, 1500);
+    const handleLocateMe = async () => {
+        if (formData.isUrgent) {
+            Alert.alert(
+                "Ubicación Exacta Requerida",
+                "Al ser una solicitud URGENTE, es recomendable enviar tu ubicación GPS exacta para recibir ayuda más rápido.",
+                [
+                    {
+                        text: "Solo Municipio",
+                        onPress: () => {
+                            setIsLocating(true);
+                            setTimeout(() => {
+                                setIsLocating(false);
+                                setFormData({ ...formData, location: 'Caracas, Baruta (Estimada)' });
+                            }, 1000);
+                        }
+                    },
+                    {
+                        text: "Compartir GPS Exacto",
+                        onPress: async () => {
+                            setIsLocating(true);
+                            let { status } = await Location.requestForegroundPermissionsAsync();
+                            if (status !== 'granted') {
+                                setIsLocating(false);
+                                return Alert.alert('Permiso denegado', 'No se pudo obtener la ubicación.');
+                            }
+                            try {
+                                let location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+                                let reverseGeocode = await Location.reverseGeocodeAsync({
+                                    latitude: location.coords.latitude,
+                                    longitude: location.coords.longitude
+                                });
+                                let addressStr = "Ubicación GPS";
+                                if (reverseGeocode && reverseGeocode.length > 0) {
+                                    const gc = reverseGeocode[0];
+                                    addressStr = `${gc.city || gc.subregion || ''}, ${gc.street || ''}`.trim().replace(/^,\s*/, '');
+                                }
+                                setFormData({ 
+                                    ...formData, 
+                                    location: addressStr, 
+                                    exactLocation: { lat: location.coords.latitude, lng: location.coords.longitude, address: addressStr }
+                                });
+                            } catch (e) {
+                                Alert.alert('Error', 'No se pudo obtener la ubicación GPS.');
+                            } finally {
+                                setIsLocating(false);
+                            }
+                        }
+                    }
+                ]
+            );
+        } else {
+            setIsLocating(true);
+            setTimeout(() => {
+                setIsLocating(false);
+                setFormData({ ...formData, location: 'Caracas, Baruta (GPS)' });
+            }, 1000);
+        }
     };
 
     const handlePreSubmit = () => {
@@ -102,7 +154,9 @@ export default function HomeScreen({ onSubmit, isLoggedIn, onTriggerLogin, initi
         const cat = categories.find(c => c.name === formData.category);
         const subObj = cat?.subcategories?.find(s => (s.name || s) === subName);
 
-        setFormData({ ...formData, subcategory: subName });
+        const isUrgent = subObj?.isUrgent || false;
+
+        setFormData({ ...formData, subcategory: subName, isUrgent });
 
         if (subObj && typeof subObj === 'object') {
             setPlaceholders({

@@ -119,7 +119,7 @@ export function ClientReviewsList({ reviews, isLoading }) {
     );
 }
 
-export function ClientSettingsList({ onEditProfile, onSwitchMode, onOpenNotifications }) {
+export function ClientSettingsList({ onEditProfile, onSwitchMode, onOpenNotifications, otherModeCount = 0 }) {
     return (
         <View style={[styles.section, { marginTop: 24 }]}>
             <Text style={styles.sectionTitle}>Ajustes de Cuenta</Text>
@@ -162,8 +162,28 @@ export function ClientSettingsList({ onEditProfile, onSwitchMode, onOpenNotifica
             }}
                 onPress={() => onSwitchMode && onSwitchMode('pro')}
             >
-                <Feather name="briefcase" size={18} color="white" style={{ marginRight: 8 }} />
-                <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 16 }}>Cambiar a Profesional</Text>
+                <View style={{ position: 'relative', flexDirection: 'row', alignItems: 'center' }}>
+                    <Feather name="briefcase" size={18} color="white" style={{ marginRight: 8 }} />
+                    <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 16 }}>Cambiar a Profesional</Text>
+                    {otherModeCount > 0 && (
+                        <View style={{
+                            position: 'absolute',
+                            top: -12,
+                            right: -25,
+                            backgroundColor: '#EF4444',
+                            borderRadius: 10,
+                            minWidth: 20,
+                            height: 20,
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            borderWidth: 2,
+                            borderColor: 'white',
+                            paddingHorizontal: 4
+                        }}>
+                            <Text style={{ color: 'white', fontSize: 10, fontWeight: 'bold' }}>{otherModeCount}</Text>
+                        </View>
+                    )}
+                </View>
             </TouchableOpacity>
         </View>
     );

@@ -43,7 +43,11 @@ router.get('/users/:id/reviews', async (req, res) => {
     try {
         const allReviews = await Review.find({ reviewee: req.params.id, reviewerRole: 'pro' })
             .populate('reviewer', 'name avatar') // Populate básico del autor
-            .populate('job', 'clientRated proRated status') // Traer datos del trabajo
+            .populate({
+                path: 'job',
+                select: 'clientRated proRated status category title',
+                populate: { path: 'category', select: 'name fullName' }
+            })
             .sort({ createdAt: -1 })
             .lean();
 
@@ -66,7 +70,11 @@ router.get('/professionals/:id/reviews', async (req, res) => {
     try {
         const allReviews = await Review.find({ reviewee: req.params.id, reviewerRole: 'client' })
             .populate('reviewer', 'name avatar')
-            .populate('job', 'clientRated proRated status')
+            .populate({
+                path: 'job',
+                select: 'clientRated proRated status category title',
+                populate: { path: 'category', select: 'name fullName' }
+            })
             .sort({ createdAt: -1 })
             .lean();
 

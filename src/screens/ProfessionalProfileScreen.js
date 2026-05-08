@@ -22,7 +22,8 @@ import { ProSubscriptionModal } from '../components/profile/ProSubscriptionModal
 import { ProGamificationModal } from '../components/profile/ProGamificationModal';
 import { ProCategorySelectionModal, ProPersonalEditModal, ProProfileEditModal } from '../components/profile/ProProfileModals';
 import NotificationPreferencesModal from '../components/NotificationPreferencesModal';
-import { api } from '../utils/api';
+import CrossProfileNotificationModal from '../components/CrossProfileNotificationModal';
+import { api, API_URL } from '../utils/api';
 import { getProStatus } from '../utils/helpers';
 import { compressAvatar, compressImage } from '../utils/imageCompressor';
 import { clearRequests } from '../utils/requests';
@@ -66,7 +67,8 @@ export default function ProfessionalProfileScreen({
     onLogout,
     onSwitchMode,
     onViewImage,
-    requestedCategoryName
+    requestedCategoryName,
+    otherModeCount
 }) {
     const [isEditing, setIsEditing] = useState(false); // Professional Profile Editing
     const [isCategorySelectionVisible, setIsCategorySelectionVisible] = useState(false); // Category Selection Modal
@@ -77,6 +79,7 @@ export default function ProfessionalProfileScreen({
     const [personalData, setPersonalData] = useState({}); // Temp state for personal data editing
     const [reviews, setReviews] = useState([]);
     const [selectedGallery, setSelectedGallery] = useState(null);
+    const [showCrossPopup, setShowCrossPopup] = useState(true);
 
     // Location Selector State
     const [expandedStates, setExpandedStates] = useState({});
@@ -109,9 +112,9 @@ export default function ProfessionalProfileScreen({
                 let allJobs = [];
                 try {
                     if (isOwner) {
-                        allJobs = await api.getMyJobs({ role: 'pro' });
+                        allJobs = await api.getMyJobs({ role: 'pro', include_media: true });
                     } else {
-                        allJobs = await api.getJobs({ professional: user._id });
+                        allJobs = await api.getJobs({ professional: user._id, include_media: true });
                     }
                 } catch (e) {
                     console.error("Error fetching pro jobs:", e);
@@ -417,6 +420,17 @@ export default function ProfessionalProfileScreen({
         });
     };
 
+    const getAvatarUri = () => {
+        const img = profileData.avatar || profileData.image;
+        if (img) {
+            if (img.startsWith('http') || img.startsWith('file://') || img.startsWith('data:')) return img;
+            const baseUrl = API_URL.replace('/api', '');
+            const cleanPath = img.startsWith('/') ? img.substring(1) : img;
+            return `${baseUrl}/${cleanPath}`;
+        }
+        return `https://ui-avatars.com/api/?name=${encodeURIComponent(profileData.name || 'Pro')}&background=random`;
+    };
+
     const pickMainImage = async () => {
         // Solicitar permisos primero
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -515,7 +529,13 @@ export default function ProfessionalProfileScreen({
         }
         
         // Exigir estricta coincidencia, a menos que realmente no haya forma de saber la categoría (en tal caso mejor no mostrarla para evitar el molesto 'clonado' en todas las pestañas)
-        return revCat === categoryKey || (!revCat && categoryKey === 'General');
+        if (!revCat) return categoryKey === 'General';
+        
+        const sCatFull = (selectedCategory?.fullName || '').toLowerCase();
+        const sCatName = (selectedCategory?.name || '').toLowerCase();
+        const rCatLower = String(revCat).toLowerCase();
+        
+        return rCatLower === sCatFull || rCatLower === sCatName || (sCatName && rCatLower.includes(sCatName));
     });
 
     let catRating = 0;
@@ -558,7 +578,7 @@ export default function ProfessionalProfileScreen({
 
                                 <View style={styles.headerMain}>
                                     <View style={styles.avatarContainerPublic}>
-                                        <Image source={{ uri: personalData.mainImage }} style={styles.avatarPublic} />
+                                        <Image source={{ uri: getAvatarUri() }} style={styles.avatarPublic} />
                                         <View style={styles.verifiedBadgePublic}>
                                             <Feather name="shield" size={12} color="white" />
                                         </View>
@@ -623,6 +643,22 @@ export default function ProfessionalProfileScreen({
                                                 {currentCatProfile?.zones?.length ? currentCatProfile.zones.join(', ') : 'No especificadas.'}
                                             </Text>
                                         </View>
+
+                                        {/* FOTOS DE PRESENTACIÓN PUBLICAS */}
+                                        {currentCatProfile?.gallery && currentCatProfile.gallery.length > 0 && (
+                                            <View style={{ marginBottom: 25, marginHorizontal: -24 }}>
+                                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15, paddingHorizontal: 24 }}>
+                                                    <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#111827' }}>Fotos de Presentación</Text>
+                                                </View>
+                                                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingLeft: 24, paddingRight: 24, paddingBottom: 5 }}>
+                                                    {currentCatProfile.gallery.map((img, i) => (
+                                                        <TouchableOpacity key={i} onPress={() => onViewImage && onViewImage(img)}>
+                                                            <Image source={{ uri: img }} style={{ width: 140, height: 140, borderRadius: 20, marginRight: 16, borderWidth: 1, borderColor: '#F1F5F9' }} />
+                                                        </TouchableOpacity>
+                                                    ))}
+                                                </ScrollView>
+                                            </View>
+                                        )}
 
                                         {/* RESEÑAS PUBLICAS */}
                                         <View style={{ marginBottom: 25, marginHorizontal: -24 }}>
@@ -771,12 +807,6 @@ export default function ProfessionalProfileScreen({
                                 )}
                             </View>
 
-                            {/* BOTÓN CERRAR FOOTER */}
-                            <View style={{ paddingHorizontal: 20 }}>
-                                <TouchableOpacity onPress={onBack} style={{ backgroundColor: '#F1F5F9', paddingVertical: 16, borderRadius: 16, alignItems: 'center', marginTop: 10 }}>
-                                    <Text style={{ color: '#64748B', fontWeight: 'bold', fontSize: 15 }}>Cerrar Perfil</Text>
-                                </TouchableOpacity>
-                            </View>
                         </ScrollView>
                     </View >
                 </View >
@@ -842,7 +872,7 @@ export default function ProfessionalProfileScreen({
                     <View style={styles.headerMain}>
                         <View style={styles.avatarContainerPublic}>
                             <TouchableOpacity onPress={pickMainImage}>
-                                <Image source={{ uri: profileData.avatar || profileData.image }} style={styles.avatarPublic} />
+                                <Image source={{ uri: getAvatarUri() }} style={styles.avatarPublic} />
                             </TouchableOpacity>
                             <View style={styles.verifiedBadgePublic}>
                                 <Feather name="shield" size={12} color="white" />
@@ -939,6 +969,22 @@ export default function ProfessionalProfileScreen({
                                     {currentCatProfile?.zones?.length ? currentCatProfile.zones.join(', ') : 'No especificadas.'}
                                 </Text>
                             </View>
+
+                            {/* FOTOS DE PRESENTACIÓN GLOBAL */}
+                            {currentCatProfile?.gallery && currentCatProfile.gallery.length > 0 && (
+                                <View style={{ marginBottom: 25, marginTop: 10, marginHorizontal: -24 }}>
+                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15, paddingHorizontal: 24 }}>
+                                        <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#111827' }}>Fotos de Presentación</Text>
+                                    </View>
+                                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingLeft: 24, paddingRight: 24, paddingBottom: 5 }}>
+                                        {currentCatProfile.gallery.map((img, i) => (
+                                            <TouchableOpacity key={i} onPress={() => onViewImage && onViewImage(img)}>
+                                                <Image source={{ uri: img }} style={{ width: 140, height: 140, borderRadius: 20, marginRight: 16, borderWidth: 1, borderColor: '#F1F5F9' }} />
+                                            </TouchableOpacity>
+                                        ))}
+                                    </ScrollView>
+                                </View>
+                            )}
 
                             {/* PORTAFOLIO DE TRABAJOS GLOBAL */}
                             <View style={{ marginBottom: 25, marginTop: 10, marginHorizontal: -24 }}>
@@ -1089,6 +1135,7 @@ export default function ProfessionalProfileScreen({
                         onSwitchMode={onSwitchMode}
                         onOpenSubscriptions={() => setIsSubscriptionsVisible(true)}
                         onOpenNotifications={() => setShowNotifications(true)}
+                        otherModeCount={otherModeCount}
                     />
                 )}
 
@@ -1159,6 +1206,14 @@ export default function ProfessionalProfileScreen({
                     mode="pro"
                 />
             </ScrollView>
+
+            <CrossProfileNotificationModal
+                visible={showCrossPopup}
+                onClose={() => setShowCrossPopup(false)}
+                onSwitchMode={onSwitchMode}
+                otherModeCount={otherModeCount}
+                targetMode="client"
+            />
 
             {/* TEXT & GALLERY MODAL OWNER */}
             <Modal visible={!!selectedGallery} transparent={true} animationType="fade" onRequestClose={() => setSelectedGallery(null)}>

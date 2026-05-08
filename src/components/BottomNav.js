@@ -80,7 +80,16 @@ export default function BottomNav({
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.navItem} onPress={() => { if (!isLoggedIn) setShowAuth(true); else setView('profile'); }}>
-                <Feather name="user" size={24} color={view === 'profile' ? (userMode === 'client' ? '#EA580C' : '#2563EB') : '#ccc'} />
+                <View>
+                    <Feather name="user" size={24} color={view === 'profile' ? (userMode === 'client' ? '#EA580C' : '#2563EB') : '#ccc'} />
+                    {isLoggedIn && ((userMode === 'client' ? (counts.pro?.updates || 0) + (counts.pro?.chats || 0) : (counts.client?.updates || 0) + (counts.client?.chats || 0)) > 0) && (
+                        <View style={styles.badgeContainer}>
+                            <Text style={styles.badgeText}>
+                                {userMode === 'client' ? (counts.pro?.updates || 0) + (counts.pro?.chats || 0) : (counts.client?.updates || 0) + (counts.client?.chats || 0)}
+                            </Text>
+                        </View>
+                    )}
+                </View>
                 <Text style={{ fontSize: 10, color: '#666' }}>Perfil</Text>
             </TouchableOpacity>
         </View>

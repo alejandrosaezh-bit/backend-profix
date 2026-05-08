@@ -16,18 +16,20 @@ import {
 import { ClientReviewsList, ClientSettingsList, ClientStatistics } from '../components/profile/ClientProfileComponents';
 import { ClientEditProfileModal } from '../components/profile/ClientProfileModals';
 import NotificationPreferencesModal from '../components/NotificationPreferencesModal';
+import CrossProfileNotificationModal from '../components/CrossProfileNotificationModal';
 import { api } from '../utils/api';
 import { areIdsEqual } from '../utils/helpers';
 import { compressAvatar } from '../utils/imageCompressor';
 import { clearRequests } from '../utils/requests';
 
-export default function ClientProfileScreen({ user, isOwner, onBack, onLogout, onUpdate, requests = [], onSwitchMode }) {
+export default function ClientProfileScreen({ user, isOwner, onBack, onLogout, onUpdate, requests = [], onSwitchMode, otherModeCount }) {
   const [isEditing, setIsEditing] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [editedUser, setEditedUser] = useState({ ...user });
   const [reviews, setReviews] = useState([]);
   const [isLoadingReviews, setIsLoadingReviews] = useState(false);
   const [selectedGallery, setSelectedGallery] = useState(null);
+  const [showCrossPopup, setShowCrossPopup] = useState(true);
 
   const [localRequests, setLocalRequests] = useState([]);
 
@@ -51,7 +53,7 @@ export default function ClientProfileScreen({ user, isOwner, onBack, onLogout, o
       if (requests && requests.length > 0) return;
 
       try {
-        const myJobs = await api.getMyJobs({ role: 'client' });
+        const myJobs = await api.getMyJobs({ role: 'client', include_media: true });
         setLocalRequests(Array.isArray(myJobs) ? myJobs : []);
       } catch (error) {
         console.error("Error fetching client jobs:", error);
@@ -278,6 +280,7 @@ export default function ClientProfileScreen({ user, isOwner, onBack, onLogout, o
             onEditProfile={() => setIsEditing(true)} 
             onSwitchMode={onSwitchMode} 
             onOpenNotifications={() => setShowNotifications(true)} 
+            otherModeCount={otherModeCount}
           />
 
         </View>
@@ -318,6 +321,14 @@ export default function ClientProfileScreen({ user, isOwner, onBack, onLogout, o
         user={user}
         onUpdate={onUpdate}
         mode="client"
+      />
+
+      <CrossProfileNotificationModal
+        visible={showCrossPopup}
+        onClose={() => setShowCrossPopup(false)}
+        onSwitchMode={onSwitchMode}
+        otherModeCount={otherModeCount}
+        targetMode="pro"
       />
 
     </View>

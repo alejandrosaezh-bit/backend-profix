@@ -154,9 +154,9 @@ router.post('/', protect, async (req, res) => {
             return res.status(401).json({ message: 'Usuario no autenticado o inválido.' });
         }
 
-        const { title, description, category, subcategory, location, budget, images } = req.body;
+        const { title, description, category, subcategory, location, budget, images, isUrgent, exactLocation } = req.body;
 
-        console.log("[POST /jobs] Received Payload:", { title, category, subcategory, userId: req.user._id });
+        console.log("[POST /jobs] Received Payload:", { title, category, subcategory, isUrgent, exactLocation, userId: req.user._id });
 
         // 2. Validate Required Fields
         if (!title || !description || !category || !location) {
@@ -178,6 +178,8 @@ router.post('/', protect, async (req, res) => {
             location,
             budget,
             images,
+            isUrgent: isUrgent || false,
+            exactLocation: exactLocation || null,
             projectHistory: [{
                 eventType: 'job_created',
                 actor: req.user._id,
@@ -191,6 +193,47 @@ router.post('/', protect, async (req, res) => {
 
         const createdJob = await job.save();
         console.log("[POST /jobs] Saved Job:", createdJob._id);
+
+        // Notificar a profesionales si es urgente
+        if (createdJob.isUrgent) {
+            try {
+                const categoryObj = await require('../models/Category').findById(category);
+                if (categoryObj) {
+                    const pros = await User.find({
+                        [`profiles.${categoryObj.name}.acceptsUrgentJobs`]: true,
+                        role: 'professional' // ensure they are pros
+                    });
+
+                    console.log(`[POST /jobs] Found ${pros.length} pros for urgent job in ${categoryObj.name}`);
+
+                    for (const pro of pros) {
+                        await NotificationService.notifyUser({
+                            userId: pro._id,
+                            eventKey: 'prof_quote_responses', // Using existing event template that works
+                            title: '🚨 EMERGENCIA 24/7 🚨',
+                            body: `Se requiere ${subcategory || categoryObj.name} URGENTE. Título: ${title}. Ubicación: ${exactLocation?.address || location}`,
+                            data: { jobId: createdJob._id, type: 'urgent_job' },
+                            buttonText: 'Ver Emergencia',
+                            buttonUrl: `profix://job/${createdJob._id}`
+                        });
+
+                        const io = req.app.get('socketio');
+                        if (io) {
+                            io.to(`user_${pro._id}`).emit('urgent_job_alert', {
+                                jobId: createdJob._id,
+                                title: createdJob.title,
+                                categoryName: categoryObj.name,
+                                subcategory: createdJob.subcategory,
+                                location: createdJob.exactLocation?.address || createdJob.location
+                            });
+                        }
+                    }
+                }
+            } catch (err) {
+                console.error("[POST /jobs] Error notifying urgent job:", err);
+            }
+        }
+
         res.status(201).json(createdJob);
     } catch (error) {
         console.error("Error creating job:", error);
@@ -874,8 +917,13 @@ router.get('/', async (req, res) => {
         const page = Math.max(1, parseInt(req.query.page) || 1);
         const skip = (page - 1) * limit;
 
+        let excludedFields = '-clientManagement';
+        if (req.query.include_media !== 'true') {
+            excludedFields += ' -images -workPhotos -projectHistory';
+        }
+
         const startFind = Date.now(); let jobs = await Job.find(query)
-            .select('-images -workPhotos -clientManagement -projectHistory') // Restored avatar
+            .select(excludedFields) // Restored avatar
             .populate('client', 'name') // Temporarily removed avatar for performance testing
             .populate('category', 'name color icon')
             //.populate('projectHistory.actor', 'name avatar email role') // Removed for list view
@@ -988,8 +1036,12 @@ router.get('/me', protect, async (req, res) => {
         if (!req.user || !req.user._id) {
             return res.status(401).json({ message: 'Usuario no autenticado o no encontrado en DB.' });
         }
+        let excludedFieldsClient = '-conversations -clientManagement';
+        if (req.query.include_media !== 'true') {
+            excludedFieldsClient += ' -images -workPhotos -projectHistory';
+        }
         const clientJobs = await Job.find({ client: req.user._id })
-            .select('-conversations -images -workPhotos -projectHistory -clientManagement')
+            .select(excludedFieldsClient)
             .populate('client', 'name avatar email')
             .populate('category', 'name color icon')
             .populate('offers.proId', 'name email avatar rating reviewsCount')
@@ -1090,8 +1142,12 @@ router.get('/me', protect, async (req, res) => {
         if (uniqueJobIdsToFetch.length > 0) {
             console.log(`[GET /me DEBUG] Fetching ${uniqueJobIdsToFetch.length} extra jobs:`, uniqueJobIdsToFetch);
             try {
+                let excludedFieldsExtra = '-conversations -clientManagement';
+                if (req.query.include_media !== 'true') {
+                    excludedFieldsExtra += ' -images -workPhotos -projectHistory';
+                }
                 const fetchedJobs = await Job.find({ _id: { $in: uniqueJobIdsToFetch } })
-                    .select('-conversations -images -workPhotos -projectHistory -clientManagement')
+                    .select(excludedFieldsExtra)
                     .populate('category', 'name color icon')
                     .populate('client', 'name email avatar')
                     .populate('offers.proId', 'name email avatar rating reviewsCount')
