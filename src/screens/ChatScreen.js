@@ -239,8 +239,14 @@ export default function ChatScreen({ request, currentUser, userMode, onBack, onS
     });
 
     if (!result.canceled) {
-      const base64Img = `data:image/jpeg;base64,${result.assets[0].base64}`;
-      processSelectedMedia(base64Img, 'image');
+      let finalUri = result.assets[0].uri;
+      if (!result.assets[0].base64 || result.assets[0].base64.length > 500000) {
+          const { compressImage } = require('../utils/imageCompressor');
+          finalUri = await compressImage(result.assets[0].uri, 800);
+      } else {
+          finalUri = `data:image/jpeg;base64,${result.assets[0].base64}`;
+      }
+      processSelectedMedia(finalUri, 'image');
     }
   };
 
@@ -260,8 +266,14 @@ export default function ChatScreen({ request, currentUser, userMode, onBack, onS
     });
 
     if (!result.canceled) {
-      const base64Img = `data:image/jpeg;base64,${result.assets[0].base64}`;
-      processSelectedMedia(base64Img, 'image');
+      let finalUri = result.assets[0].uri;
+      if (!result.assets[0].base64 || result.assets[0].base64.length > 500000) {
+          const { compressImage } = require('../utils/imageCompressor');
+          finalUri = await compressImage(result.assets[0].uri, 800);
+      } else {
+          finalUri = `data:image/jpeg;base64,${result.assets[0].base64}`;
+      }
+      processSelectedMedia(finalUri, 'image');
     }
   };
 

@@ -112,11 +112,22 @@ const ProjectTimeline = ({ job, userMode, currentUser, onConfirmStart, onAddTime
 
                 // Process each asset
                 for (const asset of result.assets) {
+                    let finalUri = asset.uri;
+                    if (!asset.base64 || asset.base64.length > 500000) {
+                        // If no base64 or it's potentially too large, use compressImage
+                        // We do a dynamic import here to avoid circular dependencies if any, or just import at top
+                        // Since we didn't import at top, we'll import it here dynamically
+                        const { compressImage } = require('../utils/imageCompressor');
+                        finalUri = await compressImage(asset.uri, 800);
+                    } else {
+                        finalUri = `data:image/jpeg;base64,${asset.base64}`;
+                    }
+
                     await onAddTimelineEvent({
                         eventType: 'photo_uploaded',
                         title: photoType,
                         description: `Evidencia visual de la etapa: ${stageNames[currentStage]}`,
-                        mediaUrl: asset.base64 ? `data:image/jpeg;base64,${asset.base64}` : asset.uri,
+                        mediaUrl: finalUri,
                         isPrivate: isMediaPrivate
                     });
                 }
