@@ -53,7 +53,7 @@ export default function ClientProfileScreen({ user, isOwner, onBack, onLogout, o
       if (requests && requests.length > 0) return;
 
       try {
-        const myJobs = await api.getMyJobs({ role: 'client', include_media: true });
+        const myJobs = await api.getMyJobs({ role: 'client' });
         setLocalRequests(Array.isArray(myJobs) ? myJobs : []);
       } catch (error) {
         console.error("Error fetching client jobs:", error);

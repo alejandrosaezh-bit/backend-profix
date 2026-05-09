@@ -62,8 +62,8 @@ export function useAppData({ isLoggedIn, isLoadingAuth, currentUser, userMode, v
                 let myJobs = [];
 
                 try {
-                    const fetchMarket = api.getJobs({ include_media: true });
-                    const fetchMy = isLoggedIn ? api.getMyJobs({ role: 'pro', include_media: true }) : Promise.resolve([]);
+                    const fetchMarket = api.getJobs();
+                    const fetchMy = isLoggedIn ? api.getMyJobs({ role: 'pro' }) : Promise.resolve([]);
 
                     const [marketResult, myResult] = await Promise.allSettled([fetchMarket, fetchMy]);
 
@@ -89,7 +89,7 @@ export function useAppData({ isLoggedIn, isLoadingAuth, currentUser, userMode, v
 
                 jobs = Array.from(jobMap.values());
             } else {
-                const allData = isLoggedIn ? await api.getMyJobs({ role: 'client', include_media: true }) : await api.getJobs({ include_media: true });
+                const allData = isLoggedIn ? await api.getMyJobs({ role: 'client' }) : await api.getJobs();
                 if (isLoggedIn && currentUser && allData.length > 0) {
                     jobs = allData;
                     console.log(`[useAppData] Loaded from API (Client). Job 0 status: ${jobs[0].calculatedClientStatus}, title: ${jobs[0].title}`);
