@@ -112,9 +112,9 @@ export default function ProfessionalProfileScreen({
                 let allJobs = [];
                 try {
                     if (isOwner) {
-                        allJobs = await api.getMyJobs({ role: 'pro', include_media: true });
+                        allJobs = await api.getMyJobs({ role: 'pro' });
                     } else {
-                        allJobs = await api.getJobs({ professional: user._id, include_media: true });
+                        allJobs = await api.getJobs({ professional: user._id });
                     }
                 } catch (e) {
                     console.error("Error fetching pro jobs:", e);
@@ -422,7 +422,7 @@ export default function ProfessionalProfileScreen({
 
     const getAvatarUri = () => {
         const img = profileData.avatar || profileData.image;
-        if (img) {
+        if (img && typeof img === 'string' && img !== 'null') {
             if (img.startsWith('http') || img.startsWith('file://') || img.startsWith('data:')) return img;
             const baseUrl = API_URL.replace('/api', '');
             const cleanPath = img.startsWith('/') ? img.substring(1) : img;
@@ -698,104 +698,7 @@ export default function ProfessionalProfileScreen({
                                             </ScrollView>
                                         </View>
 
-                                        <View style={{ marginBottom: 25, marginTop: 10, marginHorizontal: -24 }}>
-                                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15, paddingHorizontal: 24 }}>
-                                                <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#111827' }}>Portafolio de Trabajos</Text>
-                                                <TouchableOpacity style={styles.arrowButton}>
-                                                    <Feather name="arrow-right" size={14} color="#111827" />
-                                                </TouchableOpacity>
-                                            </View>
-                                            {(() => {
-                                                const portfolioFolders = [];
-                                                const categoryFullName = selectedCategory?.fullName || selectedCategory?.name || '';
-                                                const currentProfileGallery = currentCatProfile?.gallery || [];
 
-                                                if (Array.isArray(jobsList)) {
-                                                    jobsList.forEach(job => {
-                                                        let isMatch = false;
-                                                        const jobCat = typeof job.category === 'string' ? job.category : (job.category?.fullName || job.category?.name || job.category?._id || job.category?.id || '');
-                                                        
-                                                        const sCatFull = (selectedCategory?.fullName || '').toLowerCase();
-                                                        const sCatName = (selectedCategory?.name || '').toLowerCase();
-                                                        const sCatId = String(selectedCategory?.id || '').toLowerCase();
-                                                        const sCat_Id = String(selectedCategory?._id || '').toLowerCase();
-                                                        
-                                                        const jcLower = String(jobCat).toLowerCase();
-                                                        
-                                                        if (jcLower && (jcLower === sCatFull || jcLower === sCatName || jcLower === sCatId || jcLower === sCat_Id || (sCatName && jcLower.includes(sCatName)))) {
-                                                            isMatch = true;
-                                                        }
-
-                                                        if (isMatch) {
-                                                            const jobImagesInPortfolio = [];
-                                                            const jobMedia = [];
-                                                            if (job.images) jobMedia.push(...job.images);
-                                                            if (job.workPhotos) jobMedia.push(...job.workPhotos);
-                                                            if (job.projectHistory) {
-                                                                job.projectHistory.forEach(ev => { if (ev.mediaUrl) jobMedia.push(ev.mediaUrl); });
-                                                            }
-                                                            if (job.clientManagement?.beforePhotos) {
-                                                                job.clientManagement.beforePhotos.forEach(p => { if (p.url) jobMedia.push(p.url); });
-                                                            }
-                                                            if (job.clientManagement?.payments) {
-                                                                job.clientManagement.payments.forEach(p => { if (p.evidenceUrl) jobMedia.push(p.evidenceUrl); });
-                                                            }
-                                                            const uniqueJobMedia = [...new Set(jobMedia)];
-                                                            // Mostrar imágenes de trabajos que el profesional se le hayan asignado
-                                                            const status = getProStatus(job, user._id);
-                                                            const isWon = ['GANADA', 'EN EJECUCIÓN', 'ACEPTADO', 'VALIDANDO', 'TERMINADO', 'VALORACIÓN', 'FINALIZADA'].includes(status);
-                                                            
-                                                            const currentProfileGallery = currentCatProfile?.gallery || [];
-                                                            if (isWon) {
-                                                                uniqueJobMedia.forEach(url => {
-                                                                    if (currentProfileGallery.includes(url)) {
-                                                                        jobImagesInPortfolio.push(url);
-                                                                    }
-                                                                });
-                                                            }
-
-                                                            if (jobImagesInPortfolio.length > 0) {
-                                                                portfolioFolders.push({
-                                                                    jobId: job._id || job.id,
-                                                                    title: job.title || 'Trabajo completado',
-                                                                    subcategories: [job.subCategory].filter(Boolean),
-                                                                    images: jobImagesInPortfolio
-                                                                });
-                                                            }
-                                                        }
-                                                    });
-                                                }
-
-                                                if (portfolioFolders.length === 0) {
-                                                    return (
-                                                        <View style={{ alignItems: 'center', paddingVertical: 20 }}>
-                                                            <Feather name="folder" size={40} color="#E2E8F0" />
-                                                            <Text style={{ color: '#94A3B8', fontSize: 13, textAlign: 'center', marginTop: 15 }}>No hay trabajos en el portafolio.</Text>
-                                                        </View>
-                                                    );
-                                                }
-
-                                                return (
-                                                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingRight: 24, paddingLeft: 24 }}>
-                                                        {portfolioFolders.map((folder, index) => (
-                                                            <TouchableOpacity key={index} style={styles.airbnbCard} onPress={() => setSelectedGallery(folder)}>
-                                                                <Image source={{ uri: folder.images[0] }} style={styles.airbnbImage} resizeMode="cover" />
-                                                                <View style={styles.airbnbInfo}>
-                                                                    <Text style={styles.airbnbTitle} numberOfLines={1}>{folder.title}</Text>
-                                                                    <Text style={styles.airbnbSubtitle} numberOfLines={1}>
-                                                                        {folder.subcategories.length > 0 ? folder.subcategories.join(', ') : 'Servicios generales'}
-                                                                    </Text>
-                                                                    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
-                                                                        <Feather name="image" size={12} color="#6B7280" />
-                                                                        <Text style={styles.airbnbCount}>{folder.images.length} fotos</Text>
-                                                                    </View>
-                                                                </View>
-                                                            </TouchableOpacity>
-                                                        ))}
-                                                    </ScrollView>
-                                                );
-                                            })()}
-                                        </View>
                                     </>
                                 ) : (
                                     <View style={{ backgroundColor: 'white', borderRadius: 24, padding: 40, elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, alignItems: 'center', marginTop: 10 }}>
@@ -984,105 +887,7 @@ export default function ProfessionalProfileScreen({
                                 )}
                             </View>
 
-                            {/* PORTAFOLIO DE TRABAJOS GLOBAL */}
-                            <View style={{ marginBottom: 25, marginTop: 10, marginHorizontal: -24 }}>
-                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15, paddingHorizontal: 24 }}>
-                                    <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#111827' }}>Portafolio de Trabajos</Text>
-                                    <TouchableOpacity style={styles.arrowButton}>
-                                        <Feather name="arrow-right" size={14} color="#111827" />
-                                    </TouchableOpacity>
-                                </View>
-                                {(() => {
-                                    const portfolioFolders = [];
-                                    const categoryFullName = selectedCategory?.fullName || selectedCategory?.name || '';
-                                    const currentProfileGallery = currentCatProfile?.gallery || [];
 
-                                    if (Array.isArray(jobsList)) {
-                                        jobsList.forEach(job => {
-                                            let isMatch = false;
-                                            const jobCat = typeof job.category === 'string' ? job.category : (job.category?.fullName || job.category?.name || job.category?._id || job.category?.id || '');
-                                            
-                                            const sCatFull = (selectedCategory?.fullName || '').toLowerCase();
-                                            const sCatName = (selectedCategory?.name || '').toLowerCase();
-                                            const sCatId = String(selectedCategory?.id || '').toLowerCase();
-                                            const sCat_Id = String(selectedCategory?._id || '').toLowerCase();
-                                            
-                                            const jcLower = String(jobCat).toLowerCase();
-                                            
-                                            if (jcLower && (jcLower === sCatFull || jcLower === sCatName || jcLower === sCatId || jcLower === sCat_Id || (sCatName && jcLower.includes(sCatName)))) {
-                                                isMatch = true;
-                                            }
-
-                                            if (isMatch) {
-                                                const jobImagesInPortfolio = [];
-                                                const jobMedia = [];
-                                                if (job.images) jobMedia.push(...job.images);
-                                                if (job.workPhotos) jobMedia.push(...job.workPhotos);
-                                                if (job.projectHistory) {
-                                                    job.projectHistory.forEach(ev => { if (ev.mediaUrl) jobMedia.push(ev.mediaUrl); });
-                                                }
-                                                if (job.clientManagement?.beforePhotos) {
-                                                    job.clientManagement.beforePhotos.forEach(p => { if (p.url) jobMedia.push(p.url); });
-                                                }
-                                                if (job.clientManagement?.payments) {
-                                                    job.clientManagement.payments.forEach(p => { if (p.evidenceUrl) jobMedia.push(p.evidenceUrl); });
-                                                }
-                                                const uniqueJobMedia = [...new Set(jobMedia)];
-                                                // Mostrar imágenes de trabajos que el profesional se le hayan asignado
-                                                const status = getProStatus(job, user._id);
-                                                const isWon = ['GANADA', 'EN EJECUCIÓN', 'ACEPTADO', 'VALIDANDO', 'TERMINADO', 'VALORACIÓN', 'FINALIZADA'].includes(status);
-                                                
-                                                const currentProfileGallery = currentCatProfile?.gallery || [];
-                                                if (isWon) {
-                                                    uniqueJobMedia.forEach(url => {
-                                                        if (currentProfileGallery.includes(url)) {
-                                                            jobImagesInPortfolio.push(url);
-                                                        }
-                                                    });
-                                                }
-
-                                                if (jobImagesInPortfolio.length > 0) {
-                                                    portfolioFolders.push({
-                                                        jobId: job._id || job.id,
-                                                        title: job.title || 'Trabajo completado',
-                                                        subcategories: [job.subCategory].filter(Boolean),
-                                                        images: jobImagesInPortfolio
-                                                    });
-                                                }
-                                            }
-                                        });
-                                    }
-
-                                    if (portfolioFolders.length === 0) {
-                                        return (
-                                            <View style={{ alignItems: 'center', paddingVertical: 20 }}>
-                                                <Feather name="folder" size={40} color="#E2E8F0" />
-                                                <Text style={{ color: '#94A3B8', fontSize: 13, textAlign: 'center', marginTop: 15 }}>No hay trabajos en el portafolio.</Text>
-                                            </View>
-                                        );
-                                    }
-
-                                    return (
-                                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingRight: 24, paddingLeft: 24 }}>
-                                            {portfolioFolders.map((folder, index) => (
-                                                <TouchableOpacity key={index} style={styles.airbnbCard} onPress={() => setSelectedGallery(folder)}>
-                                                    <Image source={{ uri: folder.images[0] }} style={styles.airbnbImage} resizeMode="cover" />
-                                                    <View style={styles.airbnbInfo}>
-                                                        <Text style={styles.airbnbTitle} numberOfLines={1}>{folder.title}</Text>
-                                                        <Text style={styles.airbnbSubtitle} numberOfLines={1}>
-                                                            {folder.subcategories.length > 0 ? folder.subcategories.join(', ') : 'Servicios generales'}
-                                                        </Text>
-                                                        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
-                                                            <Feather name="image" size={12} color="#6B7280" />
-                                                            <Text style={styles.airbnbCount}>{folder.images.length} fotos</Text>
-                                                        </View>
-                                                    </View>
-                                                </TouchableOpacity>
-                                            ))}
-                                        </ScrollView>
-                                    );
-                                })()}
-                            </View>
 
                             {/* RESEÑAS PRIVADAS */}
                             <View style={{ marginBottom: 25, marginHorizontal: -24 }}>

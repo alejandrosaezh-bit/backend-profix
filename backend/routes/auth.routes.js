@@ -220,6 +220,7 @@ router.put('/profile', protect, async (req, res) => {
         if (req.body.profiles) {
             console.log("Updating profiles via user.save() (Map replacement)...");
             user.profiles = new Map(Object.entries(req.body.profiles));
+            user.markModified('profiles');
         }
 
         if (req.body.password) {
