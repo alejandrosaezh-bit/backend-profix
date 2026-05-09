@@ -201,76 +201,7 @@ export default function ClientProfileScreen({ user, isOwner, onBack, onLogout, o
             />
           </View>
 
-          {/* PORTAFOLIO DE TRABAJOS (AIRBNB STYLE) */}
-          <View style={{ marginBottom: 25, marginTop: 25, marginHorizontal: -20 }}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15, paddingHorizontal: 20 }}>
-              <Text style={[styles.sectionTitle, { paddingHorizontal: 0, fontSize: 18, marginBottom: 0 }]}>Portafolio de Trabajos</Text>
-              <TouchableOpacity style={styles.arrowButton}>
-                <Feather name="arrow-right" size={16} color="#111827" />
-              </TouchableOpacity>
-            </View>
 
-            {(() => {
-              const portfolioFolders = [];
-              const clientJobs = completedRequests || [];
-
-              clientJobs.forEach(job => {
-                const jobImagesInPortfolio = [];
-                const jobMedia = [];
-                if (job.images) jobMedia.push(...job.images);
-                if (job.workPhotos) jobMedia.push(...job.workPhotos);
-                if (job.projectHistory) {
-                    job.projectHistory.forEach(ev => { if (ev.mediaUrl) jobMedia.push(ev.mediaUrl); });
-                }
-                if (job.clientManagement?.beforePhotos) {
-                    job.clientManagement.beforePhotos.forEach(p => { if (p.url) jobMedia.push(p.url); });
-                }
-                if (job.clientManagement?.payments) {
-                    job.clientManagement.payments.forEach(p => { if (p.evidenceUrl) jobMedia.push(p.evidenceUrl); });
-                }
-                
-                const uniqueJobMedia = [...new Set(jobMedia)];
-                
-                if (uniqueJobMedia.length > 0) {
-                    portfolioFolders.push({
-                        category: job.title || 'Trabajo completado',
-                        subcategories: [(job.subCategory || 'General')],
-                        images: uniqueJobMedia
-                    });
-                }
-              });
-
-              if (portfolioFolders.length === 0) {
-                return (
-                  <View style={[styles.emptyContainer, { marginHorizontal: 20 }]}>
-                    <Feather name="folder" size={40} color="#E2E8F0" />
-                    <Text style={styles.emptyText}>No hay trabajos en el portafolio.</Text>
-                  </View>
-                );
-              }
-
-              // Card de Airbnb ancha para previsualizar el siguiente ítem
-              return (
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingRight: 20, paddingLeft: 20 }}>
-                  {portfolioFolders.map((folder, index) => (
-                    <TouchableOpacity key={index} style={styles.airbnbCard} onPress={() => setSelectedGallery(folder.images)}>
-                      <Image source={{ uri: folder.images[0] }} style={styles.airbnbImage} resizeMode="cover" />
-                      <View style={styles.airbnbInfo}>
-                        <Text style={styles.airbnbTitle} numberOfLines={1}>{folder.category}</Text>
-                        <Text style={styles.airbnbSubtitle} numberOfLines={1}>
-                          {folder.subcategories.length > 0 ? folder.subcategories.join(', ') : 'Servicios generales'}
-                        </Text>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
-                          <Feather name="image" size={12} color="#6B7280" />
-                          <Text style={styles.airbnbCount}>{folder.images.length} fotos</Text>
-                        </View>
-                      </View>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              );
-            })()}
-          </View>
 
           {/* OPINIONES / REFERENCIAS REALES */}
           <ClientReviewsList reviews={reviews} isLoading={isLoadingReviews} />
