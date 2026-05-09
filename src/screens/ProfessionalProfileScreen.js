@@ -112,9 +112,9 @@ export default function ProfessionalProfileScreen({
                 let allJobs = [];
                 try {
                     if (isOwner) {
-                        allJobs = await api.getMyJobs({ role: 'pro' });
+                        allJobs = await api.getMyJobs({ role: 'pro', include_media: 'true' });
                     } else {
-                        allJobs = await api.getJobs({ professional: user._id });
+                        allJobs = await api.getJobs({ professional: user._id, include_media: 'true' });
                     }
                 } catch (e) {
                     console.error("Error fetching pro jobs:", e);
@@ -886,9 +886,78 @@ export default function ProfessionalProfileScreen({
                                     </View>
                                 )}
                             </View>
+                            {/* PORTAFOLIO DE TRABAJOS (AIRBNB STYLE) */}
+                            <View style={{ marginBottom: 25, marginHorizontal: -24 }}>
+                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15, paddingHorizontal: 24 }}>
+                                    <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#111827' }}>Portafolio de Trabajos</Text>
+                                    <TouchableOpacity style={styles.arrowButton}>
+                                        <Feather name="arrow-right" size={16} color="#111827" />
+                                    </TouchableOpacity>
+                                </View>
 
+                                {(() => {
+                                    const portfolioFolders = [];
+                                    const publicJobs = jobsList.filter(job => job.status && ['Finalizada', 'Cerrado', 'Cerrada', 'TERMINADO', 'rated', 'completed', 'Culminada'].includes(job.status));
 
+                                    if (publicJobs.length > 0) {
+                                        publicJobs.forEach(job => {
+                                            const jobImagesInPortfolio = [];
+                                            const jobMedia = [];
+                                            if (job.images) jobMedia.push(...job.images);
+                                            if (job.workPhotos) jobMedia.push(...job.workPhotos);
+                                            if (job.projectHistory) {
+                                                job.projectHistory.forEach(ev => { if (ev.mediaUrl) jobMedia.push(ev.mediaUrl); });
+                                            }
+                                            if (job.clientManagement?.beforePhotos) {
+                                                job.clientManagement.beforePhotos.forEach(p => { if (p.url) jobMedia.push(p.url); });
+                                            }
+                                            if (job.clientManagement?.payments) {
+                                                job.clientManagement.payments.forEach(p => { if (p.evidenceUrl) jobMedia.push(p.evidenceUrl); });
+                                            }
 
+                                            const uniqueJobMedia = [...new Set(jobMedia)];
+                                            
+                                            if (uniqueJobMedia.length > 0) {
+                                                portfolioFolders.push({
+                                                    jobId: job._id || job.id,
+                                                    title: job.title || 'Trabajo completado',
+                                                    subcategories: [job.subCategory].filter(Boolean),
+                                                    images: uniqueJobMedia
+                                                });
+                                            }
+                                        });
+                                    }
+
+                                    if (portfolioFolders.length === 0) {
+                                        return (
+                                            <View style={{ alignItems: 'center', paddingVertical: 20 }}>
+                                                <Feather name="folder" size={40} color="#E2E8F0" />
+                                                <Text style={{ color: '#94A3B8', fontSize: 13, textAlign: 'center', marginTop: 15 }}>No hay trabajos en el portafolio.</Text>
+                                            </View>
+                                        );
+                                    }
+
+                                    return (
+                                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingRight: 24, paddingLeft: 24 }}>
+                                            {portfolioFolders.map((folder, index) => (
+                                                <TouchableOpacity key={index} style={styles.airbnbCard} onPress={() => setSelectedGallery(folder)}>
+                                                    <Image source={{ uri: folder.images[0] }} style={styles.airbnbImage} resizeMode="cover" />
+                                                    <View style={styles.airbnbInfo}>
+                                                        <Text style={styles.airbnbTitle} numberOfLines={1}>{folder.title}</Text>
+                                                        <Text style={styles.airbnbSubtitle} numberOfLines={1}>
+                                                            {folder.subcategories.length > 0 ? folder.subcategories.join(', ') : 'Servicios generales'}
+                                                        </Text>
+                                                        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
+                                                            <Feather name="image" size={12} color="#6B7280" />
+                                                            <Text style={styles.airbnbCount}>{folder.images.length} fotos</Text>
+                                                        </View>
+                                                    </View>
+                                                </TouchableOpacity>
+                                            ))}
+                                        </ScrollView>
+                                    );
+                                })()}
+                            </View>
                             {/* RESEÑAS PRIVADAS */}
                             <View style={{ marginBottom: 25, marginHorizontal: -24 }}>
                                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15, paddingHorizontal: 24 }}>
