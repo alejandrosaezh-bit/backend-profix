@@ -28,7 +28,7 @@ const ClientProfileView = ({ client, visible, onClose }) => {
             try {
                 const [reviewsData, jobsData] = await Promise.all([
                     api.getClientReviews(clientId),
-                    api.getJobs({ client: clientId })
+                    api.getJobs({ client: clientId, include_media: 'true' })
                 ]);
                 setReviews(reviewsData || []);
                 if (Array.isArray(jobsData)) setClientJobs(jobsData);

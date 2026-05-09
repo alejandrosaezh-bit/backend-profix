@@ -49,9 +49,6 @@ export default function ClientProfileScreen({ user, isOwner, onBack, onLogout, o
     };
 
     const fetchJobs = async () => {
-      // Only fetch if props are empty to avoid redundant network calls
-      if (requests && requests.length > 0) return;
-
       try {
         const myJobs = await api.getMyJobs({ role: 'client', include_media: 'true' });
         setLocalRequests(Array.isArray(myJobs) ? myJobs : []);
