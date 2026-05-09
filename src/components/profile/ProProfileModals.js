@@ -19,7 +19,8 @@ export function ProCategorySelectionModal({
     profileData,
     ICON_MAP,
     setSelectedCategory,
-    setIsEditing
+    setIsEditing,
+    onActivateCategory
 }) {
     return (
         <Modal
@@ -72,6 +73,7 @@ export function ProCategorySelectionModal({
                                     }}
                                     onPress={() => {
                                         setSelectedCategory(cat);
+                                        if (onActivateCategory) onActivateCategory(catKey);
                                         onClose();
                                         setIsEditing(true);
                                     }}

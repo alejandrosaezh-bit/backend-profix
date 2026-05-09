@@ -138,6 +138,6 @@ io.on('connection', (socket) => {
 // Make io accessible to routes
 app.set('socketio', io);
 
-server.listen(PORT, () => {
+server.listen(PORT, '0.0.0.0', () => {
     console.log(`Servidor corriendo en puerto ${PORT}`);
 });

@@ -924,7 +924,7 @@ router.get('/', async (req, res) => {
 
         const startFind = Date.now(); let jobs = await Job.find(query)
             .select(excludedFields) // Restored avatar
-            .populate('client', 'name') // Temporarily removed avatar for performance testing
+            .populate('client', 'name avatar email') // Restored avatar for full UI experience
             .populate('category', 'name color icon')
             //.populate('projectHistory.actor', 'name avatar email role') // Removed for list view
             .sort({ createdAt: -1 })

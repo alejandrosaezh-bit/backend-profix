@@ -396,10 +396,10 @@ const RequestDetailClient = ({ request, onBack, onAcceptOffer, onOpenChat, onUpd
                         />
                     );
 
-                    const ChatsSection = (
-                        <View style={{ backgroundColor: 'white', borderRadius: 24, padding: 20, marginBottom: 25, borderWidth: 1, borderColor: '#F1F5F9', elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 10 }}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 15 }}>
-                                <Text style={{ fontSize: 18, fontWeight: '900', color: '#1E2937' }}>Mensajes</Text>
+                    const ProfessionalsSection = (
+                        <View style={{ marginBottom: 25 }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 15, paddingHorizontal: 20 }}>
+                                <Text style={{ fontSize: 18, fontWeight: '900', color: '#1E2937' }}>Profesionales Interesados</Text>
                                 <View style={{ backgroundColor: '#EFF6FF', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 }}>
                                     <Text style={{ color: '#2563EB', fontWeight: 'bold', fontSize: 12 }}>
                                         {Array.from(new Set([
@@ -446,45 +446,48 @@ const RequestDetailClient = ({ request, onBack, onAcceptOffer, onOpenChat, onUpd
                                 const hasHidden = archivedPros.length > 0 && !showArchivedChats;
 
                                 return (
-                                    <View style={{ paddingHorizontal: 0 }}>
+                                    <View>
                                         {prosToRender.length === 0 ? (
-                                            <View style={{ backgroundColor: '#F8FAFC', borderRadius: 16, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: '#E2E8F0', opacity: 0.6, overflow: 'hidden' }}>
-                                                {/* MODAL LOCK OVERLAY */}
-                                                <View style={{
-                                                    position: 'absolute', top: -16, left: -16, right: -16, bottom: -16,
-                                                    backgroundColor: 'rgba(248, 250, 252, 0.4)',
-                                                    zIndex: 100, justifyContent: 'center', alignItems: 'center', borderRadius: 24
-                                                }}>
-                                                    <View style={{ backgroundColor: 'white', padding: 12, borderRadius: 50, elevation: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4 }}>
-                                                        <Feather name="lock" size={20} color="#94A3B8" />
-                                                    </View>
-                                                    <Text style={{ color: '#64748B', fontWeight: 'bold', fontSize: 13, marginTop: 12, textAlign: 'center', paddingHorizontal: 20 }}>
-                                                        Aún no tienes mensajes.{'\n'}Los profesionales te contactarán pronto.
-                                                    </Text>
-                                                </View>
-
-                                                {/* PRO HEADER MOCK */}
-                                                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 15 }}>
-                                                    <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: '#E2E8F0', justifyContent: 'center', alignItems: 'center', marginRight: 10 }}>
-                                                        <Feather name="user" size={20} color="#94A3B8" />
-                                                    </View>
-                                                    <View>
-                                                        <Text style={{ fontWeight: 'bold', color: '#94A3B8' }}>Ej. Un Profesional</Text>
-                                                        <Text style={{ fontSize: 12, color: '#CBD5E1' }}>⭐ 5.0</Text>
-                                                    </View>
-                                                </View>
-
-                                                {/* MESSAGES MOCK */}
-                                                <View style={{ marginBottom: 10 }}>
-                                                    <View style={{ backgroundColor: '#F1F5F9', padding: 8, borderRadius: 12, marginBottom: 4, alignSelf: 'flex-start', maxWidth: '85%' }}>
-                                                        <Text style={{ fontSize: 12, color: '#94A3B8' }}>Hola, revisé tu solicitud.</Text>
-                                                    </View>
-                                                    <View style={{ backgroundColor: '#FFF7ED', padding: 8, borderRadius: 12, marginBottom: 4, alignSelf: 'flex-end', maxWidth: '85%' }}>
-                                                        <Text style={{ fontSize: 12, color: '#94A3B8' }}>Perfecto, espero el presupuesto.</Text>
+                                            <View style={{ marginHorizontal: 20, backgroundColor: 'white', borderRadius: 24, padding: 20, borderWidth: 1, borderColor: '#F1F5F9', elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 10 }}>
+                                                <View style={{ position: 'relative' }}>
+                                                    {/* MODAL LOCK OVERLAY */}
+                                                    <View style={{
+                                                        position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+                                                        backgroundColor: 'rgba(248, 250, 252, 0.4)',
+                                                        zIndex: 100, justifyContent: 'center', alignItems: 'center', borderRadius: 16
+                                                    }}>
+                                                        <View style={{ backgroundColor: 'white', padding: 12, borderRadius: 50, elevation: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4 }}>
+                                                            <Feather name="lock" size={20} color="#94A3B8" />
+                                                        </View>
+                                                        <Text style={{ color: '#64748B', fontWeight: 'bold', fontSize: 13, marginTop: 12, textAlign: 'center', paddingHorizontal: 20 }}>
+                                                            Aún no tienes mensajes ni presupuestos.{'\n'}Los profesionales te contactarán pronto.
+                                                        </Text>
                                                     </View>
 
-                                                    <View style={{ backgroundColor: '#F1F5F9', paddingVertical: 12, borderRadius: 14, alignItems: 'center', borderWidth: 1.5, borderColor: '#CBD5E1', marginTop: 6 }}>
-                                                        <Text style={{ color: '#94A3B8', fontWeight: 'bold' }}>Preguntar</Text>
+                                                    <View style={{ backgroundColor: '#F8FAFC', borderRadius: 16, padding: 16, borderWidth: 1, borderColor: '#E2E8F0', opacity: 0.4, overflow: 'hidden' }}>
+                                                        {/* PRO HEADER MOCK */}
+                                                        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 15 }}>
+                                                            <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: '#E2E8F0', justifyContent: 'center', alignItems: 'center', marginRight: 10 }}>
+                                                                <Feather name="user" size={20} color="#94A3B8" />
+                                                            </View>
+                                                            <View>
+                                                                <Text style={{ fontWeight: 'bold', color: '#94A3B8' }}>Ej. Un Profesional</Text>
+                                                                <Text style={{ fontSize: 12, color: '#CBD5E1' }}>⭐ 5.0</Text>
+                                                            </View>
+                                                        </View>
+
+                                                        {/* MESSAGES MOCK */}
+                                                        <View style={{ marginBottom: 10 }}>
+                                                            <View style={{ backgroundColor: '#F1F5F9', padding: 8, borderRadius: 12, marginBottom: 4, alignSelf: 'flex-start', maxWidth: '85%' }}>
+                                                                <Text style={{ fontSize: 12, color: '#94A3B8' }}>Hola, revisé tu solicitud.</Text>
+                                                            </View>
+                                                            <View style={{ backgroundColor: '#FFF7ED', padding: 8, borderRadius: 12, marginBottom: 4, alignSelf: 'flex-end', maxWidth: '85%' }}>
+                                                                <Text style={{ fontSize: 12, color: '#94A3B8' }}>Perfecto, espero el presupuesto.</Text>
+                                                            </View>
+                                                            <View style={{ backgroundColor: '#F1F5F9', paddingVertical: 12, borderRadius: 14, alignItems: 'center', borderWidth: 1.5, borderColor: '#CBD5E1', marginTop: 6 }}>
+                                                                <Text style={{ color: '#94A3B8', fontWeight: 'bold' }}>Preguntar</Text>
+                                                            </View>
+                                                        </View>
                                                     </View>
                                                 </View>
                                             </View>
@@ -492,12 +495,13 @@ const RequestDetailClient = ({ request, onBack, onAcceptOffer, onOpenChat, onUpd
                                             const messages = pro.chat?.messages || [];
                                             const lastThree = messages.slice(-3);
                                             const isLastFromPro = lastThree.length > 0 && lastThree[lastThree.length - 1].sender === 'pro';
+                                            const isWinner = pro.offer?.status === 'accepted';
 
                                             return (
-                                                <View key={`chat-${index}`} style={{ marginBottom: index === prosToRender.length - 1 ? 0 : 25 }}>
+                                                <View key={`pro-${index}`} style={{ backgroundColor: 'white', borderRadius: 24, padding: 20, marginHorizontal: 20, marginBottom: 15, borderWidth: 1, borderColor: '#F1F5F9', elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 10 }}>
                                                     {/* PRO HEADER */}
                                                     <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 15 }} onPress={() => onViewUserProfile && onViewUserProfile(pro)}>
-                                                        <Image source={{ uri: pro.avatar }} style={{ width: 44, height: 44, borderRadius: 22, marginRight: 12 }} />
+                                                        <Image source={{ uri: pro.avatar || 'https://via.placeholder.com/150' }} style={{ width: 44, height: 44, borderRadius: 22, marginRight: 12 }} />
                                                         <View style={{ flex: 1 }}>
                                                             <Text style={{ fontWeight: 'bold', color: '#1E293B', fontSize: 15 }}>{pro.name}</Text>
                                                             <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
@@ -509,12 +513,16 @@ const RequestDetailClient = ({ request, onBack, onAcceptOffer, onOpenChat, onUpd
                                                         <Feather name="chevron-right" size={20} color="#CBD5E1" />
                                                     </TouchableOpacity>
 
-                                                    <View style={{ marginBottom: 10 }}>
-                                                        {lastThree.map((msg, mIdx) => (
+                                                    {/* MESSAGES */}
+                                                    <View style={{ marginBottom: pro.offer ? 15 : 0 }}>
+                                                        {lastThree.length > 0 ? lastThree.map((msg, mIdx) => (
                                                             <View key={mIdx} style={{ backgroundColor: msg.sender === 'pro' ? '#F1F5F9' : '#FFF7ED', padding: 8, borderRadius: 12, marginBottom: 4, alignSelf: msg.sender === 'pro' ? 'flex-start' : 'flex-end', maxWidth: '85%' }}>
                                                                 <Text style={{ fontSize: 12, color: '#334155' }}>{msg.text || (msg.media ? '📷 Archivo' : '...')}</Text>
                                                             </View>
-                                                        ))}
+                                                        )) : (
+                                                            <Text style={{ fontSize: 12, color: '#94A3B8', fontStyle: 'italic', marginBottom: 8, textAlign: 'center' }}>Sin mensajes aún</Text>
+                                                        )}
+                                                        
                                                         <TouchableOpacity
                                                             style={{ backgroundColor: isLastFromPro ? '#EA580C' : 'white', paddingVertical: 12, borderRadius: 14, alignItems: 'center', borderWidth: 1.5, borderColor: '#EA580C', marginTop: 6 }}
                                                             onPress={() => onOpenChat && onOpenChat(request, { ...pro, role: 'pro' })}
@@ -522,118 +530,39 @@ const RequestDetailClient = ({ request, onBack, onAcceptOffer, onOpenChat, onUpd
                                                             <Text style={{ color: isLastFromPro ? 'white' : '#EA580C', fontWeight: 'bold' }}>{isLastFromPro ? 'Responder' : 'Preguntar'}</Text>
                                                         </TouchableOpacity>
                                                     </View>
+
+                                                    {/* BUDGET (IF EXISTS) */}
+                                                    {pro.offer && (
+                                                        <View style={{
+                                                            backgroundColor: isWinner ? '#ECFDF5' : '#F0F9FF',
+                                                            padding: 16, borderRadius: 20,
+                                                            borderWidth: 1, borderColor: isWinner ? '#A7F3D0' : '#BAE6FD',
+                                                        }}>
+                                                            <Text style={{ fontWeight: 'bold', color: isWinner ? '#059669' : '#1E3A8A', fontSize: 11, textAlign: 'center', marginBottom: 8 }}>
+                                                                {isWinner ? '✅ PRESUPUESTO ACEPTADO' : 'PRESUPUESTO RECIBIDO'}
+                                                            </Text>
+                                                            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                                                                <View><Text style={{ fontSize: 9, color: '#64748B' }}>MONTO</Text><Text style={{ fontWeight: 'bold', fontSize: 13 }}>{pro.offer.currency || '$'}{pro.offer.amount}</Text></View>
+                                                                <View><Text style={{ fontSize: 9, color: '#64748B' }}>INICIO</Text><Text style={{ fontWeight: '600', fontSize: 12 }}>{pro.offer.startDate || 'Pronto'}</Text></View>
+                                                                <View><Text style={{ fontSize: 9, color: '#64748B' }}>PLAZO</Text><Text style={{ fontWeight: '600', fontSize: 12 }}>{pro.offer.duration}</Text></View>
+                                                            </View>
+                                                            <TouchableOpacity
+                                                                style={{ marginTop: 12, backgroundColor: '#10B981', height: 40, borderRadius: 10, justifyContent: 'center', alignItems: 'center' }}
+                                                                onPress={() => { setSelectedBudget(pro.offer); setShowBudgetModal(true); }}
+                                                            >
+                                                                <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 14 }}>VER PRESUPUESTO</Text>
+                                                            </TouchableOpacity>
+                                                        </View>
+                                                    )}
                                                 </View>
                                             );
                                         })}
+
                                         {hasHidden && (
-                                            <TouchableOpacity style={{ padding: 15, alignItems: 'center' }} onPress={() => setShowArchivedChats(true)}>
-                                                <Text style={{ color: '#64748B', fontWeight: 'bold' }}>VER CHATS ANTERIORES ({archivedPros.length})</Text>
+                                            <TouchableOpacity style={{ padding: 15, alignItems: 'center', marginHorizontal: 20, backgroundColor: '#F8FAFC', borderRadius: 16, borderWidth: 1, borderColor: '#E2E8F0' }} onPress={() => setShowArchivedChats(true)}>
+                                                <Text style={{ color: '#64748B', fontWeight: 'bold' }}>VER OTRAS OFERTAS ({archivedPros.length})</Text>
                                             </TouchableOpacity>
                                         )}
-                                    </View>
-                                );
-                            })()}
-                        </View>
-                    );
-
-                    const BudgetSection = (
-                        <View style={{ backgroundColor: 'white', borderRadius: 24, padding: 20, marginBottom: 25, borderWidth: 1, borderColor: '#F1F5F9', elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 10 }}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 15 }}>
-                                <Text style={{ fontSize: 18, fontWeight: '900', color: '#1E2937' }}>Presupuesto</Text>
-                            </View>
-
-                            {(() => {
-                                const proMap = {};
-                                (request.offers || []).forEach((offer, idx) => {
-                                    const pid = offer.proId._id || offer.proId;
-                                    if (!proMap[pid]) proMap[pid] = { id: pid, name: offer.proName, avatar: offer.proAvatar, rating: offer.proRating };
-                                    proMap[pid].offer = {
-                                        ...offer,
-                                        index: idx,
-                                        proName: proMap[pid].name,
-                                        proAvatar: proMap[pid].avatar
-                                    };
-                                });
-
-                                const allPros = Object.values(proMap).sort((a, b) => {
-                                    if (a.offer?.status === 'accepted') return -1;
-                                    if (b.offer?.status === 'accepted') return 1;
-                                    return 0;
-                                });
-
-                                const winner = allPros.find(p => p.offer?.status === 'accepted');
-                                let visiblePros = allPros;
-                                if (winner) {
-                                    visiblePros = [winner];
-                                }
-
-                                const prosToRender = showArchivedChats ? allPros : visiblePros;
-                                const prosWithOffers = prosToRender.filter(p => p.offer);
-
-                                if (prosWithOffers.length === 0) {
-                                    return (
-                                        <View style={{ paddingHorizontal: 0, opacity: 0.6, overflow: 'hidden' }}>
-                                            {/* MODAL LOCK OVERLAY */}
-                                            <View style={{
-                                                position: 'absolute', top: -16, left: -16, right: -16, bottom: -16,
-                                                backgroundColor: 'rgba(248, 250, 252, 0.4)',
-                                                zIndex: 100, justifyContent: 'center', alignItems: 'center', borderRadius: 24
-                                            }}>
-                                                <View style={{ backgroundColor: 'white', padding: 12, borderRadius: 50, elevation: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4 }}>
-                                                    <Feather name="lock" size={20} color="#94A3B8" />
-                                                </View>
-                                                <Text style={{ color: '#64748B', fontWeight: 'bold', fontSize: 13, marginTop: 12, textAlign: 'center', paddingHorizontal: 20 }}>
-                                                    Aún no tienes presupuestos.{'\n'}Espera las propuestas.
-                                                </Text>
-                                            </View>
-
-                                            <View style={{
-                                                backgroundColor: '#F8FAFC', padding: 16, borderRadius: 20, borderWidth: 1, borderColor: '#E2E8F0'
-                                            }}>
-                                                <Text style={{ fontWeight: 'bold', color: '#94A3B8', fontSize: 11, textAlign: 'center', marginBottom: 8 }}>
-                                                    EJ. PRESUPUESTO RECIBIDO
-                                                </Text>
-                                                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                                                    <View><Text style={{ fontSize: 9, color: '#CBD5E1' }}>MONTO</Text><Text style={{ fontWeight: 'bold', fontSize: 13, color: '#94A3B8' }}>$0</Text></View>
-                                                    <View><Text style={{ fontSize: 9, color: '#CBD5E1' }}>INICIO</Text><Text style={{ fontWeight: '600', fontSize: 12, color: '#94A3B8' }}>Pronto</Text></View>
-                                                    <View><Text style={{ fontSize: 9, color: '#CBD5E1' }}>PLAZO</Text><Text style={{ fontWeight: '600', fontSize: 12, color: '#94A3B8' }}>X Días</Text></View>
-                                                </View>
-                                                <View style={{ marginTop: 12, backgroundColor: '#E2E8F0', height: 40, borderRadius: 10, justifyContent: 'center', alignItems: 'center' }}>
-                                                    <Text style={{ color: '#94A3B8', fontWeight: 'bold', fontSize: 14 }}>VER PRESUPUESTO</Text>
-                                                </View>
-                                            </View>
-                                        </View>
-                                    );
-                                }
-
-                                return (
-                                    <View style={{ paddingHorizontal: 0 }}>
-                                        {prosWithOffers.map((pro, index) => {
-                                            const isWinner = pro.offer?.status === 'accepted';
-                                            return (
-                                                <View key={`budget-${index}`} style={{
-                                                    backgroundColor: '#F0F9FF',
-                                                    padding: 16, borderRadius: 20,
-                                                    borderWidth: 1, borderColor: '#BAE6FD',
-                                                    marginBottom: index === prosWithOffers.length - 1 ? 0 : 20
-                                                }}>
-                                                    <Text style={{ fontWeight: 'bold', color: isWinner ? '#059669' : '#1E3A8A', fontSize: 11, textAlign: 'center', marginBottom: 8 }}>
-                                                        {isWinner ? '✅ PRESUPUESTO ACEPTADO' : 'PRESUPUESTO RECIBIDO'}
-                                                    </Text>
-                                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                                                        <View><Text style={{ fontSize: 9, color: '#64748B' }}>MONTO</Text><Text style={{ fontWeight: 'bold', fontSize: 13 }}>{pro.offer.currency || '$'}{pro.offer.amount}</Text></View>
-                                                        <View><Text style={{ fontSize: 9, color: '#64748B' }}>INICIO</Text><Text style={{ fontWeight: '600', fontSize: 12 }}>{pro.offer.startDate || 'Pronto'}</Text></View>
-                                                        <View><Text style={{ fontSize: 9, color: '#64748B' }}>PLAZO</Text><Text style={{ fontWeight: '600', fontSize: 12 }}>{pro.offer.duration}</Text></View>
-                                                    </View>
-                                                    <TouchableOpacity
-                                                        style={{ marginTop: 12, backgroundColor: '#10B981', height: 40, borderRadius: 10, justifyContent: 'center', alignItems: 'center' }}
-                                                        onPress={() => { setSelectedBudget(pro.offer); setShowBudgetModal(true); }}
-                                                    >
-                                                        <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 14 }}>VER PRESUPUESTO</Text>
-                                                    </TouchableOpacity>
-                                                </View>
-                                            );
-                                        })}
                                     </View>
                                 );
                             })()}
@@ -661,15 +590,15 @@ const RequestDetailClient = ({ request, onBack, onAcceptOffer, onOpenChat, onUpd
 
                     // Reorder Page Sections
                     if (status === 'NUEVA' || status === 'CONTACTADA' || status === 'PRESUPUESTADA') {
-                        return <>{ChatsSection}{BudgetSection}{ManagementSection}{RatingSection}{TimelineSection}</>;
+                        return <>{ProfessionalsSection}{ManagementSection}{RatingSection}{TimelineSection}</>;
                     } else if (status === 'VALIDANDO') {
-                        return <>{ValidationSection}{ManagementSection}{ChatsSection}{BudgetSection}{RatingSection}{TimelineSection}</>;
+                        return <>{ValidationSection}{ManagementSection}{ProfessionalsSection}{RatingSection}{TimelineSection}</>;
                     } else if (status === 'VALORACIÓN') {
-                        return <>{RatingSection}{ManagementSection}{ChatsSection}{BudgetSection}{TimelineSection}</>;
+                        return <>{RatingSection}{ManagementSection}{ProfessionalsSection}{TimelineSection}</>;
                     } else if (status === 'FINALIZADA') {
-                        return <>{RatingSection}{ManagementSection}{ChatsSection}{BudgetSection}{TimelineSection}</>;
+                        return <>{RatingSection}{ManagementSection}{ProfessionalsSection}{TimelineSection}</>;
                     } else {
-                        return <>{ManagementSection}{ChatsSection}{BudgetSection}{RatingSection}{TimelineSection}</>;
+                        return <>{ManagementSection}{ProfessionalsSection}{RatingSection}{TimelineSection}</>;
                     }
                 })()}
 

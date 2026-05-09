@@ -302,13 +302,8 @@ export default function ChatScreen({ request, currentUser, userMode, onBack, onS
     const isMyMessage = (isActingAsPro && item.sender === 'pro') ||
       (!isActingAsPro && item.sender === 'client');
 
-    // Detect if message is a budget/quote notification
-    const isBudgetNotification = !isMyMessage &&
-      !isActingAsPro &&
-      item.sender === 'pro' &&
-      (item.text || item.content || '').toLowerCase().includes('presupuesto') ||
-      (item.text || item.content || '').toLowerCase().includes('oferta');
-
+    // Budget notifications are handled in the Request detail screen now.
+    
     return (
       <View style={{ alignSelf: isMyMessage ? 'flex-end' : 'flex-start', maxWidth: '85%', marginBottom: 8, paddingHorizontal: 4 }}>
         <View style={[styles.messageBubble, isMyMessage ? styles.myMessage : styles.theirMessage, item.isTemp && styles.tempMessage]}>
@@ -316,27 +311,6 @@ export default function ChatScreen({ request, currentUser, userMode, onBack, onS
             <Text style={[styles.messageText, isMyMessage ? styles.myMessageText : styles.theirMessageText]}>
               {item.text || item.content}
             </Text>
-          )}
-
-          {isBudgetNotification && (
-            <TouchableOpacity
-              onPress={() => onViewJob && onViewJob(request)}
-              style={{
-                backgroundColor: '#EFF6FF',
-                flexDirection: 'row',
-                alignItems: 'center',
-                padding: 10,
-                borderRadius: 10,
-                marginTop: 8,
-                marginBottom: 4,
-                borderWidth: 1,
-                borderColor: '#BFDBFE'
-              }}
-            >
-              <MaterialCommunityIcons name="file-document-edit-outline" size={20} color="#2563EB" style={{ marginRight: 8 }} />
-              <Text style={{ color: '#2563EB', fontWeight: 'bold', fontSize: 13 }}>VER PRESUPUESTO</Text>
-              <Feather name="chevron-right" size={16} color="#2563EB" style={{ marginLeft: 'auto' }} />
-            </TouchableOpacity>
           )}
 
           {(item.type === 'media' || (!item.type && item.media)) && (
@@ -384,7 +358,7 @@ export default function ChatScreen({ request, currentUser, userMode, onBack, onS
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
-      keyboardVerticalOffset={Platform.OS === "ios" ? 100 : 120}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 100 : 50}
     >
       <View style={{ backgroundColor: isActingAsPro ? '#2563EB' : '#EA580C', paddingHorizontal: 16, paddingTop: 10, paddingBottom: 10, borderBottomLeftRadius: 24, borderBottomRightRadius: 24, elevation: 4, flexDirection: 'row', alignItems: 'center' }}>
         <TouchableOpacity onPress={onBack} style={{ marginRight: 12 }}>

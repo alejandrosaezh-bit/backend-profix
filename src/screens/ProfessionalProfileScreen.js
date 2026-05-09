@@ -626,39 +626,38 @@ export default function ProfessionalProfileScreen({
                                             </View>
                                         </View>
 
-                                        {/* BIO Y DETALLES */}
-                                        <View style={{ backgroundColor: 'white', borderRadius: 24, padding: 20, marginBottom: 16, elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, marginHorizontal: -10 }}>
-                                            <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#64748B', marginBottom: 15 }}>INFORMACIÓN PROFESIONAL</Text>
-                                            {currentCatProfile?.bio ? (
-                                                <Text style={{ fontSize: 15, color: '#334155', fontStyle: 'italic', marginBottom: 16, lineHeight: 22 }}>"{currentCatProfile.bio}"</Text>
-                                            ) : null}
+                                        {/* BIO, DETALLES Y FOTOS DE PRESENTACIÓN */}
+                                        <View style={{ backgroundColor: 'white', borderRadius: 24, paddingVertical: 20, marginBottom: 16, elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, marginHorizontal: -10 }}>
+                                            <View style={{ paddingHorizontal: 20 }}>
+                                                <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#64748B', marginBottom: 15 }}>INFORMACIÓN PROFESIONAL</Text>
+                                                {currentCatProfile?.bio ? (
+                                                    <Text style={{ fontSize: 15, color: '#334155', fontStyle: 'italic', marginBottom: 16, lineHeight: 22 }}>"{currentCatProfile.bio}"</Text>
+                                                ) : null}
 
-                                            <Text style={{ fontSize: 14, color: '#4B5563', lineHeight: 22, marginTop: 4 }}>
-                                                <Text style={{ fontWeight: 'bold', color: '#1E293B' }}>Especialista en: </Text>
-                                                {currentCatProfile?.subcategories?.length ? currentCatProfile.subcategories.join(', ') : 'Servicios generales.'}
-                                            </Text>
+                                                <Text style={{ fontSize: 14, color: '#4B5563', lineHeight: 22, marginTop: 4 }}>
+                                                    <Text style={{ fontWeight: 'bold', color: '#1E293B' }}>Especialista en: </Text>
+                                                    {currentCatProfile?.subcategories?.length ? currentCatProfile.subcategories.join(', ') : 'Servicios generales.'}
+                                                </Text>
 
-                                            <Text style={{ fontSize: 14, color: '#4B5563', lineHeight: 22, marginTop: 12 }}>
-                                                <Text style={{ fontWeight: 'bold', color: '#1E293B' }}>Zonas de servicio: </Text>
-                                                {currentCatProfile?.zones?.length ? currentCatProfile.zones.join(', ') : 'No especificadas.'}
-                                            </Text>
-                                        </View>
-
-                                        {/* FOTOS DE PRESENTACIÓN PUBLICAS */}
-                                        {currentCatProfile?.gallery && currentCatProfile.gallery.length > 0 && (
-                                            <View style={{ marginBottom: 25, marginHorizontal: -24 }}>
-                                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15, paddingHorizontal: 24 }}>
-                                                    <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#111827' }}>Fotos de Presentación</Text>
-                                                </View>
-                                                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingLeft: 24, paddingRight: 24, paddingBottom: 5 }}>
-                                                    {currentCatProfile.gallery.map((img, i) => (
-                                                        <TouchableOpacity key={i} onPress={() => onViewImage && onViewImage(img)}>
-                                                            <Image source={{ uri: img }} style={{ width: 140, height: 140, borderRadius: 20, marginRight: 16, borderWidth: 1, borderColor: '#F1F5F9' }} />
-                                                        </TouchableOpacity>
-                                                    ))}
-                                                </ScrollView>
+                                                <Text style={{ fontSize: 14, color: '#4B5563', lineHeight: 22, marginTop: 12 }}>
+                                                    <Text style={{ fontWeight: 'bold', color: '#1E293B' }}>Zonas de servicio: </Text>
+                                                    {currentCatProfile?.zones?.length ? currentCatProfile.zones.join(', ') : 'No especificadas.'}
+                                                </Text>
                                             </View>
-                                        )}
+
+                                            {/* FOTOS DE PRESENTACIÓN PUBLICAS (Integradas) */}
+                                            {currentCatProfile?.gallery && currentCatProfile.gallery.length > 0 && (
+                                                <View style={{ marginTop: 20 }}>
+                                                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingLeft: 20, paddingRight: 20 }}>
+                                                        {currentCatProfile.gallery.map((img, i) => (
+                                                            <TouchableOpacity key={i} onPress={() => onViewImage && onViewImage(img)}>
+                                                                <Image source={{ uri: img }} style={{ width: 140, height: 140, borderRadius: 20, marginRight: 16, borderWidth: 1, borderColor: '#F1F5F9' }} />
+                                                            </TouchableOpacity>
+                                                        ))}
+                                                    </ScrollView>
+                                                </View>
+                                            )}
+                                        </View>
 
                                         {/* RESEÑAS PUBLICAS */}
                                         <View style={{ marginBottom: 25, marginHorizontal: -24 }}>
@@ -871,7 +870,7 @@ export default function ProfessionalProfileScreen({
 
                     <View style={styles.headerMain}>
                         <View style={styles.avatarContainerPublic}>
-                            <TouchableOpacity onPress={pickMainImage}>
+                            <TouchableOpacity onPress={pickMainImage} style={{ width: '100%', height: '100%' }}>
                                 <Image source={{ uri: getAvatarUri() }} style={styles.avatarPublic} />
                             </TouchableOpacity>
                             <View style={styles.verifiedBadgePublic}>
@@ -952,39 +951,38 @@ export default function ProfessionalProfileScreen({
                     {/* SECIONES CONDICIONADAS A CATEGORIA ACTIVA */}
                     {isCategoryActive && (
                         <>
-                            {/* BIO Y DETALLES */}
-                            <View style={{ backgroundColor: 'white', borderRadius: 24, padding: 20, marginBottom: 16, elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, marginHorizontal: -10 }}>
-                                <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#64748B', marginBottom: 15 }}>INFORMACIÓN PROFESIONAL</Text>
-                                {currentCatProfile?.bio ? (
-                                    <Text style={{ fontSize: 15, color: '#334155', fontStyle: 'italic', marginBottom: 16, lineHeight: 22 }}>"{currentCatProfile.bio}"</Text>
-                                ) : null}
+                            {/* BIO, DETALLES Y FOTOS DE PRESENTACIÓN */}
+                            <View style={{ backgroundColor: 'white', borderRadius: 24, paddingVertical: 20, marginBottom: 16, elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, marginHorizontal: -10 }}>
+                                <View style={{ paddingHorizontal: 20 }}>
+                                    <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#64748B', marginBottom: 15 }}>INFORMACIÓN PROFESIONAL</Text>
+                                    {currentCatProfile?.bio ? (
+                                        <Text style={{ fontSize: 15, color: '#334155', fontStyle: 'italic', marginBottom: 16, lineHeight: 22 }}>"{currentCatProfile.bio}"</Text>
+                                    ) : null}
 
-                                <Text style={{ fontSize: 14, color: '#4B5563', lineHeight: 22, marginTop: 4 }}>
-                                    <Text style={{ fontWeight: 'bold', color: '#1E293B' }}>Especialista en: </Text>
-                                    {currentCatProfile?.subcategories?.length ? currentCatProfile.subcategories.join(', ') : 'Servicios generales.'}
-                                </Text>
+                                    <Text style={{ fontSize: 14, color: '#4B5563', lineHeight: 22, marginTop: 4 }}>
+                                        <Text style={{ fontWeight: 'bold', color: '#1E293B' }}>Especialista en: </Text>
+                                        {currentCatProfile?.subcategories?.length ? currentCatProfile.subcategories.join(', ') : 'Servicios generales.'}
+                                    </Text>
 
-                                <Text style={{ fontSize: 14, color: '#4B5563', lineHeight: 22, marginTop: 12 }}>
-                                    <Text style={{ fontWeight: 'bold', color: '#1E293B' }}>Zonas de servicio: </Text>
-                                    {currentCatProfile?.zones?.length ? currentCatProfile.zones.join(', ') : 'No especificadas.'}
-                                </Text>
-                            </View>
-
-                            {/* FOTOS DE PRESENTACIÓN GLOBAL */}
-                            {currentCatProfile?.gallery && currentCatProfile.gallery.length > 0 && (
-                                <View style={{ marginBottom: 25, marginTop: 10, marginHorizontal: -24 }}>
-                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15, paddingHorizontal: 24 }}>
-                                        <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#111827' }}>Fotos de Presentación</Text>
-                                    </View>
-                                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingLeft: 24, paddingRight: 24, paddingBottom: 5 }}>
-                                        {currentCatProfile.gallery.map((img, i) => (
-                                            <TouchableOpacity key={i} onPress={() => onViewImage && onViewImage(img)}>
-                                                <Image source={{ uri: img }} style={{ width: 140, height: 140, borderRadius: 20, marginRight: 16, borderWidth: 1, borderColor: '#F1F5F9' }} />
-                                            </TouchableOpacity>
-                                        ))}
-                                    </ScrollView>
+                                    <Text style={{ fontSize: 14, color: '#4B5563', lineHeight: 22, marginTop: 12 }}>
+                                        <Text style={{ fontWeight: 'bold', color: '#1E293B' }}>Zonas de servicio: </Text>
+                                        {currentCatProfile?.zones?.length ? currentCatProfile.zones.join(', ') : 'No especificadas.'}
+                                    </Text>
                                 </View>
-                            )}
+
+                                {/* FOTOS DE PRESENTACIÓN GLOBAL (Integradas) */}
+                                {currentCatProfile?.gallery && currentCatProfile.gallery.length > 0 && (
+                                    <View style={{ marginTop: 20 }}>
+                                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingLeft: 20, paddingRight: 20 }}>
+                                            {currentCatProfile.gallery.map((img, i) => (
+                                                <TouchableOpacity key={i} onPress={() => onViewImage && onViewImage(img)}>
+                                                    <Image source={{ uri: img }} style={{ width: 140, height: 140, borderRadius: 20, marginRight: 16, borderWidth: 1, borderColor: '#F1F5F9' }} />
+                                                </TouchableOpacity>
+                                            ))}
+                                        </ScrollView>
+                                    </View>
+                                )}
+                            </View>
 
                             {/* PORTAFOLIO DE TRABAJOS GLOBAL */}
                             <View style={{ marginBottom: 25, marginTop: 10, marginHorizontal: -24 }}>
@@ -1162,6 +1160,15 @@ export default function ProfessionalProfileScreen({
                     ICON_MAP={ICON_MAP}
                     setSelectedCategory={setSelectedCategory}
                     setIsEditing={setIsEditing}
+                    onActivateCategory={(catKey) => {
+                        const newProfiles = { ...profileData.profiles };
+                        if (!newProfiles[catKey]) {
+                            newProfiles[catKey] = { bio: '', subcategories: [], gallery: [], isActive: true };
+                        } else {
+                            newProfiles[catKey] = { ...newProfiles[catKey], isActive: true };
+                        }
+                        setProfileData({ ...profileData, profiles: newProfiles });
+                    }}
                 />
 
                 {/* MODAL 2: EDICIÓN PROFESIONAL */}
