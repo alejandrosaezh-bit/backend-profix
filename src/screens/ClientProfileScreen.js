@@ -209,33 +209,18 @@ export default function ClientProfileScreen({ user, isOwner, onBack, onLogout, o
 
             {(() => {
               const portfolioFolders = [];
-              const clientJobs = completedRequests || [];
-
-              clientJobs.forEach(job => {
-                const jobImagesInPortfolio = [];
-                const jobMedia = [];
-                if (job.images) jobMedia.push(...job.images);
-                if (job.workPhotos) jobMedia.push(...job.workPhotos);
-                if (job.projectHistory) {
-                    job.projectHistory.forEach(ev => { if (ev.mediaUrl) jobMedia.push(ev.mediaUrl); });
-                }
-                if (job.clientManagement?.beforePhotos) {
-                    job.clientManagement.beforePhotos.forEach(p => { if (p.url) jobMedia.push(p.url); });
-                }
-                if (job.clientManagement?.payments) {
-                    job.clientManagement.payments.forEach(p => { if (p.evidenceUrl) jobMedia.push(p.evidenceUrl); });
-                }
-                
-                const uniqueJobMedia = [...new Set(jobMedia)];
-                
-                if (uniqueJobMedia.length > 0) {
-                    portfolioFolders.push({
-                        category: job.title || 'Trabajo completado',
-                        subcategories: [(job.subCategory || 'General')],
-                        images: uniqueJobMedia
-                    });
-                }
-              });
+              if (user?.profiles) {
+                  Object.keys(user.profiles).forEach(cat => {
+                      const gallery = user.profiles[cat].gallery;
+                      if (gallery && gallery.length > 0) {
+                          portfolioFolders.push({
+                              category: cat,
+                              subcategories: user.profiles[cat].subcategories || [],
+                              images: gallery
+                          });
+                      }
+                  });
+              }
 
               if (portfolioFolders.length === 0) {
                 return (

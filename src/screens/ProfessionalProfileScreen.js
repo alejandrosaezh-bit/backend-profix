@@ -897,32 +897,14 @@ export default function ProfessionalProfileScreen({
 
                                 {(() => {
                                     const portfolioFolders = [];
-                                    const publicJobs = jobsList.filter(job => job.status && ['Finalizada', 'Cerrado', 'Cerrada', 'TERMINADO', 'rated', 'completed', 'Culminada'].includes(job.status));
-
-                                    if (publicJobs.length > 0) {
-                                        publicJobs.forEach(job => {
-                                            const jobImagesInPortfolio = [];
-                                            const jobMedia = [];
-                                            if (job.images) jobMedia.push(...job.images);
-                                            if (job.workPhotos) jobMedia.push(...job.workPhotos);
-                                            if (job.projectHistory) {
-                                                job.projectHistory.forEach(ev => { if (ev.mediaUrl) jobMedia.push(ev.mediaUrl); });
-                                            }
-                                            if (job.clientManagement?.beforePhotos) {
-                                                job.clientManagement.beforePhotos.forEach(p => { if (p.url) jobMedia.push(p.url); });
-                                            }
-                                            if (job.clientManagement?.payments) {
-                                                job.clientManagement.payments.forEach(p => { if (p.evidenceUrl) jobMedia.push(p.evidenceUrl); });
-                                            }
-
-                                            const uniqueJobMedia = [...new Set(jobMedia)];
-                                            
-                                            if (uniqueJobMedia.length > 0) {
+                                    if (user?.profiles) {
+                                        Object.keys(user.profiles).forEach(cat => {
+                                            const gallery = user.profiles[cat].gallery;
+                                            if (gallery && gallery.length > 0) {
                                                 portfolioFolders.push({
-                                                    jobId: job._id || job.id,
-                                                    title: job.title || 'Trabajo completado',
-                                                    subcategories: [job.subCategory].filter(Boolean),
-                                                    images: uniqueJobMedia
+                                                    title: cat,
+                                                    subcategories: user.profiles[cat].subcategories || [],
+                                                    images: gallery
                                                 });
                                             }
                                         });
@@ -1118,23 +1100,6 @@ export default function ProfessionalProfileScreen({
                         </View>
                     </ScrollView>
 
-                    <View style={{ padding: 20, borderTopWidth: 1, borderTopColor: '#E2E8F0', backgroundColor: 'white' }}>
-                        <TouchableOpacity
-                            style={{ backgroundColor: '#2563EB', paddingVertical: 14, borderRadius: 12, alignItems: 'center', flexDirection: 'row', justifyContent: 'center' }}
-                            onPress={() => {
-                                const jobId = selectedGallery?.jobId;
-                                setSelectedGallery(null);
-                                if (jobId) {
-                                    alert('Navegando a la Oferta: ' + jobId);
-                                } else {
-                                    alert('No se pudo encontrar la oferta asociada.');
-                                }
-                            }}
-                        >
-                            <Feather name="external-link" size={16} color="white" style={{ marginRight: 8 }} />
-                            <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 16 }}>Ir a la Oferta</Text>
-                        </TouchableOpacity>
-                    </View>
                 </View>
             </Modal>
         </View>
