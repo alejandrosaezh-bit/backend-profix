@@ -1,6 +1,7 @@
 import { Feather, FontAwesome5 } from '@expo/vector-icons';
 import { useState } from 'react';
 import { Image, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Image as ExpoImage } from 'expo-image';
 
 export default function BlogPostScreen({ post, onBack }) {
   const [comment, setComment] = useState('');
@@ -54,7 +55,7 @@ export default function BlogPostScreen({ post, onBack }) {
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
-        <Image source={{ uri: post.image }} style={styles.heroImage} />
+        <ExpoImage source={{ uri: post.image }} style={styles.heroImage} />
 
         <View style={styles.articleContainer}>
           <View style={styles.categoryBadge}>

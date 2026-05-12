@@ -1301,8 +1301,26 @@ router.get('/me', protect, async (req, res) => {
                 console.error(`Error calculating job status for job ${job._id} in GET /me:`, e);
             }
 
+            // MEMORY/PAYLOAD OPTIMIZATION
+            const isCompleted = ['completed', 'rated', 'archived', 'canceled'].includes(job.status) || 
+                                ['TERMINADO', 'FINALIZADA', 'Culminada', 'PERDIDA'].includes(clientStatus) ||
+                                ['TERMINADO', 'FINALIZADA', 'Culminada', 'PERDIDA'].includes(proStatus);
+            
+            let optimizedJob = { ...job };
+            if (!isCompleted) {
+                if (optimizedJob.images && optimizedJob.images.length > 1) {
+                    optimizedJob.images = [optimizedJob.images[0]];
+                }
+                if (optimizedJob.workPhotos && optimizedJob.workPhotos.length > 0) {
+                    optimizedJob.workPhotos = [];
+                }
+                if (optimizedJob.projectHistory) {
+                    optimizedJob.projectHistory = [];
+                }
+            }
+
             return {
-                ...job,
+                ...optimizedJob,
                 proInteractionStatus: interactionMap[job._id.toString()]?.status || 'new',
                 proInteractionHasUnread: interactionMap[job._id.toString()]?.hasUnread || false,
                 calculatedClientStatus: clientStatus,

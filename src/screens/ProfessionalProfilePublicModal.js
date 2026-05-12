@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Image, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { api } from '../utils/api';
+import { Image as ExpoImage } from 'expo-image';
 
 const ClientProfileView = ({ client, visible, onClose }) => {
     // Fallback data if client object is minimal
@@ -65,7 +66,7 @@ const ClientProfileView = ({ client, visible, onClose }) => {
 
                             <View style={styles.headerMain}>
                                 <View style={styles.avatarContainer}>
-                                    <Image source={{ uri: image }} style={styles.avatar} />
+                                    <ExpoImage source={{ uri: image }} style={styles.avatar} />
                                     <View style={styles.verifiedBadge}>
                                         <Feather name="shield" size={12} color="white" />
                                     </View>
@@ -157,7 +158,7 @@ const ClientProfileView = ({ client, visible, onClose }) => {
                                                 <TouchableOpacity key={index} style={styles.folderCard}>
                                                     <View style={styles.folderTab} />
                                                     <View style={styles.folderContent}>
-                                                        <Image source={{ uri: folder.images[0] }} style={styles.folderImage} />
+                                                        <ExpoImage source={{ uri: folder.images[0] }} style={styles.folderImage} />
                                                         <View style={styles.folderInfo}>
                                                             <Text style={styles.folderTitle} numberOfLines={2}>{folder.category}</Text>
                                                             <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>

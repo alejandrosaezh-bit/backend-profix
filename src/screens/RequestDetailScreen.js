@@ -3,6 +3,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { api } from '../utils/api';
+import { Image as ExpoImage } from 'expo-image';
 
 // --- COMPONENTS ---
 const CustomDropdown = ({ label, value, options, onSelect, placeholder }) => {
@@ -391,7 +392,7 @@ export default function RequestDetailScreen({ route, navigation }) {
                 <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                   {data.images && data.images.map((img, i) => (
                     <View key={i} style={{ position: 'relative', marginRight: 10 }}>
-                      <Image source={{ uri: img }} style={styles.imageThumb} />
+                      <ExpoImage source={{ uri: img }} style={styles.imageThumb} />
                       {isEditing && (
                         <TouchableOpacity
                           style={styles.deleteImageButton}
@@ -472,6 +473,7 @@ export default function RequestDetailScreen({ route, navigation }) {
             <Text style={{ color: '#EF4444', fontWeight: 'bold', marginLeft: 8 }}>Eliminar Solicitud</Text>
           </TouchableOpacity>
 
+          </View>
       </ScrollView>
     </View>
   );

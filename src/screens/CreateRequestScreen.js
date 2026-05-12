@@ -18,6 +18,7 @@ import { Feather } from '@expo/vector-icons';
 import { api } from '../utils/api';
 import { compressImage } from '../utils/imageCompressor';
 import { FLAT_ZONES_SUGGESTIONS } from '../constants/data';
+import { Image as ExpoImage } from 'expo-image';
 
 // Colores del tema (Naranjas y oscuros)
 const THEME = {
@@ -404,7 +405,7 @@ return (
             </View>
 
             <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-              {images.map((img, i) => <Image key={i} source={{ uri: img }} style={styles.thumb} />)}
+              {images.map((img, i) => <ExpoImage key={i} source={{ uri: img }} style={styles.thumb} />)}
             </View>
 
             <TouchableOpacity

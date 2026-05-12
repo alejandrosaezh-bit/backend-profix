@@ -1,7 +1,8 @@
 import { Feather } from '@expo/vector-icons';
 import { useMemo, useState } from 'react';
 import { FlatList, Image, Platform, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { API_URL } from '../utils/api'; // NEW: Import API_URL
+import { API_URL } from '../utils/api';
+import { Image as ExpoImage } from 'expo-image'; // NEW: Import API_URL
 
 export default function ChatListScreen({ currentUser, requests, chats = [], onSelectChat, onBack, userMode, onRefresh, refreshing, onGoToProfile }) {
     if (!currentUser) return <View style={{ flex: 1, backgroundColor: 'white' }} />;
@@ -211,7 +212,7 @@ export default function ChatListScreen({ currentUser, requests, chats = [], onSe
                 onPress={() => onSelectChat(item.requestData, item.targetUser, null, item.id)}
             >
                 <View style={styles.avatarContainer}>
-                    <Image source={{ uri: validUri }} style={styles.avatar} />
+                    <ExpoImage source={{ uri: validUri }} style={styles.avatar} />
                     {item.unreadCount > 0 && <View style={styles.badge}><Text style={styles.badgeText}>{item.unreadCount}</Text></View>}
                 </View>
 

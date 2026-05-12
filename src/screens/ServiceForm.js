@@ -10,6 +10,7 @@ import { ChevronDown, ChevronRight, MapPin } from '../constants/icons';
 import styles from '../styles/globalStyles';
 import { showAlert } from '../utils/helpers';
 import { compressImage } from '../utils/imageCompressor';
+import { Image as ExpoImage } from 'expo-image';
 
 const ServiceForm = ({ onSubmit, isLoggedIn, onTriggerLogin, initialCategory, initialSubcategory, categories = [], allSubcategories = {}, currentUser, dynamicCopy, scrollTo }) => {
     const copy = dynamicCopy || HOME_COPY_OPTIONS[0];
@@ -595,7 +596,7 @@ const ServiceForm = ({ onSubmit, isLoggedIn, onTriggerLogin, initialCategory, in
                         <ScrollView horizontal style={{ marginTop: 12 }} showsHorizontalScrollIndicator={false}>
                             {images.map((img, i) => (
                                 <View key={`img-${i}`} style={{ marginRight: 10, position: 'relative' }}>
-                                    <Image source={{ uri: img }} style={{ width: 70, height: 70, borderRadius: 10, borderWidth: 1, borderColor: '#E5E7EB' }} />
+                                    <ExpoImage source={{ uri: img }} style={{ width: 70, height: 70, borderRadius: 10, borderWidth: 1, borderColor: '#E5E7EB' }} />
                                     <View style={{ position: 'absolute', top: 4, right: 4, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 10, padding: 2 }}>
                                         <Feather name="check" size={10} color="white" />
                                     </View>

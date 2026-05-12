@@ -8,6 +8,7 @@ import { api } from '../utils/api';
 import { getClientStatus, getClientStatusColor, showAlert } from '../utils/helpers';
 import { compressImage } from '../utils/imageCompressor';
 import ProjectTimeline from './ProjectTimeline';
+import { Image as ExpoImage } from 'expo-image';
 
 const RequestDetailClient = ({ request, onBack, onAcceptOffer, onOpenChat, onUpdateRequest, selectedBudget, setSelectedBudget, showBudgetModal, setShowBudgetModal, startWithRejectForm, setStartWithRejectForm, categories = [], onRejectOffer, onConfirmStart, onAddWorkPhoto, onFinish, onRate, onCloseRequest, currentUser, onAddTimelineEvent, onTogglePortfolio, onViewUserProfile, onViewImage }) => {
     const [isEditing, setIsEditing] = React.useState(false);
@@ -295,7 +296,7 @@ const RequestDetailClient = ({ request, onBack, onAcceptOffer, onOpenChat, onUpd
                                             return (
                                             <View key={i} style={{ position: 'relative', marginRight: 10 }}>
                                                 <TouchableOpacity onPress={() => onViewImage(img)}>
-                                                    <Image source={{ uri: img }} style={{ width: 100, height: 100, borderRadius: 12, borderWidth: 1, borderColor: '#E5E7EB' }} />
+                                                    <ExpoImage source={{ uri: img }} style={{ width: 100, height: 100, borderRadius: 12, borderWidth: 1, borderColor: '#E5E7EB' }} />
                                                 </TouchableOpacity>
                                                 {!isEditing && onTogglePortfolio && (
                                                     <TouchableOpacity
@@ -501,7 +502,7 @@ const RequestDetailClient = ({ request, onBack, onAcceptOffer, onOpenChat, onUpd
                                                 <View key={`pro-${index}`} style={{ backgroundColor: 'white', borderRadius: 24, padding: 20, marginHorizontal: 20, marginBottom: 15, borderWidth: 1, borderColor: '#F1F5F9', elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 10 }}>
                                                     {/* PRO HEADER */}
                                                     <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 15 }} onPress={() => onViewUserProfile && onViewUserProfile(pro)}>
-                                                        <Image source={{ uri: pro.avatar || 'https://via.placeholder.com/150' }} style={{ width: 44, height: 44, borderRadius: 22, marginRight: 12 }} />
+                                                        <ExpoImage source={{ uri: pro.avatar || 'https://via.placeholder.com/150' }} style={{ width: 44, height: 44, borderRadius: 22, marginRight: 12 }} />
                                                         <View style={{ flex: 1 }}>
                                                             <Text style={{ fontWeight: 'bold', color: '#1E293B', fontSize: 15 }}>{pro.name}</Text>
                                                             <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>

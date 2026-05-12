@@ -6,6 +6,7 @@ import { CAT_ICONS, ICON_MAP } from '../constants/icons';
 import styles from '../styles/globalStyles';
 import { SectionDivider } from './Dividers';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Image as ExpoImage } from 'expo-image';
 
 const { width } = Dimensions.get('window');
 
@@ -204,7 +205,7 @@ export const UrgencyBanner = ({ onPress, onActionPress, categories }) => {
                                     overflow: 'hidden'
                                 }}>
                                     {action.emergencyIcon ? (
-                                        <Image source={{ uri: action.emergencyIcon }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                                        <ExpoImage source={{ uri: action.emergencyIcon }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
                                     ) : (
                                         <IconComponent size={26} color="#EA580C" />
                                     )}

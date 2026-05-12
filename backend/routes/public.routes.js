@@ -45,7 +45,7 @@ router.get('/users/:id/reviews', async (req, res) => {
             .populate('reviewer', 'name avatar') // Populate básico del autor
             .populate({
                 path: 'job',
-                select: 'clientRated proRated status category title',
+                select: 'clientRated proRated status category title images workPhotos',
                 populate: { path: 'category', select: 'name fullName' }
             })
             .sort({ createdAt: -1 })
@@ -72,7 +72,7 @@ router.get('/professionals/:id/reviews', async (req, res) => {
             .populate('reviewer', 'name avatar')
             .populate({
                 path: 'job',
-                select: 'clientRated proRated status category title',
+                select: 'clientRated proRated status category title images workPhotos',
                 populate: { path: 'category', select: 'name fullName' }
             })
             .sort({ createdAt: -1 })

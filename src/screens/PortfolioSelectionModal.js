@@ -1,6 +1,7 @@
 import { Feather } from '@expo/vector-icons';
 import { useState } from 'react';
 import { Alert, Dimensions, Image, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image as ExpoImage } from 'expo-image';
 
 const { width } = Dimensions.get('window');
 
@@ -123,7 +124,7 @@ const PortfolioSelectionModal = ({ visible, onClose, job, onSubmit }) => {
                                         style={[styles.imageContainer, isSelected && styles.selectedImage]}
                                         onPress={() => toggleSelection(event.mediaUrl)}
                                     >
-                                        <Image source={{ uri: event.mediaUrl }} style={styles.image} />
+                                        <ExpoImage source={{ uri: event.mediaUrl }} style={styles.image} />
                                         {isSelected && (
                                             <View style={styles.checkBadge}>
                                                 <Feather name="check" size={12} color="white" />

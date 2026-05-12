@@ -8,6 +8,8 @@ import RatingForm from './RatingForm';
 
 
 
+import { Image as ExpoImage } from 'expo-image';
+
 const ProjectTimeline = ({ job, userMode, currentUser, onConfirmStart, onAddTimelineEvent, onFinish, onRate, onTogglePortfolio, onViewImage, showSection = 'all', customTitle = null }) => {
     const areIdsEqual = (id1, id2) => {
         if (!id1 || !id2) return false;
@@ -722,7 +724,7 @@ const ProjectTimeline = ({ job, userMode, currentUser, onConfirmStart, onAddTime
                                             {e.mediaUrl && (
                                                 <View style={{ marginTop: 10 }}>
                                                     <TouchableOpacity onPress={() => onViewImage(e.mediaUrl)}>
-                                                        <Image source={{ uri: e.mediaUrl }} style={{ width: '100%', height: 180, borderRadius: 12 }} />
+                                                        <ExpoImage source={{ uri: e.mediaUrl }} style={{ width: '100%', height: 180, borderRadius: 12 }} />
                                                     </TouchableOpacity>
                                                     {onTogglePortfolio && (
                                                         <TouchableOpacity

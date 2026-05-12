@@ -16,6 +16,7 @@ import {
 } from 'react-native';
 import { useSocket } from '../context/SocketContext';
 import { API_URL, api } from '../utils/api';
+import { Image as ExpoImage } from 'expo-image';
 
 export default function ChatScreen({ request, currentUser, userMode, onBack, onSend, onViewJob }) {
   const flatListRef = useRef(null);
@@ -327,7 +328,7 @@ export default function ChatScreen({ request, currentUser, userMode, onBack, onS
 
           {(item.type === 'media' || (!item.type && item.media)) && (
             <View style={{ borderRadius: 12, overflow: 'hidden', marginBottom: 4 }}>
-              <Image source={{ uri: getFullImageUrl(item.media) }} style={{ width: 220, height: 160 }} />
+              <ExpoImage source={{ uri: getFullImageUrl(item.media) }} style={{ width: 220, height: 160 }} />
               {item.mediaType === 'video' && (
                 <View style={styles.videoBadge}>
                   <Feather name="play-circle" size={32} color="white" />

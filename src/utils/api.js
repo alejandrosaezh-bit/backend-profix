@@ -6,14 +6,14 @@ const LOCAL_IP = '192.168.1.172'; // IMPORTANTE: Verifica tu IP con `ipconfig` e
 
 // Automatización de entorno: Detecta si estamos en modo de desarrollo (Expo Go/Dev Client) o en un build real (APK)
 const isDev = __DEV__;
-const USE_LOCAL = false;
+const USE_LOCAL = true;
 
 // Export with override to PROD for testing if local backend is not available
 export const API_URL = USE_LOCAL
     ? Platform.select({
         android: `http://${LOCAL_IP}:5000/api`,
         ios: `http://${LOCAL_IP}:5000/api`,
-        web: (typeof window !== 'undefined' && window.location) ? `http://${window.location.hostname}:5000/api` : `http://${LOCAL_IP}:5000/api`,
+        web: (typeof window !== 'undefined' && window.location) ? `http://${window.location.hostname === 'localhost' ? '127.0.0.1' : window.location.hostname}:5000/api` : `http://${LOCAL_IP}:5000/api`,
         default: `http://${LOCAL_IP}:5000/api`
     })
     : PROD_URL;

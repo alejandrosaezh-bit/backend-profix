@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { Alert, Image, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import HomeSections from '../data/HomeSections';
 import { api } from '../utils/api';
+import { Image as ExpoImage } from 'expo-image';
 
 // Dropdown Component interno
 const CustomDropdown = ({ label, value, options, onSelect, placeholder }) => {
@@ -238,7 +239,7 @@ export default function HomeScreen({ onSubmit, isLoggedIn, onTriggerLogin, initi
                                 <TouchableOpacity style={styles.mediaButton} onPress={takePhoto}><Camera size={20} color="#4B5563" /><Text style={{ marginLeft: 5 }}>Cámara</Text></TouchableOpacity>
                             </View>
                             <ScrollView horizontal style={{ marginTop: 10 }}>
-                                {images.map((img, i) => <Image key={i} source={{ uri: img }} style={{ width: 60, height: 60, borderRadius: 8, marginRight: 5 }} />)}
+                                {images.map((img, i) => <ExpoImage key={i} source={{ uri: img }} style={{ width: 60, height: 60, borderRadius: 8, marginRight: 5 }} />)}
                             </ScrollView>
                         </View>
                         <TouchableOpacity style={styles.searchButton} onPress={handlePreSubmit}>

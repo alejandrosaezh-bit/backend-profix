@@ -47,7 +47,7 @@ export const compressImage = async (uri, maxWidth = 800) => {
         const manipResult = await ImageManipulator.manipulateAsync(
             uri,
             [{ resize: { width: maxWidth } }],
-            { compress: 0.5, format: ImageManipulator.SaveFormat.JPEG, base64: true }
+            { compress: 0.3, format: ImageManipulator.SaveFormat.JPEG, base64: true }
         );
         return `data:image/jpeg;base64,${manipResult.base64}`;
     } catch (error) {

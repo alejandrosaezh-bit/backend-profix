@@ -28,5 +28,7 @@ const jobInteractionSchema = mongoose.Schema({
 
 // Índice único para evitar duplicados por par job-user
 jobInteractionSchema.index({ job: 1, user: 1 }, { unique: true });
+// Índice simple para búsquedas rápidas por usuario (usado en GET /jobs/me)
+jobInteractionSchema.index({ user: 1 });
 
 module.exports = mongoose.model('JobInteraction', jobInteractionSchema);

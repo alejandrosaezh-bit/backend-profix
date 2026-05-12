@@ -1,9 +1,11 @@
 import { Feather, FontAwesome5 } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import { Image as ExpoImage } from 'expo-image';
 import { useEffect, useState } from 'react';
 import {
   Alert,
   Dimensions,
+  FlatList,
   Image,
   Modal,
   Platform,
@@ -29,6 +31,7 @@ export default function ClientProfileScreen({ user, isOwner, onBack, onLogout, o
   const [reviews, setReviews] = useState([]);
   const [isLoadingReviews, setIsLoadingReviews] = useState(false);
   const [selectedGallery, setSelectedGallery] = useState(null);
+  const [selectedImageIndex, setSelectedImageIndex] = useState(null);
   const [showCrossPopup, setShowCrossPopup] = useState(true);
 
   const [localRequests, setLocalRequests] = useState([]);
@@ -153,6 +156,48 @@ export default function ClientProfileScreen({ user, isOwner, onBack, onLogout, o
     }
   };
 
+  // COMBINED HISTORY CALCULATION (Jobs + Reviews)
+  const combinedHistory = [];
+  const completedForPortfolio = (localRequests && localRequests.length > 0) 
+      ? localRequests.filter(isJobCompleted) 
+      : completedRequests;
+
+  if (completedForPortfolio && completedForPortfolio.length > 0) {
+      completedForPortfolio.forEach(job => {
+          const jobImages = [];
+          if (job.images && Array.isArray(job.images)) job.images.forEach(img => { if (img && !jobImages.includes(img)) jobImages.push(img); });
+          if (job.workPhotos && Array.isArray(job.workPhotos)) job.workPhotos.forEach(img => { if (img && !jobImages.includes(img)) jobImages.push(img); });
+          if (job.projectHistory && Array.isArray(job.projectHistory)) {
+              job.projectHistory.forEach(hi => { if (hi && hi.mediaUrl && !jobImages.includes(hi.mediaUrl)) jobImages.push(hi.mediaUrl); });
+          }
+
+          const review = reviews.find(r => r.job?._id === job._id || r.job === job._id);
+
+          combinedHistory.push({
+              jobId: job._id || job.id,
+              title: job.title || 'Solicitud de servicio',
+              date: job.createdAt,
+              images: jobImages,
+              review: review
+          });
+      });
+  }
+
+  reviews.forEach(rev => {
+      const jobId = rev.job?._id || rev.job;
+      if (!combinedHistory.some(ch => ch.jobId === jobId)) {
+          combinedHistory.push({
+              jobId: jobId,
+              title: rev.job?.title || 'Servicio valorado',
+              date: rev.createdAt || new Date().toISOString(),
+              images: [],
+              review: rev
+          });
+      }
+  });
+
+  combinedHistory.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} bounces={false}>
@@ -172,7 +217,7 @@ export default function ClientProfileScreen({ user, isOwner, onBack, onLogout, o
 
           <View style={styles.headerMain}>
             <View style={styles.avatarContainerHeader}>
-              <Image source={{ uri: editedUser.avatar || 'https://placehold.co/150' }} style={styles.avatarHeader} />
+              <ExpoImage source={{ uri: editedUser.avatar || 'https://placehold.co/150' }} style={styles.avatarHeader} />
               <TouchableOpacity style={styles.editBadgeHeader} onPress={() => setIsEditing(true)}>
                 <Feather name="edit-2" size={14} color="white" />
               </TouchableOpacity>
@@ -198,64 +243,82 @@ export default function ClientProfileScreen({ user, isOwner, onBack, onLogout, o
             />
           </View>
 
-          {/* PORTAFOLIO DE TRABAJOS (AIRBNB STYLE) */}
-          <View style={{ marginBottom: 25, marginTop: 25, marginHorizontal: -20 }}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15, paddingHorizontal: 20 }}>
-              <Text style={[styles.sectionTitle, { paddingHorizontal: 0, fontSize: 18, marginBottom: 0 }]}>Portafolio de Trabajos</Text>
-              <TouchableOpacity style={styles.arrowButton}>
-                <Feather name="arrow-right" size={16} color="#111827" />
-              </TouchableOpacity>
-            </View>
+          {/* UNIFIED HISTORY SECTION */}
+          {combinedHistory && combinedHistory.length > 0 && (
+              <View style={{ marginBottom: 25, marginTop: 25, marginHorizontal: -20 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15, paddingHorizontal: 20 }}>
+                    <Text style={[styles.sectionTitle, { paddingHorizontal: 0, fontSize: 18, marginBottom: 0 }]}>Historial y Valoraciones</Text>
+                </View>
+                <FlatList
+                    data={combinedHistory}
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    keyExtractor={(item, index) => index.toString()}
+                    contentContainerStyle={{ paddingLeft: 20, paddingRight: 20, paddingBottom: 15 }}
+                    initialNumToRender={3}
+                    maxToRenderPerBatch={3}
+                    windowSize={5}
+                    renderItem={({ item, index }) => (
+                        <View style={{ backgroundColor: 'white', width: 160, borderRadius: 20, marginRight: 16, elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, borderWidth: 1, borderColor: '#F1F5F9', overflow: 'hidden' }}>
+                            {/* PORTADA DEL TRABAJO */}
+                            {item.images && item.images.length > 0 ? (
+                                <ExpoImage source={{ uri: item.images[0] }} style={{ width: '100%', aspectRatio: 1, backgroundColor: '#E2E8F0', resizeMode: 'cover' }} />
+                            ) : (
+                                <View style={{ width: '100%', aspectRatio: 1, backgroundColor: '#F8FAFC', justifyContent: 'center', alignItems: 'center' }}>
+                                    <Feather name="image" size={32} color="#CBD5E1" />
+                                </View>
+                            )}
 
-            {(() => {
-              const portfolioFolders = [];
-              if (user?.profiles) {
-                  Object.keys(user.profiles).forEach(cat => {
-                      const gallery = user.profiles[cat].gallery;
-                      if (gallery && gallery.length > 0) {
-                          portfolioFolders.push({
-                              category: cat,
-                              subcategories: user.profiles[cat].subcategories || [],
-                              images: gallery
-                          });
-                      }
-                  });
-              }
+                            <View style={{ padding: 12, alignItems: 'center' }}>
+                                {/* TITULO */}
+                                <Text style={{ fontWeight: 'bold', fontSize: 13, color: '#1E293B', marginBottom: 8, textAlign: 'center' }} numberOfLines={2}>{item.title}</Text>
+                                
+                                {item.review ? (
+                                    <View style={{ width: '100%', alignItems: 'center' }}>
+                                        {/* PROFESIONAL INFO */}
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 6 }}>
+                                            {item.review.reviewer?.avatar ? (
+                                                <ExpoImage source={{ uri: item.review.reviewer.avatar }} style={{ width: 20, height: 20, borderRadius: 10, marginRight: 6, resizeMode: 'cover' }} />
+                                            ) : (
+                                                <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: '#EFF6FF', justifyContent: 'center', alignItems: 'center', marginRight: 6 }}>
+                                                    <Feather name="user" size={10} color="#2563EB" />
+                                                </View>
+                                            )}
+                                            <Text style={{ fontSize: 11, color: '#64748B', fontWeight: '500' }} numberOfLines={1}>{item.review.reviewer?.name || 'Profesional'}</Text>
+                                        </View>
+                                        
+                                        {/* ESTRELLAS */}
+                                        <View style={{ flexDirection: 'row', justifyContent: 'center', marginBottom: 6 }}>
+                                            {[...Array(5)].map((_, idx) => (
+                                                <FontAwesome5 key={idx} name="star" solid={idx < (item.review.rating || 5)} size={10} color="#FBBF24" style={{ marginRight: 2 }} />
+                                            ))}
+                                        </View>
+                                        
+                                        {/* COMENTARIO */}
+                                        <Text style={{ fontSize: 12, color: '#4B5563', fontStyle: 'italic', textAlign: 'center' }} numberOfLines={3}>"{item.review.comment || 'Buen cliente.'}"</Text>
+                                    </View>
+                                ) : (
+                                    <View style={{ width: '100%', alignItems: 'center' }}>
+                                        <Text style={{ fontSize: 12, color: '#94A3B8', fontStyle: 'italic', textAlign: 'center' }}>Completado sin reseña.</Text>
+                                    </View>
+                                )}
 
-              if (portfolioFolders.length === 0) {
-                return (
-                  <View style={[styles.emptyContainer, { marginHorizontal: 20 }]}>
-                    <Feather name="folder" size={40} color="#E2E8F0" />
-                    <Text style={styles.emptyText}>No hay trabajos en el portafolio.</Text>
-                  </View>
-                );
-              }
-
-              // Card de Airbnb ancha para previsualizar el siguiente ítem
-              return (
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingRight: 20, paddingLeft: 20 }}>
-                  {portfolioFolders.map((folder, index) => (
-                    <TouchableOpacity key={index} style={styles.airbnbCard} onPress={() => setSelectedGallery(folder.images)}>
-                      <Image source={{ uri: folder.images[0] }} style={styles.airbnbImage} resizeMode="cover" />
-                      <View style={styles.airbnbInfo}>
-                        <Text style={styles.airbnbTitle} numberOfLines={1}>{folder.category}</Text>
-                        <Text style={styles.airbnbSubtitle} numberOfLines={1}>
-                          {folder.subcategories.length > 0 ? folder.subcategories.join(', ') : 'Servicios generales'}
-                        </Text>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
-                          <Feather name="image" size={12} color="#6B7280" />
-                          <Text style={styles.airbnbCount}>{folder.images.length} fotos</Text>
+                                {/* BOTON VER MAS FOTOS */}
+                                {item.images && item.images.length > 0 && (
+                                    <TouchableOpacity 
+                                        style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#EFF6FF', paddingVertical: 8, borderRadius: 10, marginTop: 12, width: '100%' }}
+                                        onPress={() => setSelectedGallery(item.images)}
+                                    >
+                                        <Feather name="image" size={14} color="#2563EB" style={{ marginRight: 6 }} />
+                                        <Text style={{ color: '#2563EB', fontWeight: 'bold', fontSize: 11 }}>Ver fotos ({item.images.length})</Text>
+                                    </TouchableOpacity>
+                                )}
+                            </View>
                         </View>
-                      </View>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              );
-            })()}
-          </View>
-
-          {/* OPINIONES / REFERENCIAS REALES */}
-          <ClientReviewsList reviews={reviews} isLoading={isLoadingReviews} />
+                    )}
+                />
+              </View>
+          )}
 
           {/* SETTINGS LINKS */}
           <ClientSettingsList 
@@ -278,22 +341,59 @@ export default function ClientProfileScreen({ user, isOwner, onBack, onLogout, o
         onPickImage={pickImage}
       />
 
-      {/* GALLERY MODAL */}
-      <Modal visible={!!selectedGallery} transparent={true} animationType="fade" onRequestClose={() => setSelectedGallery(null)}>
+      {/* GRID GALLERY MODAL */}
+      <Modal visible={!!selectedGallery && selectedImageIndex === null} transparent={true} animationType="slide" onRequestClose={() => setSelectedGallery(null)}>
+        <View style={{ flex: 1, backgroundColor: '#F8F9FA' }}>
+          <View style={[styles.blueHeader, { borderBottomLeftRadius: 24, borderBottomRightRadius: 24, paddingBottom: 20 }]}>
+              <View style={[styles.headerTop, { paddingTop: Platform.OS === 'ios' ? 44 : 20, marginBottom: 0 }]}>
+                  <Text style={styles.headerTitle}>Fotos del Trabajo</Text>
+                  <TouchableOpacity onPress={() => setSelectedGallery(null)} style={styles.closeButton}>
+                      <Feather name="x" size={24} color="white" />
+                  </TouchableOpacity>
+              </View>
+          </View>
+          <FlatList
+            data={selectedGallery}
+            keyExtractor={(item, index) => index.toString()}
+            numColumns={3}
+            contentContainerStyle={{ padding: 10 }}
+            renderItem={({ item: img, index: i }) => (
+              <TouchableOpacity 
+                  style={{ width: '31%', aspectRatio: 1, margin: '1.1%', borderRadius: 12, overflow: 'hidden' }}
+                  onPress={() => setSelectedImageIndex(i)}
+              >
+                <ExpoImage source={{ uri: img }} style={{ width: '100%', height: '100%', resizeMode: 'cover' }} />
+              </TouchableOpacity>
+            )}
+          />
+        </View>
+      </Modal>
+
+      {/* FULLSCREEN IMAGE MODAL */}
+      <Modal visible={selectedImageIndex !== null} transparent={true} animationType="fade" onRequestClose={() => setSelectedImageIndex(null)}>
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.95)' }}>
           <TouchableOpacity
             style={{ position: 'absolute', top: 50, right: 20, zIndex: 10, padding: 10, backgroundColor: 'rgba(0,0,0,0.3)', borderRadius: 20 }}
-            onPress={() => setSelectedGallery(null)}
+            onPress={() => setSelectedImageIndex(null)}
           >
             <Feather name="x" size={30} color="white" />
           </TouchableOpacity>
-          <ScrollView horizontal pagingEnabled style={{ flex: 1 }}>
-            {selectedGallery?.map((img, i) => (
-              <View key={i} style={{ width: Dimensions.get('window').width, height: '100%', justifyContent: 'center', alignItems: 'center' }}>
-                <Image source={{ uri: img }} style={{ width: '100%', height: '80%', resizeMode: 'contain' }} />
-              </View>
-            ))}
-          </ScrollView>
+          {selectedImageIndex !== null && (
+            <FlatList
+              data={selectedGallery}
+              keyExtractor={(item, index) => index.toString()}
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              initialScrollIndex={selectedImageIndex}
+              getItemLayout={(data, index) => ({ length: Dimensions.get('window').width, offset: Dimensions.get('window').width * index, index })}
+              renderItem={({ item }) => (
+                <View style={{ width: Dimensions.get('window').width, height: '100%', justifyContent: 'center', alignItems: 'center' }}>
+                  <ExpoImage source={{ uri: item }} style={{ width: '100%', height: '80%', resizeMode: 'contain' }} />
+                </View>
+              )}
+            />
+          )}
         </View>
       </Modal>
 

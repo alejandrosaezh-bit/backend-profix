@@ -8,6 +8,7 @@ import styles from '../styles/globalStyles';
 import { DETAILED_CATEGORIES, CATEGORY_EXAMPLES, BLOG_POSTS, TESTIMONIALS, LOCATIONS_DATA, FLAT_ZONES_SUGGESTIONS, HOME_COPY_OPTIONS, ROTATION_KEY } from '../constants/data';
 import { areIdsEqual, getClientStatus, getClientStatusColor, getProStatusColor, getProStatus, showAlert, showConfirmation, formatCurrency, formatDate } from '../utils/helpers';
 import { CAT_ICONS, ICON_MAP, IconHogar, IconAuto, IconSalud, IconTech, IconBeauty, IconEvents, IconPets, IconLegal } from '../constants/icons';
+import { Image as ExpoImage } from 'expo-image';
 
 const CloseRequestModal = ({ visible, onClose, onSubmit, offers }) => {
     const [reason, setReason] = useState('Lo hice con alguien de Profesional Cercano');
@@ -72,7 +73,7 @@ const CloseRequestModal = ({ visible, onClose, onSubmit, offers }) => {
                                                 marginBottom: 8
                                             }}
                                         >
-                                            <Image source={{ uri: off.proImage || `https://ui-avatars.com/api/?name=${encodeURIComponent(off.proName || 'Pro')}&background=random` }} style={{ width: 40, height: 40, borderRadius: 20, marginRight: 12 }} />
+                                            <ExpoImage source={{ uri: off.proImage || `https://ui-avatars.com/api/?name=${encodeURIComponent(off.proName || 'Pro')}&background=random` }} style={{ width: 40, height: 40, borderRadius: 20, marginRight: 12 }} />
                                             <Text style={{ flex: 1, fontWeight: 'bold', color: '#1F2937' }}>{off.proName}</Text>
                                             <View style={{ width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: selectedPro === off.proId ? '#10B981' : '#D1D5DB', justifyContent: 'center', alignItems: 'center' }}>
                                                 {selectedPro === off.proId && <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: '#10B981' }} />}

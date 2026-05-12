@@ -11,6 +11,7 @@ import {
     TouchableOpacity,
     View
 } from 'react-native';
+import { Image as ExpoImage } from 'expo-image';
 
 export function ClientEditProfileModal({
     visible,
@@ -42,7 +43,7 @@ export function ClientEditProfileModal({
                     <ScrollView showsVerticalScrollIndicator={false}>
                         <View style={{ alignItems: 'center', marginBottom: 20 }}>
                             <TouchableOpacity onPress={onPickImage} style={{ position: 'relative' }}>
-                                <Image source={{ uri: editedUser.avatar || 'https://placehold.co/150' }} style={{ width: 100, height: 100, borderRadius: 50, borderWidth: 2, borderColor: '#FFF7ED' }} />
+                                <ExpoImage source={{ uri: editedUser.avatar || 'https://placehold.co/150' }} style={{ width: 100, height: 100, borderRadius: 50, borderWidth: 2, borderColor: '#FFF7ED' }} />
                                 <View style={{ position: 'absolute', bottom: 0, right: 0, backgroundColor: '#EA580C', padding: 6, borderRadius: 15, borderWidth: 2, borderColor: 'white' }}>
                                     <Feather name="camera" size={16} color="white" />
                                 </View>

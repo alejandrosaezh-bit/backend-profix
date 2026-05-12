@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, Switch, Modal, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import styles from '../styles/globalStyles';
-import api from '../utils/api';
 
 const NotificationPreferencesModal = ({ visible, onClose, user, onUpdate, mode = 'client' }) => {
     const [preferences, setPreferences] = useState({});
@@ -40,11 +39,13 @@ const NotificationPreferencesModal = ({ visible, onClose, user, onUpdate, mode =
     const handleSave = async () => {
         setLoading(true);
         try {
-            const res = await api.put('/auth/profile', { notificationPreferences: preferences });
-            if (res.data) {
-                if (onUpdate) onUpdate(res.data);
-                onClose();
+            if (onUpdate) {
+                await onUpdate({
+                    ...user,
+                    notificationPreferences: preferences
+                });
             }
+            onClose();
         } catch (error) {
             console.error("Error saving preferences:", error);
             alert("Error al guardar preferencias");

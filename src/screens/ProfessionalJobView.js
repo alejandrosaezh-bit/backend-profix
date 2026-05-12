@@ -5,6 +5,7 @@ import Feather from 'react-native-vector-icons/Feather';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { AuthContext } from '../context/AuthContext';
 import { api } from '../utils/api';
+import { Image as ExpoImage } from 'expo-image';
 
 export default function ProfessionalJobView({ navigation }) {
     const [jobs, setJobs] = useState([]);
@@ -49,7 +50,7 @@ export default function ProfessionalJobView({ navigation }) {
             <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
                 <View style={styles.avatarContainer}>
                     {item.client?.avatar ? (
-                        <Image source={{ uri: item.client.avatar }} style={{ width: 56, height: 56, borderRadius: 28 }} />
+                        <ExpoImage source={{ uri: item.client.avatar }} style={{ width: 56, height: 56, borderRadius: 28 }} />
                     ) : (
                         <Feather name="user" size={28} color="#94A3B8" />
                     )}

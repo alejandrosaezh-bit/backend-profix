@@ -5,6 +5,7 @@ import { Image, Modal, Platform, ScrollView, StatusBar, Text, TouchableOpacity, 
 
 import { areIdsEqual, getProStatus } from '../utils/helpers';
 import ProjectTimeline from './ProjectTimeline';
+import { Image as ExpoImage } from 'expo-image';
 
 const JobDetailPro = ({ job: initialJob, onBack, onSendQuote, onOpenChat, proStatus, onUpdateStatus, onArchive, onGoToQuote, onViewProfile, currentUser, onConfirmStart, onAddWorkPhoto, onFinish, onRate, onAddTimelineEvent, onStartJob, categories, userMode, onTogglePortfolio, onViewImage }) => {
     const [job, setJob] = useState(initialJob);
@@ -100,7 +101,7 @@ const JobDetailPro = ({ job: initialJob, onBack, onSendQuote, onOpenChat, proSta
                                 <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#F8FAFC', padding: 16, borderRadius: 16, borderLeftWidth: 4, borderLeftColor: '#2563EB', marginBottom: 20 }}>
                                     <View style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: '#E2E8F0', overflow: 'hidden', borderWidth: 2, borderColor: 'white', elevation: 2 }}>
                                         {currentUser.avatar ? (
-                                            <Image source={{ uri: currentUser.avatar }} style={{ width: '100%', height: '100%' }} />
+                                            <ExpoImage source={{ uri: currentUser.avatar }} style={{ width: '100%', height: '100%' }} />
                                         ) : (
                                             <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
                                                 <Feather name="user" size={30} color="#94A3B8" />
@@ -276,7 +277,7 @@ const JobDetailPro = ({ job: initialJob, onBack, onSendQuote, onOpenChat, proSta
                             <TouchableOpacity onPress={onViewProfile} style={{ flexDirection: 'row', alignItems: 'center' }}>
                                 <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.2)', borderWidth: 1.5, borderColor: 'white', overflow: 'hidden', justifyContent: 'center', alignItems: 'center' }}>
                                     {(job.clientAvatar || job.client?.avatar) ? (
-                                        <Image source={{ uri: job.clientAvatar || job.client?.avatar }} style={{ width: '100%', height: '100%' }} />
+                                        <ExpoImage source={{ uri: job.clientAvatar || job.client?.avatar }} style={{ width: '100%', height: '100%' }} />
                                     ) : (
                                         <Feather name="user" size={20} color="white" />
                                     )}
@@ -328,7 +329,7 @@ const JobDetailPro = ({ job: initialJob, onBack, onSendQuote, onOpenChat, proSta
                                                 activeOpacity={0.9}
                                                 style={{ position: 'relative', marginRight: 15 }}
                                             >
-                                                <Image source={{ uri: img }} style={{ width: 140, height: 140, borderRadius: 20, borderWidth: 1, borderColor: '#F1F5F9' }} />
+                                                <ExpoImage source={{ uri: img }} style={{ width: 140, height: 140, borderRadius: 20, borderWidth: 1, borderColor: '#F1F5F9' }} />
                                                 {onTogglePortfolio && (
                                                     <TouchableOpacity
                                                         onPress={() => onTogglePortfolio(img, catTitle)}

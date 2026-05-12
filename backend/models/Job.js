@@ -141,5 +141,6 @@ jobSchema.index({ professional: 1 });
 jobSchema.index({ category: 1 });
 jobSchema.index({ status: 1 });
 jobSchema.index({ createdAt: -1 }); // Vital para ordenamiento
+jobSchema.index({ "offers.proId": 1 }); // Vital para buscar trabajos donde el pro ofertó
 
 module.exports = mongoose.model('Job', jobSchema);

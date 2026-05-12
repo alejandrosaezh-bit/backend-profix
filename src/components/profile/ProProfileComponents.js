@@ -1,5 +1,6 @@
 import { Feather } from '@expo/vector-icons';
 import { Image, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image as ExpoImage } from 'expo-image';
 
 export const ProProfileHeader = ({ onLogout, onBack, isOwner = true }) => (
     <View style={styles.header}>
@@ -43,7 +44,7 @@ export const ProPersonalInfoCard = ({
             <View style={styles.avatarContainer}>
                 <TouchableOpacity disabled={!isEditingPersonal} onPress={pickMainImage}>
                     {avatarUri ? (
-                        <Image source={{ uri: avatarUri }} style={styles.avatar} />
+                        <ExpoImage source={{ uri: avatarUri }} style={styles.avatar} />
                     ) : (
                         <View style={[styles.avatar, { justifyContent: 'center', alignItems: 'center' }]}>
                             <Feather name="user" size={40} color="#9CA3AF" />

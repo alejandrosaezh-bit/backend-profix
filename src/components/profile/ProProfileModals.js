@@ -11,6 +11,7 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
+import { Image as ExpoImage } from 'expo-image';
 
 export function ProCategorySelectionModal({
     visible,
@@ -152,7 +153,7 @@ export function ProPersonalEditModal({
                         <View style={{ alignItems: 'center', marginBottom: 24 }}>
                             <TouchableOpacity onPress={pickMainImage} style={{ position: 'relative' }}>
                                 {personalData.avatar ? (
-                                    <Image source={{ uri: personalData.avatar }} style={{ width: 110, height: 110, borderRadius: 55, borderWidth: 3, borderColor: '#EFF6FF' }} />
+                                    <ExpoImage source={{ uri: personalData.avatar }} style={{ width: 110, height: 110, borderRadius: 55, borderWidth: 3, borderColor: '#EFF6FF' }} />
                                 ) : (
                                     <View style={{ width: 110, height: 110, borderRadius: 55, backgroundColor: '#F3F4F6', justifyContent: 'center', alignItems: 'center', borderWidth: 3, borderColor: '#EFF6FF' }}>
                                         <Feather name="user" size={45} color="#9CA3AF" />
@@ -392,7 +393,7 @@ export function ProProfileEditModal({
                         <ScrollView horizontal style={{ marginBottom: 20 }}>
                             {(currentCatProfile.gallery || []).map((img, i) => (
                                 <View key={i} style={{ position: 'relative', marginRight: 12 }}>
-                                    <Image source={{ uri: img }} style={[styles.galleryImage, { borderRadius: 12 }]} />
+                                    <ExpoImage source={{ uri: img }} style={[styles.galleryImage, { borderRadius: 12 }]} />
                                     <TouchableOpacity
                                         style={[styles.deleteImageButton, { backgroundColor: '#EF4444', borderBottomLeftRadius: 10, borderTopRightRadius: 10 }]}
                                         onPress={() => removeImage(i)}

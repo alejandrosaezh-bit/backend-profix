@@ -2,6 +2,7 @@ import { Feather, FontAwesome5 } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
 import { Image, Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { api } from '../utils/api';
+import { Image as ExpoImage } from 'expo-image';
 
 export default function SubcategoryDetailScreen({ category, subcategory, onBack, onRequestQuote }) {
     const [ads, setAds] = useState([]);
@@ -55,7 +56,7 @@ export default function SubcategoryDetailScreen({ category, subcategory, onBack,
                     <View key={biz._id} style={styles.adCard}>
                         {/* Image Side - Covers height */}
                         {biz.image ? (
-                            <Image source={{ uri: biz.image }} style={styles.adImage} resizeMode="cover" />
+                            <ExpoImage source={{ uri: biz.image }} style={styles.adImage} resizeMode="cover" />
                         ) : (
                             <View style={[styles.adImage, { backgroundColor: '#E5E7EB', alignItems: 'center', justifyContent: 'center' }]}>
                                 <Feather name="image" size={24} color="#9CA3AF" />

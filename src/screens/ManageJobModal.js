@@ -2,6 +2,7 @@ import { Feather } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Image as ExpoImage } from 'expo-image';
 
 
 export default function ManageJobModal({ visible, onClose, job, onUpdate }) {
@@ -206,7 +207,7 @@ export default function ManageJobModal({ visible, onClose, job, onUpdate }) {
                             <View style={styles.photosGrid}>
                                 {photos.map((photo, index) => (
                                     <View key={index} style={styles.photoWrapper}>
-                                        <Image source={{ uri: photo.url }} style={styles.photo} />
+                                        <ExpoImage source={{ uri: photo.url }} style={styles.photo} />
                                         <Text style={styles.photoDate}>{new Date(photo.uploadedAt).toLocaleDateString()}</Text>
                                     </View>
                                 ))}

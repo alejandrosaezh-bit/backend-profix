@@ -225,8 +225,23 @@ export default function LoginScreen({ navigation }) {
         )}
 
         {errorMessage ? (
-          <View style={{ marginBottom: 15, padding: 10, backgroundColor: '#FEF2F2', borderRadius: 8, borderWidth: 1, borderColor: '#FCA5A5' }}>
-            <Text style={{ color: '#DC2626', textAlign: 'center', fontWeight: 'bold' }}>{errorMessage}</Text>
+          <View style={{ marginBottom: 15, padding: 12, backgroundColor: '#FEF2F2', borderRadius: 12, borderWidth: 1, borderColor: '#FCA5A5' }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 5 }}>
+                <Feather name="alert-circle" size={18} color="#DC2626" style={{ marginRight: 8 }} />
+                <Text style={{ color: '#DC2626', fontWeight: 'bold', fontSize: 15, flex: 1 }}>Atención</Text>
+            </View>
+            <Text style={{ color: '#991B1B', fontSize: 14 }}>{errorMessage}</Text>
+            {(!isRegistering && (errorMessage.toLowerCase().includes('contraseña') || errorMessage.toLowerCase().includes('email') || errorMessage.toLowerCase().includes('inválido'))) && (
+                <TouchableOpacity 
+                    style={{ marginTop: 12, backgroundColor: '#DC2626', padding: 10, borderRadius: 8, alignItems: 'center' }}
+                    onPress={() => {
+                        setErrorMessage('');
+                        setShowRecoveryModal(true);
+                    }}
+                >
+                    <Text style={{ color: 'white', fontWeight: 'bold' }}>Restablecer mi contraseña</Text>
+                </TouchableOpacity>
+            )}
           </View>
         ) : null}
 

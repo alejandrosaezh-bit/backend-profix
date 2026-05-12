@@ -1,5 +1,6 @@
 import { Feather, FontAwesome5 } from '@expo/vector-icons';
 import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image as ExpoImage } from 'expo-image';
 
 export function ClientStatistics({ allMyRequests, completedRequests, hiredRequests }) {
     return (
@@ -45,7 +46,7 @@ export function RequestHorizontalList({ title, requests, emptyMessage, getStatus
                         const statusStyles = getStatusStyle ? getStatusStyle(item.status) : { badge: {}, text: {} };
                         return (
                             <View key={item.id} style={[styles.activityCard, { elevation: 2, boxShadow: '0 4px 10px rgba(0, 0, 0, 0.05)', borderColor: '#F1F5F9' }]}>
-                                <Image source={{ uri: (item.images && item.images[0]) || 'https://placehold.co/150' }} style={styles.activityImage} />
+                                <ExpoImage source={{ uri: (item.images && item.images[0]) || 'https://placehold.co/150' }} style={styles.activityImage} />
                                 <View style={styles.activityInfo}>
                                     <Text style={styles.activityTitle} numberOfLines={1}>{item.title}</Text>
                                     <Text style={styles.activityDate}>{item.date}</Text>

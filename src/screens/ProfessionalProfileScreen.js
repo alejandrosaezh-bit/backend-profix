@@ -1,10 +1,12 @@
 import { Feather, FontAwesome5 } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
+import { Image as ExpoImage } from 'expo-image';
 import { useEffect, useState } from 'react';
 import {
     Alert,
     Dimensions,
+    FlatList,
     Image,
     Modal,
     Platform,
@@ -12,7 +14,8 @@ import {
     StyleSheet,
     Text,
     TouchableOpacity,
-    View
+    View,
+    ActivityIndicator
 } from 'react-native';
 import {
     ProAccountSettings,
@@ -79,7 +82,9 @@ export default function ProfessionalProfileScreen({
     const [personalData, setPersonalData] = useState({}); // Temp state for personal data editing
     const [reviews, setReviews] = useState([]);
     const [selectedGallery, setSelectedGallery] = useState(null);
+    const [selectedImageIndex, setSelectedImageIndex] = useState(null);
     const [showCrossPopup, setShowCrossPopup] = useState(true);
+    const [isLoadingProfile, setIsLoadingProfile] = useState(true);
 
     // Location Selector State
     const [expandedStates, setExpandedStates] = useState({});
@@ -99,6 +104,7 @@ export default function ProfessionalProfileScreen({
     useEffect(() => {
         const fetchData = async () => {
             if (!user?._id) return;
+            setIsLoadingProfile(true);
             try {
                 // Execute network requests independently so one failure doesn't break both
                 let reviewsData = [];
@@ -152,6 +158,8 @@ export default function ProfessionalProfileScreen({
                 }
             } catch (error) {
                 console.error("Error fetching pro data:", error);
+            } finally {
+                setIsLoadingProfile(false);
             }
         };
         fetchData();
@@ -550,6 +558,55 @@ export default function ProfessionalProfileScreen({
         catRating = "0.0";
     }
 
+    // COMBINED HISTORY CALCULATION (Jobs + Reviews)
+    const combinedHistory = [];
+    if (filteredJobs && filteredJobs.length > 0) {
+        const completedJobs = filteredJobs.filter(job => {
+            const status = getProStatus(job, user._id);
+            const isWon = ['GANADA', 'EN EJECUCIÓN', 'ACEPTADO', 'VALIDANDO', 'TERMINADO', 'VALORACIÓN', 'FINALIZADA'].includes(status);
+            const completedStatuses = ['Finalizada', 'Cerrado', 'Cerrada', 'TERMINADO', 'rated', 'completed', 'Culminada', 'VALORACIÓN'];
+            return isWon && (completedStatuses.includes(job.status) || job.proFinished || job.clientFinished || job.rating > 0 || job.proRated || job.clientRated);
+        });
+
+        completedJobs.forEach(job => {
+            const jobImages = [];
+            if (job.images && Array.isArray(job.images)) job.images.forEach(img => { if (img && !jobImages.includes(img)) jobImages.push(img); });
+            if (job.workPhotos && Array.isArray(job.workPhotos)) job.workPhotos.forEach(img => { if (img && !jobImages.includes(img)) jobImages.push(img); });
+            if (job.projectHistory && Array.isArray(job.projectHistory)) {
+                job.projectHistory.forEach(hi => { if (hi && hi.image && !jobImages.includes(hi.image)) jobImages.push(hi.image); });
+            }
+
+            const review = catReviews.find(r => r.job?._id === job._id || r.job === job._id);
+
+            combinedHistory.push({
+                jobId: job._id || job.id,
+                title: job.title || 'Trabajo completado',
+                date: job.createdAt,
+                images: jobImages,
+                review: review
+            });
+        });
+    }
+
+    catReviews.forEach(rev => {
+        const jobId = rev.job?._id || rev.job;
+        if (!combinedHistory.some(ch => ch.jobId === jobId)) {
+            const revImages = [];
+            if (rev.job?.images && Array.isArray(rev.job.images)) rev.job.images.forEach(img => { if (img && !revImages.includes(img)) revImages.push(img); });
+            if (rev.job?.workPhotos && Array.isArray(rev.job.workPhotos)) rev.job.workPhotos.forEach(img => { if (img && !revImages.includes(img)) revImages.push(img); });
+
+            combinedHistory.push({
+                jobId: jobId,
+                title: rev.job?.title || 'Trabajo valorado',
+                date: rev.createdAt || new Date().toISOString(),
+                images: revImages,
+                review: rev
+            });
+        }
+    });
+
+    combinedHistory.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+
     const categoryStats = {
         jobs: catOfferedCount,
         rating: catWonCount, // Usamos la misma variable para mantener compatibilidad en renderizado
@@ -578,7 +635,7 @@ export default function ProfessionalProfileScreen({
 
                                 <View style={styles.headerMain}>
                                     <View style={styles.avatarContainerPublic}>
-                                        <Image source={{ uri: getAvatarUri() }} style={styles.avatarPublic} />
+                                        <ExpoImage source={{ uri: getAvatarUri() }} style={styles.avatarPublic} />
                                         <View style={styles.verifiedBadgePublic}>
                                             <Feather name="shield" size={12} color="white" />
                                         </View>
@@ -603,8 +660,21 @@ export default function ProfessionalProfileScreen({
                             </View>
 
                             <View style={styles.cardContainerPublic}>
-                                {isCategoryActive ? (
+                                {isLoadingProfile ? (
+                                    <View style={{ padding: 40, alignItems: 'center' }}>
+                                        <ActivityIndicator size="large" color="#2563EB" />
+                                        <Text style={{ marginTop: 15, color: '#64748B' }}>Cargando perfil profesional...</Text>
+                                    </View>
+                                ) : (
                                     <>
+                                        {!isCategoryActive && (
+                                            <View style={{ backgroundColor: '#FFFBEB', borderRadius: 16, padding: 16, marginBottom: 16, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#FEF3C7' }}>
+                                                <Feather name="info" size={20} color="#D97706" style={{ marginRight: 12 }} />
+                                                <Text style={{ flex: 1, fontSize: 13, color: '#92400E' }}>
+                                                    Este profesional tiene pausadas las nuevas solicitudes para esta categoría temporalmente.
+                                                </Text>
+                                            </View>
+                                        )}
                                         {/* ACTIVIDAD */}
                                         <View style={{ backgroundColor: 'white', borderRadius: 24, padding: 20, marginBottom: 16, elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8 }}>
                                             <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#64748B', marginBottom: 20 }}>{`CATEGORÍA (${selectedCategory?.name?.toUpperCase()})`}</Text>
@@ -651,7 +721,7 @@ export default function ProfessionalProfileScreen({
                                                     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingLeft: 20, paddingRight: 20 }}>
                                                         {currentCatProfile.gallery.map((img, i) => (
                                                             <TouchableOpacity key={i} onPress={() => onViewImage && onViewImage(img)}>
-                                                                <Image source={{ uri: img }} style={{ width: 140, height: 140, borderRadius: 20, marginRight: 16, borderWidth: 1, borderColor: '#F1F5F9' }} />
+                                                                <ExpoImage source={{ uri: img }} style={{ width: 140, height: 140, borderRadius: 20, marginRight: 16, borderWidth: 1, borderColor: '#F1F5F9' }} />
                                                             </TouchableOpacity>
                                                         ))}
                                                     </ScrollView>
@@ -659,53 +729,208 @@ export default function ProfessionalProfileScreen({
                                             )}
                                         </View>
 
-                                        {/* RESEÑAS PUBLICAS */}
-                                        <View style={{ marginBottom: 25, marginHorizontal: -24 }}>
-                                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15, paddingHorizontal: 24 }}>
-                                                <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#111827' }}>Valoraciones Recibidas</Text>
-                                            </View>
-                                            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingLeft: 24, paddingRight: 24, paddingBottom: 15, paddingTop: 5 }}>
-                                                {catReviews && catReviews.length > 0 ? (
-                                                    catReviews.map((r, i) => (
-                                                        <View key={i} style={{ backgroundColor: 'white', padding: 16, borderRadius: 20, marginRight: 16, width: 160, elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, borderWidth: 1, borderColor: '#F1F5F9' }}>
-                                                            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
-                                                                {r.reviewer?.avatar ? (
-                                                                    <Image source={{ uri: r.reviewer.avatar }} style={{ width: 36, height: 36, borderRadius: 18, marginRight: 10 }} />
+                                        {false && (
+                                            <>
+                                                {/* PORTAFOLIO DE TRABAJOS (PUBLIC VIEW) */}
+                                                <View style={{ marginBottom: 25, marginHorizontal: -24 }}>
+                                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15, paddingHorizontal: 24 }}>
+                                                        <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#111827' }}>Portafolio de Trabajos</Text>
+                                                        <TouchableOpacity style={styles.arrowButton}>
+                                                            <Feather name="arrow-right" size={16} color="#111827" />
+                                                        </TouchableOpacity>
+                                                    </View>
+
+                                                    {(() => {
+                                                        const portfolioFolders = [];
+                                                        if (jobsList && jobsList.length > 0 && selectedCategory?.name) {
+                                                            const completedJobs = jobsList.filter(job => {
+                                                                const isCatMatch = job.category && (typeof job.category === 'object' ? job.category.name : job.category) === selectedCategory.name;
+                                                                if (!isCatMatch) return false;
+                                                                
+                                                                const status = getProStatus(job, user._id);
+                                                                const isWon = ['GANADA', 'EN EJECUCIÓN', 'ACEPTADO', 'VALIDANDO', 'TERMINADO', 'VALORACIÓN', 'FINALIZADA'].includes(status);
+                                                                const completedStatuses = ['Finalizada', 'Cerrado', 'Cerrada', 'TERMINADO', 'rated', 'completed', 'Culminada', 'VALORACIÓN'];
+                                                                return isWon && (completedStatuses.includes(job.status) || job.proFinished || job.clientFinished || job.rating > 0 || job.proRated || job.clientRated);
+                                                            });
+
+                                                            completedJobs.forEach(job => {
+                                                                const jobImages = [];
+                                                                if (job.images && Array.isArray(job.images)) {
+                                                                    job.images.forEach(img => { if (img && !jobImages.includes(img)) jobImages.push(img); });
+                                                                }
+                                                                if (job.workPhotos && Array.isArray(job.workPhotos)) {
+                                                                    job.workPhotos.forEach(img => { if (img && !jobImages.includes(img)) jobImages.push(img); });
+                                                                }
+                                                                if (job.projectHistory && Array.isArray(job.projectHistory)) {
+                                                                    job.projectHistory.forEach(historyItem => {
+                                                                        if (historyItem && historyItem.image && !jobImages.includes(historyItem.image)) {
+                                                                            jobImages.push(historyItem.image);
+                                                                        }
+                                                                    });
+                                                                }
+
+                                                                if (jobImages.length > 0) {
+                                                                    portfolioFolders.push({
+                                                                        title: job.title || 'Trabajo completado',
+                                                                        subcategories: [job.subcategory || 'General'],
+                                                                        images: jobImages,
+                                                                        jobId: job._id || job.id
+                                                                    });
+                                                                }
+                                                            });
+                                                        }
+
+                                                        if (portfolioFolders.length === 0) {
+                                                            return (
+                                                                <View style={{ alignItems: 'center', paddingVertical: 20 }}>
+                                                                    <Feather name="folder" size={40} color="#E2E8F0" />
+                                                                    <Text style={{ color: '#94A3B8', fontSize: 13, textAlign: 'center', marginTop: 15 }}>No hay trabajos en el portafolio.</Text>
+                                                                </View>
+                                                            );
+                                                        }
+
+                                                        return (
+                                                            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingRight: 24, paddingLeft: 24 }}>
+                                                                {portfolioFolders.map((folder, index) => (
+                                                                    <TouchableOpacity key={index} style={styles.airbnbCard} onPress={() => setSelectedGallery(folder)}>
+                                                                        <ExpoImage source={{ uri: folder.images[0] }} style={styles.airbnbImage} resizeMode="cover" />
+                                                                        <View style={styles.airbnbInfo}>
+                                                                            <Text style={styles.airbnbTitle} numberOfLines={1}>{folder.title}</Text>
+                                                                            <Text style={styles.airbnbSubtitle} numberOfLines={1}>
+                                                                                {folder.subcategories.length > 0 ? folder.subcategories.join(', ') : 'Servicios generales'}
+                                                                            </Text>
+                                                                            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
+                                                                                <Feather name="image" size={12} color="#6B7280" />
+                                                                                <Text style={styles.airbnbCount}>{folder.images.length} fotos</Text>
+                                                                            </View>
+                                                                        </View>
+                                                                    </TouchableOpacity>
+                                                                ))}
+                                                            </ScrollView>
+                                                        );
+                                                    })()}
+                                                </View>
+
+                                                {/* RESEÑAS PUBLICAS */}
+                                                <View style={{ marginBottom: 25, marginHorizontal: -24 }}>
+                                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15, paddingHorizontal: 24 }}>
+                                                        <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#111827' }}>Valoraciones Recibidas</Text>
+                                                    </View>
+                                                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingLeft: 24, paddingRight: 24, paddingBottom: 15, paddingTop: 5 }}>
+                                                        {catReviews && catReviews.length > 0 ? (
+                                                            catReviews.map((r, i) => (
+                                                                <View key={i} style={{ backgroundColor: 'white', padding: 16, borderRadius: 20, marginRight: 16, width: 160, elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, borderWidth: 1, borderColor: '#F1F5F9' }}>
+                                                                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+                                                                        {r.reviewer?.avatar ? (
+                                                                            <ExpoImage source={{ uri: r.reviewer.avatar }} style={{ width: 36, height: 36, borderRadius: 18, marginRight: 10 }} />
+                                                                        ) : (
+                                                                            <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#EFF6FF', justifyContent: 'center', alignItems: 'center', marginRight: 10 }}>
+                                                                                <Feather name="user" size={16} color="#2563EB" />
+                                                                            </View>
+                                                                        )}
+                                                                        <View style={{ flex: 1 }}>
+                                                                            <Text style={{ fontWeight: 'bold', fontSize: 14, color: '#1E293B' }} numberOfLines={1}>{r.reviewer?.name || 'Cliente'}</Text>
+                                                                            <Text style={{ fontSize: 11, color: '#94A3B8' }} numberOfLines={1}>Hace poco</Text>
+                                                                        </View>
+                                                                    </View>
+                                                                    <View style={{ flexDirection: 'row', marginBottom: 8 }}>
+                                                                        {[...Array(5)].map((_, idx) => (
+                                                                            <FontAwesome5 key={idx} name="star" solid={idx < (r.rating || 5)} size={10} color="#FBBF24" style={{ marginRight: 2 }} />
+                                                                        ))}
+                                                                    </View>
+                                                                    <Text style={{ fontSize: 13, color: '#4B5563', lineHeight: 18 }} numberOfLines={3}>"{r.comment || 'Buen trabajo.'}"</Text>
+                                                                </View>
+                                                            ))
+                                                        ) : (
+                                                            <View style={{ alignItems: 'center', paddingVertical: 20, width: 200, paddingHorizontal: 10 }}>
+                                                                <Feather name="message-square" size={32} color="#E2E8F0" />
+                                                                <Text style={{ color: '#94A3B8', fontSize: 13, textAlign: 'center', marginTop: 12 }}>No hay opiniones aún.</Text>
+                                                            </View>
+                                                        )}
+                                                    </ScrollView>
+                                                </View>
+                                            </>
+                                        )}
+
+                                        {/* UNIFIED HISTORY SECTION (TESTING - PUBLIC VIEW) */}
+                                        {combinedHistory && combinedHistory.length > 0 && (
+                                            <View style={{ marginBottom: 25, marginHorizontal: -24 }}>
+                                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15, paddingHorizontal: 24 }}>
+                                                    <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#111827' }}>Historial y Valoraciones</Text>
+                                                </View>
+                                                <FlatList
+                                                    data={combinedHistory}
+                                                    horizontal
+                                                    showsHorizontalScrollIndicator={false}
+                                                    keyExtractor={(item, index) => index.toString()}
+                                                    contentContainerStyle={{ paddingLeft: 24, paddingRight: 24, paddingBottom: 15 }}
+                                                    initialNumToRender={3}
+                                                    maxToRenderPerBatch={3}
+                                                    windowSize={5}
+                                                    renderItem={({ item, index }) => (
+                                                        <View style={{ backgroundColor: 'white', width: 160, borderRadius: 20, marginRight: 16, elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, borderWidth: 1, borderColor: '#F1F5F9', overflow: 'hidden' }}>
+                                                            {/* PORTADA DEL TRABAJO */}
+                                                            {item.images && item.images.length > 0 ? (
+                                                                <ExpoImage source={{ uri: item.images[0] }} style={{ width: '100%', aspectRatio: 1, backgroundColor: '#E2E8F0', resizeMode: 'cover' }} />
+                                                            ) : (
+                                                                <View style={{ width: '100%', aspectRatio: 1, backgroundColor: '#F8FAFC', justifyContent: 'center', alignItems: 'center' }}>
+                                                                    <Feather name={ICON_MAP[categoryKey] || 'check-circle'} size={32} color="#CBD5E1" />
+                                                                </View>
+                                                            )}
+
+                                                            <View style={{ padding: 12, alignItems: 'center' }}>
+                                                                {/* TITULO */}
+                                                                <Text style={{ fontWeight: 'bold', fontSize: 13, color: '#1E293B', marginBottom: 8, textAlign: 'center' }} numberOfLines={2}>{item.title}</Text>
+                                                                
+                                                                {item.review ? (
+                                                                    <View style={{ width: '100%', alignItems: 'center' }}>
+                                                                        {/* CLIENTE INFO */}
+                                                                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 6 }}>
+                                                                            {item.review.reviewer?.avatar ? (
+                                                                                <ExpoImage source={{ uri: item.review.reviewer.avatar }} style={{ width: 20, height: 20, borderRadius: 10, marginRight: 6, resizeMode: 'cover' }} />
+                                                                            ) : (
+                                                                                <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: '#EFF6FF', justifyContent: 'center', alignItems: 'center', marginRight: 6 }}>
+                                                                                    <Feather name="user" size={10} color="#2563EB" />
+                                                                                </View>
+                                                                            )}
+                                                                            <Text style={{ fontSize: 11, color: '#64748B', fontWeight: '500' }} numberOfLines={1}>{item.review.reviewer?.name || 'Cliente'}</Text>
+                                                                        </View>
+                                                                        
+                                                                        {/* ESTRELLAS */}
+                                                                        <View style={{ flexDirection: 'row', justifyContent: 'center', marginBottom: 6 }}>
+                                                                            {[...Array(5)].map((_, idx) => (
+                                                                                <FontAwesome5 key={idx} name="star" solid={idx < (item.review.rating || 5)} size={10} color="#FBBF24" style={{ marginRight: 2 }} />
+                                                                            ))}
+                                                                        </View>
+                                                                        
+                                                                        {/* COMENTARIO */}
+                                                                        <Text style={{ fontSize: 12, color: '#4B5563', fontStyle: 'italic', textAlign: 'center' }} numberOfLines={3}>"{item.review.comment || 'Buen trabajo.'}"</Text>
+                                                                    </View>
                                                                 ) : (
-                                                                    <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#EFF6FF', justifyContent: 'center', alignItems: 'center', marginRight: 10 }}>
-                                                                        <Feather name="user" size={16} color="#2563EB" />
+                                                                    <View style={{ width: '100%', alignItems: 'center' }}>
+                                                                        <Text style={{ fontSize: 12, color: '#94A3B8', fontStyle: 'italic', textAlign: 'center' }}>Completado sin reseña.</Text>
                                                                     </View>
                                                                 )}
-                                                                <View style={{ flex: 1 }}>
-                                                                    <Text style={{ fontWeight: 'bold', fontSize: 14, color: '#1E293B' }} numberOfLines={1}>{r.reviewer?.name || 'Cliente'}</Text>
-                                                                    <Text style={{ fontSize: 11, color: '#94A3B8' }} numberOfLines={1}>Hace poco</Text>
-                                                                </View>
+
+                                                                {/* BOTON VER MAS FOTOS */}
+                                                                {item.images && item.images.length > 0 && (
+                                                                    <TouchableOpacity 
+                                                                        style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#EFF6FF', paddingVertical: 8, borderRadius: 10, marginTop: 12, width: '100%' }}
+                                                                        onPress={() => setSelectedGallery({ title: item.title, images: item.images, jobId: item.jobId })}
+                                                                    >
+                                                                        <Feather name="image" size={14} color="#2563EB" style={{ marginRight: 6 }} />
+                                                                        <Text style={{ color: '#2563EB', fontWeight: 'bold', fontSize: 11 }}>Ver fotos ({item.images.length})</Text>
+                                                                    </TouchableOpacity>
+                                                                )}
                                                             </View>
-                                                            <View style={{ flexDirection: 'row', marginBottom: 8 }}>
-                                                                {[...Array(5)].map((_, idx) => (
-                                                                    <FontAwesome5 key={idx} name="star" solid={idx < (r.rating || 5)} size={10} color="#FBBF24" style={{ marginRight: 2 }} />
-                                                                ))}
-                                                            </View>
-                                                            <Text style={{ fontSize: 13, color: '#4B5563', lineHeight: 18 }} numberOfLines={3}>"{r.comment || 'Buen trabajo.'}"</Text>
                                                         </View>
-                                                    ))
-                                                ) : (
-                                                    <View style={{ alignItems: 'center', paddingVertical: 20, width: 200, paddingHorizontal: 10 }}>
-                                                        <Feather name="message-square" size={32} color="#E2E8F0" />
-                                                        <Text style={{ color: '#94A3B8', fontSize: 13, textAlign: 'center', marginTop: 12 }}>No hay opiniones aún.</Text>
-                                                    </View>
-                                                )}
-                                            </ScrollView>
-                                        </View>
+                                                    )}
+                                                />
+                                            </View>
+                                        )}
 
 
                                     </>
-                                ) : (
-                                    <View style={{ backgroundColor: 'white', borderRadius: 24, padding: 40, elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, alignItems: 'center', marginTop: 10 }}>
-                                        <Feather name="clock" size={48} color="#94A3B8" />
-                                        <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#1E293B', marginTop: 15, textAlign: 'center' }}>Servicio Pausado</Text>
-                                        <Text style={{ fontSize: 14, color: '#64748B', textAlign: 'center', marginTop: 8 }}>El profesional no está aceptando solicitudes para esta categoría actualmente.</Text>
-                                    </View>
                                 )}
                             </View>
 
@@ -714,7 +939,7 @@ export default function ProfessionalProfileScreen({
                 </View >
 
                 {/* GALLERY MODAL */}
-                <Modal visible={!!selectedGallery} transparent={true} animationType="fade" onRequestClose={() => setSelectedGallery(null)}>
+                <Modal visible={!!selectedGallery && selectedImageIndex === null} transparent={true} animationType="fade" onRequestClose={() => setSelectedGallery(null)}>
                     <View style={{ flex: 1, backgroundColor: '#F8FAFC', paddingTop: 50 }}>
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingBottom: 15, borderBottomWidth: 1, borderBottomColor: '#E2E8F0' }}>
                             <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#1E293B' }} numberOfLines={1}>{selectedGallery?.title || 'Fotos del Trabajo'}</Text>
@@ -728,9 +953,13 @@ export default function ProfessionalProfileScreen({
                         <ScrollView contentContainerStyle={{ padding: 15 }}>
                             <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }}>
                                 {selectedGallery?.images?.map((img, i) => (
-                                    <View key={i} style={{ width: '48%', marginBottom: 15, borderRadius: 12, overflow: 'hidden', borderWidth: 1, borderColor: '#E2E8F0' }}>
-                                        <Image source={{ uri: img }} style={{ width: '100%', height: 150, resizeMode: 'cover' }} />
-                                    </View>
+                                    <TouchableOpacity 
+                                        key={i} 
+                                        style={{ width: '48%', marginBottom: 15, borderRadius: 12, overflow: 'hidden', borderWidth: 1, borderColor: '#E2E8F0' }}
+                                        onPress={() => setSelectedImageIndex(i)}
+                                    >
+                                        <ExpoImage source={{ uri: img }} style={{ width: '100%', height: 150, resizeMode: 'cover' }} />
+                                    </TouchableOpacity>
                                 ))}
                             </View>
                         </ScrollView>
@@ -754,6 +983,34 @@ export default function ProfessionalProfileScreen({
                         </View>
                     </View>
                 </Modal>
+
+                {/* FULLSCREEN IMAGE MODAL (PUBLIC VIEW) */}
+                <Modal visible={selectedImageIndex !== null} transparent={true} animationType="fade" onRequestClose={() => setSelectedImageIndex(null)}>
+                    <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.95)' }}>
+                        <TouchableOpacity
+                            style={{ position: 'absolute', top: 50, right: 20, zIndex: 10, padding: 10, backgroundColor: 'rgba(0,0,0,0.3)', borderRadius: 20 }}
+                            onPress={() => setSelectedImageIndex(null)}
+                        >
+                            <Feather name="x" size={30} color="white" />
+                        </TouchableOpacity>
+                        {selectedImageIndex !== null && (
+                            <FlatList
+                                data={selectedGallery?.images || []}
+                                keyExtractor={(item, index) => index.toString()}
+                                horizontal
+                                pagingEnabled
+                                showsHorizontalScrollIndicator={false}
+                                initialScrollIndex={selectedImageIndex}
+                                getItemLayout={(data, index) => ({ length: SCREEN_WIDTH, offset: SCREEN_WIDTH * index, index })}
+                                renderItem={({ item }) => (
+                                    <View style={{ width: SCREEN_WIDTH, height: '100%', justifyContent: 'center', alignItems: 'center' }}>
+                                        <ExpoImage source={{ uri: item }} style={{ width: '100%', height: '80%', resizeMode: 'contain' }} />
+                                    </View>
+                                )}
+                            />
+                        )}
+                    </View>
+                </Modal>
             </>
         );
     }
@@ -774,7 +1031,7 @@ export default function ProfessionalProfileScreen({
                     <View style={styles.headerMain}>
                         <View style={styles.avatarContainerPublic}>
                             <TouchableOpacity onPress={pickMainImage} style={{ width: '100%', height: '100%' }}>
-                                <Image source={{ uri: getAvatarUri() }} style={styles.avatarPublic} />
+                                <ExpoImage source={{ uri: getAvatarUri() }} style={styles.avatarPublic} />
                             </TouchableOpacity>
                             <View style={styles.verifiedBadgePublic}>
                                 <Feather name="shield" size={12} color="white" />
@@ -804,9 +1061,15 @@ export default function ProfessionalProfileScreen({
 
                 {/* CONTENIDO PRINCIPAL (TARJETAS) */}
                 <View style={styles.cardContainerPublic}>
-
-                    {/* ACTIVIDAD (STATS) */}
-                    {isCategoryActive && (
+                    {isLoadingProfile ? (
+                        <View style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: 60 }}>
+                            <ActivityIndicator size="large" color="#2563EB" />
+                            <Text style={{ marginTop: 15, color: '#64748B', fontSize: 14, fontStyle: 'italic' }}>Buscando información de categorías...</Text>
+                        </View>
+                    ) : (
+                        <>
+                            {/* ACTIVIDAD (STATS) */}
+                            {isCategoryActive && (
                         <View style={{ backgroundColor: 'white', borderRadius: 24, padding: 20, marginBottom: 16, elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8 }}>
                             <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#64748B', marginBottom: 20 }}>{`CATEGORÍA (${selectedCategory?.name?.toUpperCase()})`}</Text>
                             <View style={{ flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center' }}>
@@ -879,105 +1142,214 @@ export default function ProfessionalProfileScreen({
                                         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingLeft: 20, paddingRight: 20 }}>
                                             {currentCatProfile.gallery.map((img, i) => (
                                                 <TouchableOpacity key={i} onPress={() => onViewImage && onViewImage(img)}>
-                                                    <Image source={{ uri: img }} style={{ width: 140, height: 140, borderRadius: 20, marginRight: 16, borderWidth: 1, borderColor: '#F1F5F9' }} />
+                                                    <ExpoImage source={{ uri: img }} style={{ width: 140, height: 140, borderRadius: 20, marginRight: 16, borderWidth: 1, borderColor: '#F1F5F9' }} />
                                                 </TouchableOpacity>
                                             ))}
                                         </ScrollView>
                                     </View>
                                 )}
                             </View>
-                            {/* PORTAFOLIO DE TRABAJOS (AIRBNB STYLE) */}
-                            <View style={{ marginBottom: 25, marginHorizontal: -24 }}>
-                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15, paddingHorizontal: 24 }}>
-                                    <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#111827' }}>Portafolio de Trabajos</Text>
-                                    <TouchableOpacity style={styles.arrowButton}>
-                                        <Feather name="arrow-right" size={16} color="#111827" />
-                                    </TouchableOpacity>
-                                </View>
+                            {false && (
+                                <>
+                                    {/* PORTAFOLIO DE TRABAJOS (AIRBNB STYLE) */}
+                                    <View style={{ marginBottom: 25, marginHorizontal: -24 }}>
+                                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15, paddingHorizontal: 24 }}>
+                                            <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#111827' }}>Portafolio de Trabajos</Text>
+                                            <TouchableOpacity style={styles.arrowButton}>
+                                                <Feather name="arrow-right" size={16} color="#111827" />
+                                            </TouchableOpacity>
+                                        </View>
 
-                                {(() => {
-                                    const portfolioFolders = [];
-                                    if (user?.profiles) {
-                                        Object.keys(user.profiles).forEach(cat => {
-                                            const gallery = user.profiles[cat].gallery;
-                                            if (gallery && gallery.length > 0) {
-                                                portfolioFolders.push({
-                                                    title: cat,
-                                                    subcategories: user.profiles[cat].subcategories || [],
-                                                    images: gallery
+                                        {(() => {
+                                            const portfolioFolders = [];
+                                            if (jobsList && jobsList.length > 0 && selectedCategory?.name) {
+                                                const completedJobs = jobsList.filter(job => {
+                                                    const isCatMatch = job.category && (typeof job.category === 'object' ? job.category.name : job.category) === selectedCategory.name;
+                                                    if (!isCatMatch) return false;
+                                                    
+                                                    // Check if pro won the job and it is completed
+                                                    const status = getProStatus(job, user._id);
+                                                    const isWon = ['GANADA', 'EN EJECUCIÓN', 'ACEPTADO', 'VALIDANDO', 'TERMINADO', 'VALORACIÓN', 'FINALIZADA'].includes(status);
+                                                    const completedStatuses = ['Finalizada', 'Cerrado', 'Cerrada', 'TERMINADO', 'rated', 'completed', 'Culminada', 'VALORACIÓN'];
+                                                    return isWon && (completedStatuses.includes(job.status) || job.proFinished || job.clientFinished || job.rating > 0 || job.proRated || job.clientRated);
+                                                });
+
+                                                completedJobs.forEach(job => {
+                                                    const jobImages = [];
+                                                    if (job.images && Array.isArray(job.images)) {
+                                                        job.images.forEach(img => { if (img && !jobImages.includes(img)) jobImages.push(img); });
+                                                    }
+                                                    if (job.workPhotos && Array.isArray(job.workPhotos)) {
+                                                        job.workPhotos.forEach(img => { if (img && !jobImages.includes(img)) jobImages.push(img); });
+                                                    }
+                                                    if (job.projectHistory && Array.isArray(job.projectHistory)) {
+                                                        job.projectHistory.forEach(historyItem => {
+                                                            if (historyItem && historyItem.image && !jobImages.includes(historyItem.image)) {
+                                                                jobImages.push(historyItem.image);
+                                                            }
+                                                        });
+                                                    }
+
+                                                    if (jobImages.length > 0) {
+                                                        portfolioFolders.push({
+                                                            title: job.title || 'Trabajo completado',
+                                                            subcategories: [job.subcategory || 'General'],
+                                                            images: jobImages,
+                                                            jobId: job._id || job.id
+                                                        });
+                                                    }
                                                 });
                                             }
-                                        });
-                                    }
 
-                                    if (portfolioFolders.length === 0) {
-                                        return (
-                                            <View style={{ alignItems: 'center', paddingVertical: 20 }}>
-                                                <Feather name="folder" size={40} color="#E2E8F0" />
-                                                <Text style={{ color: '#94A3B8', fontSize: 13, textAlign: 'center', marginTop: 15 }}>No hay trabajos en el portafolio.</Text>
-                                            </View>
-                                        );
-                                    }
-
-                                    return (
-                                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingRight: 24, paddingLeft: 24 }}>
-                                            {portfolioFolders.map((folder, index) => (
-                                                <TouchableOpacity key={index} style={styles.airbnbCard} onPress={() => setSelectedGallery(folder)}>
-                                                    <Image source={{ uri: folder.images[0] }} style={styles.airbnbImage} resizeMode="cover" />
-                                                    <View style={styles.airbnbInfo}>
-                                                        <Text style={styles.airbnbTitle} numberOfLines={1}>{folder.title}</Text>
-                                                        <Text style={styles.airbnbSubtitle} numberOfLines={1}>
-                                                            {folder.subcategories.length > 0 ? folder.subcategories.join(', ') : 'Servicios generales'}
-                                                        </Text>
-                                                        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
-                                                            <Feather name="image" size={12} color="#6B7280" />
-                                                            <Text style={styles.airbnbCount}>{folder.images.length} fotos</Text>
-                                                        </View>
+                                            if (portfolioFolders.length === 0) {
+                                                return (
+                                                    <View style={{ alignItems: 'center', paddingVertical: 20 }}>
+                                                        <Feather name="folder" size={40} color="#E2E8F0" />
+                                                        <Text style={{ color: '#94A3B8', fontSize: 13, textAlign: 'center', marginTop: 15 }}>No hay trabajos en el portafolio.</Text>
                                                     </View>
-                                                </TouchableOpacity>
-                                            ))}
+                                                );
+                                            }
+
+                                            return (
+                                                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingRight: 24, paddingLeft: 24 }}>
+                                                    {portfolioFolders.map((folder, index) => (
+                                                        <TouchableOpacity key={index} style={styles.airbnbCard} onPress={() => setSelectedGallery(folder)}>
+                                                            <ExpoImage source={{ uri: folder.images[0] }} style={styles.airbnbImage} resizeMode="cover" />
+                                                            <View style={styles.airbnbInfo}>
+                                                                <Text style={styles.airbnbTitle} numberOfLines={1}>{folder.title}</Text>
+                                                                <Text style={styles.airbnbSubtitle} numberOfLines={1}>
+                                                                    {folder.subcategories.length > 0 ? folder.subcategories.join(', ') : 'Servicios generales'}
+                                                                </Text>
+                                                                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
+                                                                    <Feather name="image" size={12} color="#6B7280" />
+                                                                    <Text style={styles.airbnbCount}>{folder.images.length} fotos</Text>
+                                                                </View>
+                                                            </View>
+                                                        </TouchableOpacity>
+                                                    ))}
+                                                </ScrollView>
+                                            );
+                                        })()}
+                                    </View>
+                                    {/* RESEÑAS PRIVADAS */}
+                                    <View style={{ marginBottom: 25, marginHorizontal: -24 }}>
+                                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15, paddingHorizontal: 24 }}>
+                                            <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#111827' }}>Valoraciones Recibidas</Text>
+                                        </View>
+                                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingLeft: 24, paddingRight: 24, paddingBottom: 15, paddingTop: 5 }}>
+                                            {catReviews && catReviews.length > 0 ? (
+                                                catReviews.map((r, i) => (
+                                                    <View key={i} style={{ backgroundColor: 'white', padding: 16, borderRadius: 20, marginRight: 16, width: 160, elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, borderWidth: 1, borderColor: '#F1F5F9' }}>
+                                                        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+                                                            {r.reviewer?.avatar ? (
+                                                                <ExpoImage source={{ uri: r.reviewer.avatar }} style={{ width: 36, height: 36, borderRadius: 18, marginRight: 10 }} />
+                                                            ) : (
+                                                                <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#EFF6FF', justifyContent: 'center', alignItems: 'center', marginRight: 10 }}>
+                                                                    <Feather name="user" size={16} color="#2563EB" />
+                                                                </View>
+                                                            )}
+                                                            <View style={{ flex: 1 }}>
+                                                                <Text style={{ fontWeight: 'bold', fontSize: 14, color: '#1E293B' }} numberOfLines={1}>{r.reviewer?.name || 'Cliente'}</Text>
+                                                                <Text style={{ fontSize: 11, color: '#94A3B8' }} numberOfLines={1}>Hace poco</Text>
+                                                            </View>
+                                                        </View>
+                                                        <View style={{ flexDirection: 'row', marginBottom: 8 }}>
+                                                            {[...Array(5)].map((_, idx) => (
+                                                                <FontAwesome5 key={idx} name="star" solid={idx < (r.rating || 5)} size={10} color="#FBBF24" style={{ marginRight: 2 }} />
+                                                            ))}
+                                                        </View>
+                                                        <Text style={{ fontSize: 13, color: '#4B5563', lineHeight: 18 }} numberOfLines={3}>"{r.comment || 'Buen trabajo.'}"</Text>
+                                                    </View>
+                                                ))
+                                            ) : (
+                                                <View style={{ alignItems: 'center', paddingVertical: 20, width: 200, paddingHorizontal: 10 }}>
+                                                    <Feather name="message-square" size={32} color="#E2E8F0" />
+                                                    <Text style={{ color: '#94A3B8', fontSize: 13, textAlign: 'center', marginTop: 12 }}>No hay opiniones aún.</Text>
+                                                </View>
+                                            )}
                                         </ScrollView>
-                                    );
-                                })()}
-                            </View>
-                            {/* RESEÑAS PRIVADAS */}
-                            <View style={{ marginBottom: 25, marginHorizontal: -24 }}>
-                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15, paddingHorizontal: 24 }}>
-                                                <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#111827' }}>Valoraciones Recibidas</Text>
-                                            </View>
-                                            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingLeft: 24, paddingRight: 24, paddingBottom: 15, paddingTop: 5 }}>
-                                                {catReviews && catReviews.length > 0 ? (
-                                        catReviews.map((r, i) => (
-                                            <View key={i} style={{ backgroundColor: 'white', padding: 16, borderRadius: 20, marginRight: 16, width: 160, elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, borderWidth: 1, borderColor: '#F1F5F9' }}>
-                                                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
-                                                    {r.reviewer?.avatar ? (
-                                                        <Image source={{ uri: r.reviewer.avatar }} style={{ width: 36, height: 36, borderRadius: 18, marginRight: 10 }} />
+                                    </View>
+                                </>
+                            )}
+
+                            {/* UNIFIED HISTORY SECTION (TESTING - PRIVATE VIEW) */}
+                            {combinedHistory && combinedHistory.length > 0 && (
+                                <View style={{ marginBottom: 25, marginHorizontal: -24 }}>
+                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15, paddingHorizontal: 24 }}>
+                                        <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#111827' }}>Historial y Valoraciones</Text>
+                                    </View>
+                                    <FlatList
+                                        data={combinedHistory}
+                                        horizontal
+                                        showsHorizontalScrollIndicator={false}
+                                        keyExtractor={(item, index) => index.toString()}
+                                        contentContainerStyle={{ paddingLeft: 24, paddingRight: 24, paddingBottom: 15 }}
+                                        initialNumToRender={3}
+                                        maxToRenderPerBatch={3}
+                                        windowSize={5}
+                                        renderItem={({ item, index }) => (
+                                            <View style={{ backgroundColor: 'white', width: 160, borderRadius: 20, marginRight: 16, elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, borderWidth: 1, borderColor: '#F1F5F9', overflow: 'hidden' }}>
+                                                {/* PORTADA DEL TRABAJO */}
+                                                {item.images && item.images.length > 0 ? (
+                                                    <ExpoImage source={{ uri: item.images[0] }} style={{ width: '100%', aspectRatio: 1, backgroundColor: '#E2E8F0', resizeMode: 'cover' }} />
+                                                ) : (
+                                                    <View style={{ width: '100%', aspectRatio: 1, backgroundColor: '#F8FAFC', justifyContent: 'center', alignItems: 'center' }}>
+                                                        <Feather name="image" size={32} color="#CBD5E1" />
+                                                    </View>
+                                                )}
+
+                                                <View style={{ padding: 12, alignItems: 'center' }}>
+                                                    {/* TITULO */}
+                                                    <Text style={{ fontWeight: 'bold', fontSize: 13, color: '#1E293B', marginBottom: 8, textAlign: 'center' }} numberOfLines={2}>{item.title}</Text>
+                                                    
+                                                    {item.review ? (
+                                                        <View style={{ width: '100%', alignItems: 'center' }}>
+                                                            {/* CLIENTE INFO */}
+                                                            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 6 }}>
+                                                                {item.review.reviewer?.avatar ? (
+                                                                    <ExpoImage source={{ uri: item.review.reviewer.avatar }} style={{ width: 20, height: 20, borderRadius: 10, marginRight: 6, resizeMode: 'cover' }} />
+                                                                ) : (
+                                                                    <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: '#EFF6FF', justifyContent: 'center', alignItems: 'center', marginRight: 6 }}>
+                                                                        <Feather name="user" size={10} color="#2563EB" />
+                                                                    </View>
+                                                                )}
+                                                                <Text style={{ fontSize: 11, color: '#64748B', fontWeight: '500' }} numberOfLines={1}>{item.review.reviewer?.name || 'Cliente'}</Text>
+                                                            </View>
+                                                            
+                                                            {/* ESTRELLAS */}
+                                                            <View style={{ flexDirection: 'row', justifyContent: 'center', marginBottom: 6 }}>
+                                                                {[...Array(5)].map((_, idx) => (
+                                                                    <FontAwesome5 key={idx} name="star" solid={idx < (item.review.rating || 5)} size={10} color="#FBBF24" style={{ marginRight: 2 }} />
+                                                                ))}
+                                                            </View>
+                                                            
+                                                            {/* COMENTARIO */}
+                                                            <Text style={{ fontSize: 12, color: '#4B5563', fontStyle: 'italic', textAlign: 'center' }} numberOfLines={3}>"{item.review.comment || 'Buen trabajo.'}"</Text>
+                                                        </View>
                                                     ) : (
-                                                        <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#EFF6FF', justifyContent: 'center', alignItems: 'center', marginRight: 10 }}>
-                                                            <Feather name="user" size={16} color="#2563EB" />
+                                                        <View style={{ width: '100%', alignItems: 'center' }}>
+                                                            <Text style={{ fontSize: 12, color: '#94A3B8', fontStyle: 'italic', textAlign: 'center' }}>Completado sin reseña.</Text>
                                                         </View>
                                                     )}
-                                                    <View style={{ flex: 1 }}>
-                                                        <Text style={{ fontWeight: 'bold', fontSize: 14, color: '#1E293B' }} numberOfLines={1}>{r.reviewer?.name || 'Cliente'}</Text>
-                                                        <Text style={{ fontSize: 11, color: '#94A3B8' }} numberOfLines={1}>Hace poco</Text>
-                                                    </View>
+
+                                                    {/* BOTON VER MAS FOTOS */}
+                                                    {item.images && item.images.length > 0 && (
+                                                        <TouchableOpacity 
+                                                            style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#EFF6FF', paddingVertical: 8, borderRadius: 10, marginTop: 12, width: '100%' }}
+                                                            onPress={() => setSelectedGallery({ title: item.title, images: item.images, jobId: item.jobId })}
+                                                        >
+                                                            <Feather name="image" size={14} color="#2563EB" style={{ marginRight: 6 }} />
+                                                            <Text style={{ color: '#2563EB', fontWeight: 'bold', fontSize: 11 }}>Ver fotos ({item.images.length})</Text>
+                                                        </TouchableOpacity>
+                                                    )}
                                                 </View>
-                                                <View style={{ flexDirection: 'row', marginBottom: 8 }}>
-                                                    {[...Array(5)].map((_, idx) => (
-                                                        <FontAwesome5 key={idx} name="star" solid={idx < (r.rating || 5)} size={10} color="#FBBF24" style={{ marginRight: 2 }} />
-                                                    ))}
-                                                </View>
-                                                <Text style={{ fontSize: 13, color: '#4B5563', lineHeight: 18 }} numberOfLines={3}>"{r.comment || 'Buen trabajo.'}"</Text>
                                             </View>
-                                        ))
-                                    ) : (
-                                        <View style={{ alignItems: 'center', paddingVertical: 20, width: 200, paddingHorizontal: 10 }}>
-                                            <Feather name="message-square" size={32} color="#E2E8F0" />
-                                            <Text style={{ color: '#94A3B8', fontSize: 13, textAlign: 'center', marginTop: 12 }}>No hay opiniones aún.</Text>
-                                        </View>
-                                    )}
-                                </ScrollView>
-                            </View>
+                                        )}
+                                    />
+                                </View>
+                            )}
+                        </>
+                    )}
                         </>
                     )}
                 </View>
@@ -1079,7 +1451,7 @@ export default function ProfessionalProfileScreen({
             />
 
             {/* TEXT & GALLERY MODAL OWNER */}
-            <Modal visible={!!selectedGallery} transparent={true} animationType="fade" onRequestClose={() => setSelectedGallery(null)}>
+            <Modal visible={!!selectedGallery && selectedImageIndex === null} transparent={true} animationType="fade" onRequestClose={() => setSelectedGallery(null)}>
                 <View style={{ flex: 1, backgroundColor: '#F8FAFC', paddingTop: 50 }}>
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingBottom: 15, borderBottomWidth: 1, borderBottomColor: '#E2E8F0' }}>
                         <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#1E293B' }} numberOfLines={1}>{selectedGallery?.title || 'Fotos del Trabajo'}</Text>
@@ -1090,16 +1462,49 @@ export default function ProfessionalProfileScreen({
                             <Feather name="x" size={24} color="#1E293B" />
                         </TouchableOpacity>
                     </View>
-                    <ScrollView contentContainerStyle={{ padding: 15 }}>
-                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }}>
-                            {selectedGallery?.images?.map((img, i) => (
-                                <View key={i} style={{ width: '48%', marginBottom: 15, borderRadius: 12, overflow: 'hidden', borderWidth: 1, borderColor: '#E2E8F0' }}>
-                                    <Image source={{ uri: img }} style={{ width: '100%', height: 150, resizeMode: 'cover' }} />
-                                </View>
-                            ))}
-                        </View>
-                    </ScrollView>
+                    <FlatList
+                        data={selectedGallery?.images || []}
+                        keyExtractor={(item, index) => index.toString()}
+                        numColumns={2}
+                        contentContainerStyle={{ padding: 15 }}
+                        columnWrapperStyle={{ justifyContent: 'space-between' }}
+                        renderItem={({ item: img, index: i }) => (
+                            <TouchableOpacity 
+                                style={{ width: '48%', marginBottom: 15, borderRadius: 12, overflow: 'hidden', borderWidth: 1, borderColor: '#E2E8F0' }}
+                                onPress={() => setSelectedImageIndex(i)}
+                            >
+                                <ExpoImage source={{ uri: img }} style={{ width: '100%', height: 150, resizeMode: 'cover' }} />
+                            </TouchableOpacity>
+                        )}
+                    />
+                </View>
+            </Modal>
 
+            {/* FULLSCREEN IMAGE MODAL (PRIVATE VIEW) */}
+            <Modal visible={selectedImageIndex !== null} transparent={true} animationType="fade" onRequestClose={() => setSelectedImageIndex(null)}>
+                <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.95)' }}>
+                    <TouchableOpacity
+                        style={{ position: 'absolute', top: 50, right: 20, zIndex: 10, padding: 10, backgroundColor: 'rgba(0,0,0,0.3)', borderRadius: 20 }}
+                        onPress={() => setSelectedImageIndex(null)}
+                    >
+                        <Feather name="x" size={30} color="white" />
+                    </TouchableOpacity>
+                    {selectedImageIndex !== null && (
+                        <FlatList
+                            data={selectedGallery?.images || []}
+                            keyExtractor={(item, index) => index.toString()}
+                            horizontal
+                            pagingEnabled
+                            showsHorizontalScrollIndicator={false}
+                            initialScrollIndex={selectedImageIndex}
+                            getItemLayout={(data, index) => ({ length: SCREEN_WIDTH, offset: SCREEN_WIDTH * index, index })}
+                            renderItem={({ item }) => (
+                                <View style={{ width: SCREEN_WIDTH, height: '100%', justifyContent: 'center', alignItems: 'center' }}>
+                                    <ExpoImage source={{ uri: item }} style={{ width: '100%', height: '80%', resizeMode: 'contain' }} />
+                                </View>
+                            )}
+                        />
+                    )}
                 </View>
             </Modal>
         </View>

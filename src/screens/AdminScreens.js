@@ -3,6 +3,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Modal, Platform, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { api } from '../utils/api';
+import { Image as ExpoImage } from 'expo-image';
 
 // Extensive Icon Library grouped by Category
 const ICON_CATEGORIES = {
@@ -937,7 +938,7 @@ const CategoriesManager = () => {
                                     <Text style={[styles.label, { marginBottom: 10 }]}>Icono de Emergencia Personalizado</Text>
                                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                                         {subForm.emergencyIcon ? (
-                                            <Image source={{ uri: subForm.emergencyIcon }} style={{ width: 60, height: 60, borderRadius: 30, marginRight: 15, backgroundColor: 'white' }} />
+                                            <ExpoImage source={{ uri: subForm.emergencyIcon }} style={{ width: 60, height: 60, borderRadius: 30, marginRight: 15, backgroundColor: 'white' }} />
                                         ) : (
                                             <View style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: '#FEE2E2', alignItems: 'center', justifyContent: 'center', marginRight: 15 }}>
                                                 <Feather name="image" size={24} color="#EF4444" />
@@ -1113,7 +1114,7 @@ const RequestsManager = ({ jobs, categories, filter, onRefresh }) => {
                             {selectedJob.images && selectedJob.images.length > 0 ? (
                                 selectedJob.images.map((img, idx) => (
                                     <View key={idx} style={{ marginRight: 10 }}>
-                                        <Image source={{ uri: img }} style={{ width: 80, height: 80, borderRadius: 8, backgroundColor: '#eee' }} />
+                                        <ExpoImage source={{ uri: img }} style={{ width: 80, height: 80, borderRadius: 8, backgroundColor: '#eee' }} />
                                     </View>
                                 ))
                             ) : (
@@ -1160,7 +1161,7 @@ const RequestsManager = ({ jobs, categories, filter, onRefresh }) => {
                                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                                         {pro.avatar ? (
-                                            <Image source={{ uri: `data:image/jpeg;base64,${pro.avatar}` }} style={{ width: 40, height: 40, borderRadius: 20 }} />
+                                            <ExpoImage source={{ uri: `data:image/jpeg;base64,${pro.avatar}` }} style={{ width: 40, height: 40, borderRadius: 20 }} />
                                         ) : (
                                             <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#E5E7EB', alignItems: 'center', justifyContent: 'center' }}>
                                                 <Feather name="user" size={20} color="#9CA3AF" />
@@ -1670,7 +1671,7 @@ const BusinessesManager = () => {
                 <Text style={styles.label}>Imagen del Anuncio</Text>
                 <TouchableOpacity onPress={pickImage} style={{ alignItems: 'center', justifyContent: 'center', height: 150, backgroundColor: '#F3F4F6', borderRadius: 10, borderWidth: 1, borderColor: '#E5E7EB', marginBottom: 20, overflow: 'hidden' }}>
                     {form.image ? (
-                        <Image source={{ uri: form.image }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                        <ExpoImage source={{ uri: form.image }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
                     ) : (
                         <View style={{ alignItems: 'center' }}>
                             <Feather name="image" size={30} color="#9CA3AF" />
@@ -1700,7 +1701,7 @@ const BusinessesManager = () => {
             {existingAds.map(ad => (
                 <View key={ad._id} style={styles.card}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-                        {ad.image ? <Image source={{ uri: ad.image }} style={{ width: 50, height: 50, borderRadius: 8, marginRight: 10 }} /> : null}
+                        {ad.image ? <ExpoImage source={{ uri: ad.image }} style={{ width: 50, height: 50, borderRadius: 8, marginRight: 10 }} /> : null}
                         <View style={{ flex: 1 }}>
                             <Text style={styles.cardTitle}>{ad.name}</Text>
                             <Text style={styles.cardSubtitle}>{ad.category} {ad.subcategory ? `> ${ad.subcategory}` : ''}</Text>

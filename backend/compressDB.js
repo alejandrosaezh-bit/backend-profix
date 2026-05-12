@@ -5,9 +5,9 @@ const User = require('./models/User');
 const Job = require('./models/Job');
 const Chat = require('./models/Chat');
 
-const COMPRESS_THRESHOLD = 300000; // 300KB (base64 string length)
+const COMPRESS_THRESHOLD = 100000; // 100KB (base64 string length)
 
-const compressBase64Image = async (base64String, maxWidth = 800, quality = 60) => {
+const compressBase64Image = async (base64String, maxWidth = 800, quality = 30) => {
     if (!base64String || typeof base64String !== 'string' || !base64String.startsWith('data:image')) {
         return base64String;
     }
@@ -51,7 +51,7 @@ const run = async () => {
             if (user.avatar && user.avatar.length > COMPRESS_THRESHOLD) {
                 console.log(`User ${user._id} avatar is ${user.avatar.length} bytes. Compressing...`);
                 const oldLen = user.avatar.length;
-                user.avatar = await compressBase64Image(user.avatar, 200, 50);
+                user.avatar = await compressBase64Image(user.avatar, 200, 30);
                 totalSavedBytes += (oldLen - user.avatar.length);
                 modified = true;
                 totalCompressed++;
@@ -66,7 +66,7 @@ const run = async () => {
                             if (img && img.length > COMPRESS_THRESHOLD) {
                                 console.log(`User ${user._id} profile ${category} gallery item ${i} is ${img.length} bytes. Compressing...`);
                                 const oldLen = img.length;
-                                profile.gallery[i] = await compressBase64Image(img, 800, 60);
+                                profile.gallery[i] = await compressBase64Image(img, 800, 30);
                                 totalSavedBytes += (oldLen - profile.gallery[i].length);
                                 modified = true;
                                 totalCompressed++;
@@ -95,7 +95,7 @@ const run = async () => {
                     if (img && img.length > COMPRESS_THRESHOLD) {
                         console.log(`Job ${job._id} image ${i} is ${img.length} bytes. Compressing...`);
                         const oldLen = img.length;
-                        job.images[i] = await compressBase64Image(img, 800, 60);
+                        job.images[i] = await compressBase64Image(img, 800, 30);
                         totalSavedBytes += (oldLen - job.images[i].length);
                         modified = true;
                         totalCompressed++;
@@ -110,7 +110,7 @@ const run = async () => {
                     if (img && img.length > COMPRESS_THRESHOLD) {
                         console.log(`Job ${job._id} workPhoto ${i} is ${img.length} bytes. Compressing...`);
                         const oldLen = img.length;
-                        job.workPhotos[i] = await compressBase64Image(img, 800, 60);
+                        job.workPhotos[i] = await compressBase64Image(img, 800, 30);
                         totalSavedBytes += (oldLen - job.workPhotos[i].length);
                         modified = true;
                         totalCompressed++;
@@ -125,7 +125,7 @@ const run = async () => {
                     if (ev.mediaUrl && ev.mediaUrl.length > COMPRESS_THRESHOLD) {
                         console.log(`Job ${job._id} projectHistory item ${i} is ${ev.mediaUrl.length} bytes. Compressing...`);
                         const oldLen = ev.mediaUrl.length;
-                        ev.mediaUrl = await compressBase64Image(ev.mediaUrl, 800, 60);
+                        ev.mediaUrl = await compressBase64Image(ev.mediaUrl, 800, 30);
                         totalSavedBytes += (oldLen - ev.mediaUrl.length);
                         modified = true;
                         totalCompressed++;

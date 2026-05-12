@@ -1,5 +1,6 @@
 import { Feather } from '@expo/vector-icons';
 import { Image, Modal, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image as ExpoImage } from 'expo-image';
 
 export const ProHomeHeader = ({
     showFilterBar, setShowFilterBar,
@@ -88,7 +89,7 @@ export const ProLoader = ({ spin }) => (
 
 export const ProEmptyStateNoCategories = ({ setView }) => (
     <View style={styles.emptyCard}>
-        <Image source={require('../../../assets/images/plomero.png')} style={{ width: 140, height: 140, marginBottom: 15 }} resizeMode="contain" />
+        <ExpoImage source={require('../../../assets/images/plomero.png')} style={{ width: 140, height: 140, marginBottom: 15 }} resizeMode="contain" />
         <Text style={styles.emptyTitle}>¡Empieza a Ganar Dinero!</Text>
         <Text style={styles.emptySubtitle}>
             No tienes categorías activas en tu perfil. Activa las categorías en las que eres experto para ver las
@@ -147,7 +148,7 @@ export const ProJobCard = ({ job, isNewJob, getProStatusColor, handleOpenJobDeta
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 15 }}>
                 <View style={styles.avatarWrapper}>
                     {job.clientAvatar ? (
-                        <Image source={{ uri: job.clientAvatar }} style={{ width: '100%', height: '100%' }} />
+                        <ExpoImage source={{ uri: job.clientAvatar }} style={{ width: '100%', height: '100%' }} />
                     ) : (
                         <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#2563EB' }}>
                             {job.clientName ? job.clientName.substring(0, 1).toUpperCase() : 'C'}
