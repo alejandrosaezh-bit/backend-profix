@@ -1917,6 +1917,12 @@ router.post('/:id/timeline', protect, async (req, res) => {
             return res.status(403).json({ message: 'No autorizado' });
         }
 
+        let finalMediaUrl = mediaUrl;
+        if (mediaUrl && mediaUrl.startsWith('data:image')) {
+            const uploadedUrl = await uploadImage(mediaUrl, 'jobs');
+            if (uploadedUrl) finalMediaUrl = uploadedUrl;
+        }
+
         const newEvent = {
             eventType,
             actor: req.user._id,
@@ -1924,7 +1930,7 @@ router.post('/:id/timeline', protect, async (req, res) => {
             timestamp: new Date(),
             title,
             description,
-            mediaUrl,
+            mediaUrl: finalMediaUrl,
             metadata,
             isPrivate: isPrivate || false
         };
