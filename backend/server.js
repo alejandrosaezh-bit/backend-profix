@@ -1,6 +1,9 @@
 const express = require('express');
 const dotenv = require('dotenv');
 const path = require('path');
+
+dotenv.config({ path: path.join(__dirname, '.env') });
+
 const cors = require('cors');
 const connectDB = require('./config/db');
 const authRoutes = require('./routes/auth.routes');
@@ -19,7 +22,6 @@ const hpp = require('hpp');
 const xss = require('xss-clean');
 const initCronJobs = require('./scripts/cronJobs');
 
-dotenv.config({ path: path.join(__dirname, '.env') });
 // Conectar a Base de Datos
 connectDB();
 
