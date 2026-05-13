@@ -12,6 +12,7 @@ const Review = require('../models/Review');
 const { protect } = require('../middleware/authMiddleware');
 const { GamificationService } = require('../services/GamificationService');
 const NotificationService = require('../services/NotificationService');
+const { uploadImage } = require('../utils/cloudinary');
 
 // --- NOTIFICATION HELPER MOVED TO NotificationService ---
 
@@ -169,6 +170,18 @@ router.post('/', protect, async (req, res) => {
             return res.status(400).json({ message: 'La categoría seleccionada no es válida.' });
         }
 
+        let uploadedImages = [];
+        if (images && Array.isArray(images)) {
+            for (let img of images) {
+                if (img && img.startsWith('data:image')) {
+                    const uploadedUrl = await uploadImage(img, 'jobs');
+                    if (uploadedUrl) uploadedImages.push(uploadedUrl);
+                } else if (img && img.startsWith('http')) {
+                    uploadedImages.push(img);
+                }
+            }
+        }
+
         const job = new Job({
             client: req.user._id,
             title,
@@ -177,7 +190,7 @@ router.post('/', protect, async (req, res) => {
             subcategory,
             location,
             budget,
-            images,
+            images: uploadedImages,
             isUrgent: isUrgent || false,
             exactLocation: exactLocation || null,
             projectHistory: [{
@@ -292,7 +305,18 @@ router.put('/:id', protect, async (req, res) => {
         job.subcategory = subcategory !== undefined ? subcategory : job.subcategory;
         job.location = location || job.location;
         job.budget = budget || job.budget;
-        job.images = images || job.images;
+        if (images && Array.isArray(images)) {
+            let updatedImages = [];
+            for (let img of images) {
+                if (img && img.startsWith('data:image')) {
+                    const uploadedUrl = await uploadImage(img, 'jobs');
+                    if (uploadedUrl) updatedImages.push(uploadedUrl);
+                } else if (img && img.startsWith('http')) {
+                    updatedImages.push(img);
+                }
+            }
+            job.images = updatedImages;
+        }
 
         const updatedJob = await job.save();
         console.log(`[PUT /jobs/${req.params.id}] Job Updated:`, updatedJob);
@@ -730,7 +754,12 @@ router.post('/:id/work-photos', protect, async (req, res) => {
         const job = await Job.findById(req.params.id);
         if (!job) return res.status(404).json({ message: 'Trabajo no encontrado' });
 
-        job.workPhotos.push(image);
+        if (image && image.startsWith('data:image')) {
+            const uploadedUrl = await uploadImage(image, 'jobs');
+            if (uploadedUrl) job.workPhotos.push(uploadedUrl);
+        } else if (image && image.startsWith('http')) {
+            job.workPhotos.push(image);
+        }
         await job.save();
 
         res.json(job);
@@ -755,8 +784,14 @@ router.put('/:id/images', protect, async (req, res) => {
             return res.status(403).json({ message: 'No autorizado' });
         }
 
-        if (!job.images) job.images = [];
-        job.images.push(image);
+        if (req.body.image) {
+            if (req.body.image.startsWith('data:image')) {
+                const uploadedUrl = await uploadImage(req.body.image, 'jobs');
+                if (uploadedUrl) job.images.push(uploadedUrl);
+            } else if (req.body.image.startsWith('http')) {
+                job.images.push(req.body.image);
+            }
+        }
         await job.save();
 
         res.json(job);

@@ -5,6 +5,7 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const { protect } = require('../middleware/authMiddleware');
 const { body, validationResult } = require('express-validator');
+const { uploadImage } = require('../utils/cloudinary');
 
 // Generar JWT
 const generateToken = (id) => {
@@ -212,14 +213,39 @@ router.put('/profile', protect, async (req, res) => {
         if (req.body.name) user.name = req.body.name;
         if (req.body.email) user.email = req.body.email;
         if (req.body.phone) user.phone = req.body.phone;
-        if (req.body.avatar) user.avatar = req.body.avatar;
+        if (req.body.avatar) {
+            if (req.body.avatar.startsWith('data:image')) {
+                const cloudinaryUrl = await uploadImage(req.body.avatar, 'avatars');
+                if (cloudinaryUrl) user.avatar = cloudinaryUrl;
+            } else {
+                user.avatar = req.body.avatar;
+            }
+        }
         if (req.body.cedula) user.cedula = req.body.cedula;
         if (req.body.pushToken) user.pushToken = req.body.pushToken;
         if (req.body.notificationPreferences) user.notificationPreferences = req.body.notificationPreferences;
 
         if (req.body.profiles) {
             console.log("Updating profiles via user.save() (Map replacement)...");
-            user.profiles = new Map(Object.entries(req.body.profiles));
+            let newProfiles = req.body.profiles;
+            
+            // Upload base64 gallery images to Cloudinary
+            for (let category in newProfiles) {
+                if (newProfiles[category].gallery && Array.isArray(newProfiles[category].gallery)) {
+                    let updatedGallery = [];
+                    for (let img of newProfiles[category].gallery) {
+                        if (img && img.startsWith('data:image')) {
+                            const uploadedUrl = await uploadImage(img, 'portfolios');
+                            if (uploadedUrl) updatedGallery.push(uploadedUrl);
+                        } else if (img && img.startsWith('http')) {
+                            updatedGallery.push(img);
+                        }
+                    }
+                    newProfiles[category].gallery = updatedGallery;
+                }
+            }
+
+            user.profiles = new Map(Object.entries(newProfiles));
             user.markModified('profiles');
         }
 
@@ -330,7 +356,9 @@ router.post('/google', async (req, res) => {
             // Usuario existe: Actualizar googleId si no lo tiene
             if (!user.googleId) {
                 user.googleId = googleId;
-                if (avatar && !user.avatar) user.avatar = avatar; // Actualizar foto si no tiene
+                if (avatar && !user.avatar) {
+                    user.avatar = avatar.startsWith('data:image') ? await uploadImage(avatar, 'avatars') : avatar;
+                } // Actualizar foto si no tiene
                 await user.save();
             }
         } else {
@@ -341,7 +369,7 @@ router.post('/google', async (req, res) => {
             user = new User({
                 name: name || 'Usuario Google',
                 email,
-                avatar,
+                avatar: req.body.avatar ? (req.body.avatar.startsWith('data:image') ? await uploadImage(req.body.avatar, 'avatars') : req.body.avatar) : '',
                 password: hashedPassword,
                 googleId,
                 role: 'client', // Por defecto cliente
