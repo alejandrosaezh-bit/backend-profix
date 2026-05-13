@@ -2127,4 +2127,28 @@ router.post('/:id/client-log/photo', protect, async (req, res) => {
     }
 });
 
+// @desc    Actualizar orden de fotos del portfolio de un trabajo
+// @route   PUT /api/jobs/:id/portfolio-order
+// @access  Private (Profesional Asignado)
+router.put('/:id/portfolio-order', protect, async (req, res) => {
+    try {
+        const { order } = req.body; // array of strings
+        if (!Array.isArray(order)) return res.status(400).json({ message: 'Order must be an array' });
+
+        const job = await Job.findById(req.params.id);
+        if (!job) return res.status(404).json({ message: 'Trabajo no encontrado' });
+
+        // Solo el profesional asignado puede organizar su portafolio para este trabajo
+        const isPro = job.professional && job.professional.toString() === req.user._id.toString();
+        if (!isPro) return res.status(403).json({ message: 'No autorizado' });
+
+        job.portfolioOrder = order;
+        await job.save();
+
+        res.json(job);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
 module.exports = router;

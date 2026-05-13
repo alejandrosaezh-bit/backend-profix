@@ -105,6 +105,7 @@ const jobSchema = mongoose.Schema({
         metadata: mongoose.Schema.Types.Mixed,
         isPrivate: { type: Boolean, default: false } // If true, only visible to actor until job completion
     }],
+    portfolioOrder: [String],
     clientManagement: {
         payments: [{
             date: { type: Date, default: Date.now },

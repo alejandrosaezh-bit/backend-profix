@@ -769,5 +769,17 @@ export const api = {
         });
         if (!res.ok) throw new Error('Error updating app message');
         return res.json();
+    },
+    
+    // --- PORTFOLIO ---
+    updatePortfolioOrder: async (jobId, order) => {
+        const headers = await getHeaders();
+        const res = await fetchWithTimeout(`${API_URL}/jobs/${jobId}/portfolio-order`, {
+            method: 'PUT',
+            headers,
+            body: JSON.stringify({ order })
+        });
+        if (!res.ok) throw new Error('Error updating portfolio order');
+        return res.json();
     }
 };
