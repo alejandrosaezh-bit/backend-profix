@@ -12,6 +12,7 @@ const userSchema = mongoose.Schema({
     pushToken: { type: String },
     resetPasswordCode: { type: String }, // For password recovery
     resetPasswordExpire: { type: Date },
+    timelinePortfolio: [{ type: String }], // Images selected for Client Portfolio
 
     // Campos específicos para Profesionales
     isActive: { type: Boolean, default: true }, // Soft delete status
@@ -25,7 +26,8 @@ const userSchema = mongoose.Schema({
             bio: String,
             subcategories: [String],
             zones: [String],
-            gallery: [String],
+            gallery: [String], // Fotos de Presentacion
+            timelinePortfolio: [String], // Historial y Valoraciones
             experience: String,
             priceRange: String,
             acceptsUrgentJobs: { type: Boolean, default: false },

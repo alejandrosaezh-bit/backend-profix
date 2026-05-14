@@ -164,12 +164,27 @@ export default function ClientProfileScreen({ user, isOwner, onBack, onLogout, o
 
   if (completedForPortfolio && completedForPortfolio.length > 0) {
       completedForPortfolio.forEach(job => {
-          const jobImages = [];
+          let jobImages = [];
           if (job.images && Array.isArray(job.images)) job.images.forEach(img => { if (img && !jobImages.includes(img)) jobImages.push(img); });
           if (job.workPhotos && Array.isArray(job.workPhotos)) job.workPhotos.forEach(img => { if (img && !jobImages.includes(img)) jobImages.push(img); });
           if (job.projectHistory && Array.isArray(job.projectHistory)) {
-              job.projectHistory.forEach(hi => { if (hi && hi.mediaUrl && !jobImages.includes(hi.mediaUrl)) jobImages.push(hi.mediaUrl); });
+              job.projectHistory.forEach(hi => { if (hi && !hi.isPrivate && hi.mediaUrl && !jobImages.includes(hi.mediaUrl)) jobImages.push(hi.mediaUrl); });
           }
+
+          if (job.portfolioOrder && Array.isArray(job.portfolioOrder) && job.portfolioOrder.length > 0) {
+              const ordered = [];
+              job.portfolioOrder.forEach(img => {
+                  if (jobImages.includes(img)) ordered.push(img);
+              });
+              jobImages.forEach(img => {
+                  if (!ordered.includes(img)) ordered.push(img);
+              });
+              jobImages = ordered;
+          }
+
+          const myPortfolio = user?.timelinePortfolio || [];
+          // Filter to only show images that were manually added to the portfolio
+          jobImages = jobImages.filter(img => myPortfolio.includes(img));
 
           const review = reviews.find(r => r.job?._id === job._id || r.job === job._id);
 

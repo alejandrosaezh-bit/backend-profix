@@ -28,7 +28,7 @@ const ProjectTimeline = ({ job, userMode, currentUser, onConfirmStart, onAddTime
                 // To force a refresh we can just call an empty update or relies on polling/sockets
                 // But since job state is usually maintained by the parent, we might need a prop like onUpdateJob
                 // Since we don't have it explicitly, we can show an alert that it was changed
-                Alert.alert("Éxito", `El evento ahora es ${!event.isPrivate ? 'Privado' : 'Público'}. Los cambios se verán reflejados en breve.`);
+                Alert.alert("�0xito", `El evento ahora es ${!event.isPrivate ? 'Privado' : 'Público'}. Los cambios se verán reflejados en breve.`);
             }
         } catch (error) {
             console.error("Error toggling privacy:", error);
@@ -48,9 +48,11 @@ const ProjectTimeline = ({ job, userMode, currentUser, onConfirmStart, onAddTime
     const [showMediaModal, setShowMediaModal] = useState(false);
     const [pendingMediaType, setPendingMediaType] = useState(null);
 
-    // Get user's current portfolio for this specific category
+    // Get user's current portfolio for this specific category or for the client
     const categoryTitle = typeof job.category === 'string' ? job.category : (job.category?.name || 'General');
-    const portfolioGallery = currentUser?.profiles?.[categoryTitle]?.gallery || [];
+    const portfolioGallery = userMode === 'client' 
+        ? (currentUser?.timelinePortfolio || []) 
+        : (currentUser?.profiles?.[categoryTitle]?.timelinePortfolio || []);
 
     const events = [...(job.projectHistory || [])];
 
@@ -258,8 +260,8 @@ const ProjectTimeline = ({ job, userMode, currentUser, onConfirmStart, onAddTime
 
     return (
         <View style={{ marginTop: 8 }}>
-            {/* PANEL DE GESTIÓN INTEGRADO (Solo si es el Pro y no ha terminado, o si el cliente tiene permisos) */}
-            {/* PANEL DE GESTIÓN INTEGRADO (Unificado para Pro y Cliente) */}
+            {/* PANEL DE GESTI�N INTEGRADO (Solo si es el Pro y no ha terminado, o si el cliente tiene permisos) */}
+            {/* PANEL DE GESTI�N INTEGRADO (Unificado para Pro y Cliente) */}
             {(showSection === 'all' || showSection === 'management') && (
                 <View style={[styles.managementCard, !isAccepted && { backgroundColor: '#F8FAFC', borderColor: '#E2E8F0', overflow: 'hidden' }]}>
                     {/* Bloqueo Visual */}
@@ -587,7 +589,7 @@ const ProjectTimeline = ({ job, userMode, currentUser, onConfirmStart, onAddTime
                 </View>
             )}
 
-            {/* SECCIÓN DE VALORACIÓN (Always visible, but disabled if not finished or not the winner) */}
+            {/* SECCI�N DE VALORACI�N (Always visible, but disabled if not finished or not the winner) */}
             {(showSection === 'all' || showSection === 'rating') && (
                 <View style={[styles.managementCard, !(isFinished && (userMode === 'client' || isITheWinner)) && { backgroundColor: '#F8FAFC', borderColor: '#E2E8F0', padding: 0, overflow: 'hidden', position: 'relative' }]}>
                     {!(isFinished && (userMode === 'client' || isITheWinner)) && (
@@ -710,48 +712,43 @@ const ProjectTimeline = ({ job, userMode, currentUser, onConfirmStart, onAddTime
                                                 );
                                             })()}
 
-                                            {isMe && e.eventType !== 'offer_sent' && e.eventType !== 'offer_accepted' && e.eventType !== 'offer_rejected' && e.eventType !== 'job_created' && (
-                                                <TouchableOpacity
-                                                    onPress={() => handleTogglePrivacy(e)}
-                                                    style={{ alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', marginTop: 8, backgroundColor: e.isPrivate ? '#FEE2E2' : '#F1F5F9', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 }}
-                                                >
-                                                    <Feather name={e.isPrivate ? "lock" : "unlock"} size={10} color={e.isPrivate ? "#EF4444" : "#64748B"} style={{ marginRight: 4 }} />
-                                                    <Text style={{ fontSize: 10, fontWeight: 'bold', color: e.isPrivate ? "#EF4444" : "#64748B" }}>
-                                                        {e.isPrivate ? 'Privado' : 'Hacer Privado'}
-                                                    </Text>
-                                                </TouchableOpacity>
-                                            )}
+                                            {/* BOTONES DE PRIVACIDAD Y PORTAFOLIO */}
+                                            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8, flexWrap: 'wrap', gap: 8 }}>
+                                                {/* BOT�N PRIVACIDAD: Solo el autor del evento puede cambiar la privacidad */}
+                                                {isMe && e.eventType !== 'offer_sent' && e.eventType !== 'offer_accepted' && e.eventType !== 'offer_rejected' && e.eventType !== 'job_created' && (
+                                                    <TouchableOpacity
+                                                        onPress={() => handleTogglePrivacy(e)}
+                                                        style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: e.isPrivate ? '#FEE2E2' : '#F1F5F9', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 }}
+                                                    >
+                                                        <Feather name={e.isPrivate ? "lock" : "unlock"} size={10} color={e.isPrivate ? "#EF4444" : "#64748B"} style={{ marginRight: 4 }} />
+                                                        <Text style={{ fontSize: 10, fontWeight: 'bold', color: e.isPrivate ? "#EF4444" : "#64748B" }}>
+                                                            {e.isPrivate ? 'Privado' : 'Hacer Privado'}
+                                                        </Text>
+                                                    </TouchableOpacity>
+                                                )}
+
+                                                {/* BOT�N PORTAFOLIO: El usuario actual puede agregar CUALQUIER imagen al portafolio (siempre y cuando no sea privada) */}
+                                                {e.mediaUrl && onTogglePortfolio && !e.isPrivate && (() => {
+                                                    const isInPortfolio = portfolioGallery.includes(e.mediaUrl);
+                                                    return (
+                                                        <TouchableOpacity
+                                                            onPress={() => onTogglePortfolio(e.mediaUrl, categoryTitle)}
+                                                            style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: isInPortfolio ? '#FEF2F2' : '#F0FDF4', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, borderWidth: 1, borderColor: isInPortfolio ? '#FEE2E2' : '#DCFCE7' }}
+                                                        >
+                                                            <Feather name={isInPortfolio ? "minus-circle" : "star"} size={10} color={isInPortfolio ? "#EF4444" : "#16A34A"} style={{ marginRight: 4 }} />
+                                                            <Text style={{ fontSize: 10, fontWeight: 'bold', color: isInPortfolio ? '#EF4444' : '#16A34A' }}>
+                                                                {isInPortfolio ? "Quitar del portafolio" : "Agregar al portafolio"}
+                                                            </Text>
+                                                        </TouchableOpacity>
+                                                    );
+                                                })()}
+                                            </View>
                                             {e.mediaUrl && (
                                                 <View style={{ marginTop: 10 }}>
                                                     <TouchableOpacity onPress={() => onViewImage(e.mediaUrl)}>
                                                         <ExpoImage source={{ uri: e.mediaUrl }} style={{ width: '100%', height: 180, borderRadius: 12 }} />
                                                     </TouchableOpacity>
-                                                    {onTogglePortfolio && (
-                                                        <TouchableOpacity
-                                                            onPress={() => {
-                                                                onTogglePortfolio(e.mediaUrl, categoryTitle);
-                                                                if (e.isPrivate && isMe) {
-                                                                    handleTogglePrivacy(e);
-                                                                }
-                                                            }}
-                                                            style={{
-                                                                position: 'absolute',
-                                                                bottom: 8,
-                                                                right: 8,
-                                                                backgroundColor: portfolioGallery.includes(e.mediaUrl) ? '#10B981' : 'rgba(0,0,0,0.6)',
-                                                                paddingVertical: 6,
-                                                                paddingHorizontal: 12,
-                                                                borderRadius: 16,
-                                                                flexDirection: 'row',
-                                                                alignItems: 'center'
-                                                            }}
-                                                        >
-                                                            <Feather name={portfolioGallery.includes(e.mediaUrl) ? "check" : "image"} size={12} color="white" style={{ marginRight: 6 }} />
-                                                            <Text style={{ color: 'white', fontSize: 11, fontWeight: 'bold' }}>
-                                                                {portfolioGallery.includes(e.mediaUrl) ? "En Portafolio" : "Añadir a Portafolio"}
-                                                            </Text>
-                                                        </TouchableOpacity>
-                                                    )}
+
                                                 </View>
                                             )}
                                         </View>

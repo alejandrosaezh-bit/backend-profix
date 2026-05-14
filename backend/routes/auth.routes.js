@@ -177,7 +177,7 @@ router.put('/profile', protect, async (req, res) => {
         console.log("Finding user by ID:", req.user._id);
 
         // Check if we are updating heavy profile data or just simple fields
-        const isHeavyUpdate = !!req.body.profiles || !!req.body.avatar || !!req.body.password;
+        const isHeavyUpdate = !!req.body.profiles || !!req.body.timelinePortfolio || !!req.body.avatar || !!req.body.password;
 
         if (!isHeavyUpdate) {
             // OPTIMIZACIÓN: Actualización directa para campos ligeros (como pushToken, name, phone)
@@ -224,6 +224,10 @@ router.put('/profile', protect, async (req, res) => {
         if (req.body.cedula) user.cedula = req.body.cedula;
         if (req.body.pushToken) user.pushToken = req.body.pushToken;
         if (req.body.notificationPreferences) user.notificationPreferences = req.body.notificationPreferences;
+        
+        if (req.body.timelinePortfolio) {
+             user.timelinePortfolio = req.body.timelinePortfolio;
+        }
 
         if (req.body.profiles) {
             console.log("Updating profiles via user.save() (Map replacement)...");

@@ -83,6 +83,8 @@ export default function ProfessionalProfileScreen({
     const [reviews, setReviews] = useState([]);
     const [selectedGallery, setSelectedGallery] = useState(null);
     const [selectedImageIndex, setSelectedImageIndex] = useState(null);
+    const [isOrderingGallery, setIsOrderingGallery] = useState(false);
+    const [isSavingOrder, setIsSavingOrder] = useState(false);
     const [showCrossPopup, setShowCrossPopup] = useState(true);
     const [isLoadingProfile, setIsLoadingProfile] = useState(true);
 
@@ -254,6 +256,33 @@ export default function ProfessionalProfileScreen({
     });
 
     // --- ACCIONES ---
+    
+    const handleMoveImage = (index, direction) => {
+        if (!selectedGallery || !selectedGallery.images) return;
+        const newImages = [...selectedGallery.images];
+        if (direction === 'left' && index > 0) {
+            [newImages[index - 1], newImages[index]] = [newImages[index], newImages[index - 1]];
+        } else if (direction === 'right' && index < newImages.length - 1) {
+            [newImages[index + 1], newImages[index]] = [newImages[index], newImages[index + 1]];
+        }
+        setSelectedGallery({ ...selectedGallery, images: newImages });
+    };
+
+    const saveGalleryOrder = async () => {
+        if (!selectedGallery || !selectedGallery.jobId) return;
+        setIsSavingOrder(true);
+        try {
+            await api.updatePortfolioOrder(selectedGallery.jobId, selectedGallery.images);
+            Alert.alert("Éxito", "El orden de la portada ha sido actualizado.");
+            setIsOrderingGallery(false);
+            if (onUpdate) onUpdate(user); // Triggers re-fetch of data
+        } catch (error) {
+            console.error("Error saving gallery order:", error);
+            Alert.alert("Error", "No se pudo guardar el orden.");
+        } finally {
+            setIsSavingOrder(false);
+        }
+    };
 
     // --- SAVE HANDLERS ---
 
@@ -569,12 +598,26 @@ export default function ProfessionalProfileScreen({
         });
 
         completedJobs.forEach(job => {
-            const jobImages = [];
+            let jobImages = [];
             if (job.images && Array.isArray(job.images)) job.images.forEach(img => { if (img && !jobImages.includes(img)) jobImages.push(img); });
             if (job.workPhotos && Array.isArray(job.workPhotos)) job.workPhotos.forEach(img => { if (img && !jobImages.includes(img)) jobImages.push(img); });
             if (job.projectHistory && Array.isArray(job.projectHistory)) {
-                job.projectHistory.forEach(hi => { if (hi && hi.image && !jobImages.includes(hi.image)) jobImages.push(hi.image); });
+                job.projectHistory.forEach(hi => { if (hi && !hi.isPrivate && hi.mediaUrl && !jobImages.includes(hi.mediaUrl)) jobImages.push(hi.mediaUrl); });
             }
+
+            if (job.portfolioOrder && Array.isArray(job.portfolioOrder) && job.portfolioOrder.length > 0) {
+                const ordered = [];
+                job.portfolioOrder.forEach(img => {
+                    if (jobImages.includes(img)) ordered.push(img);
+                });
+                jobImages.forEach(img => {
+                    if (!ordered.includes(img)) ordered.push(img);
+                });
+                jobImages = ordered;
+            }
+
+            const myPortfolio = user.profiles?.[categoryKey]?.timelinePortfolio || [];
+            jobImages = jobImages.filter(img => myPortfolio.includes(img));
 
             const review = catReviews.find(r => r.job?._id === job._id || r.job === job._id);
 
@@ -591,9 +634,26 @@ export default function ProfessionalProfileScreen({
     catReviews.forEach(rev => {
         const jobId = rev.job?._id || rev.job;
         if (!combinedHistory.some(ch => ch.jobId === jobId)) {
-            const revImages = [];
+            let revImages = [];
             if (rev.job?.images && Array.isArray(rev.job.images)) rev.job.images.forEach(img => { if (img && !revImages.includes(img)) revImages.push(img); });
             if (rev.job?.workPhotos && Array.isArray(rev.job.workPhotos)) rev.job.workPhotos.forEach(img => { if (img && !revImages.includes(img)) revImages.push(img); });
+            if (rev.job?.projectHistory && Array.isArray(rev.job?.projectHistory)) {
+                rev.job.projectHistory.forEach(hi => { if (hi && !hi.isPrivate && hi.mediaUrl && !revImages.includes(hi.mediaUrl)) revImages.push(hi.mediaUrl); });
+            }
+
+            if (rev.job?.portfolioOrder && Array.isArray(rev.job?.portfolioOrder) && rev.job?.portfolioOrder.length > 0) {
+                const ordered = [];
+                rev.job.portfolioOrder.forEach(img => {
+                    if (revImages.includes(img)) ordered.push(img);
+                });
+                revImages.forEach(img => {
+                    if (!ordered.includes(img)) ordered.push(img);
+                });
+                revImages = ordered;
+            }
+
+            const myPortfolio = user.profiles?.[categoryKey]?.timelinePortfolio || [];
+            revImages = revImages.filter(img => myPortfolio.includes(img));
 
             combinedHistory.push({
                 jobId: jobId,
@@ -1173,9 +1233,8 @@ export default function ProfessionalProfileScreen({
                                                     const completedStatuses = ['Finalizada', 'Cerrado', 'Cerrada', 'TERMINADO', 'rated', 'completed', 'Culminada', 'VALORACIÓN'];
                                                     return isWon && (completedStatuses.includes(job.status) || job.proFinished || job.clientFinished || job.rating > 0 || job.proRated || job.clientRated);
                                                 });
-
                                                 completedJobs.forEach(job => {
-                                                    const jobImages = [];
+                                                    let jobImages = [];
                                                     if (job.images && Array.isArray(job.images)) {
                                                         job.images.forEach(img => { if (img && !jobImages.includes(img)) jobImages.push(img); });
                                                     }
@@ -1184,10 +1243,21 @@ export default function ProfessionalProfileScreen({
                                                     }
                                                     if (job.projectHistory && Array.isArray(job.projectHistory)) {
                                                         job.projectHistory.forEach(historyItem => {
-                                                            if (historyItem && historyItem.image && !jobImages.includes(historyItem.image)) {
-                                                                jobImages.push(historyItem.image);
+                                                            if (historyItem && !historyItem.isPrivate && historyItem.mediaUrl && !jobImages.includes(historyItem.mediaUrl)) {
+                                                                jobImages.push(historyItem.mediaUrl);
                                                             }
                                                         });
+                                                    }
+
+                                                    if (job.portfolioOrder && Array.isArray(job.portfolioOrder) && job.portfolioOrder.length > 0) {
+                                                        const ordered = [];
+                                                        job.portfolioOrder.forEach(img => {
+                                                            if (jobImages.includes(img)) ordered.push(img);
+                                                        });
+                                                        jobImages.forEach(img => {
+                                                            if (!ordered.includes(img)) ordered.push(img);
+                                                        });
+                                                        jobImages = ordered;
                                                     }
 
                                                     if (jobImages.length > 0) {
@@ -1454,10 +1524,29 @@ export default function ProfessionalProfileScreen({
             <Modal visible={!!selectedGallery && selectedImageIndex === null} transparent={true} animationType="fade" onRequestClose={() => setSelectedGallery(null)}>
                 <View style={{ flex: 1, backgroundColor: '#F8FAFC', paddingTop: 50 }}>
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingBottom: 15, borderBottomWidth: 1, borderBottomColor: '#E2E8F0' }}>
-                        <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#1E293B' }} numberOfLines={1}>{selectedGallery?.title || 'Fotos del Trabajo'}</Text>
+                        <View style={{ flex: 1 }}>
+                            <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#1E293B' }} numberOfLines={1}>{selectedGallery?.title || 'Fotos del Trabajo'}</Text>
+                        </View>
+                        {isOwner && (
+                            <TouchableOpacity
+                                style={{ backgroundColor: isOrderingGallery ? '#10B981' : '#EFF6FF', paddingHorizontal: 15, paddingVertical: 8, borderRadius: 20, marginRight: 10, opacity: isSavingOrder ? 0.5 : 1 }}
+                                disabled={isSavingOrder}
+                                onPress={() => {
+                                    if (isOrderingGallery) {
+                                        saveGalleryOrder();
+                                    } else {
+                                        setIsOrderingGallery(true);
+                                    }
+                                }}
+                            >
+                                <Text style={{ color: isOrderingGallery ? 'white' : '#2563EB', fontWeight: 'bold', fontSize: 13 }}>
+                                    {isSavingOrder ? 'Guardando...' : (isOrderingGallery ? 'Guardar' : 'Ordenar')}
+                                </Text>
+                            </TouchableOpacity>
+                        )}
                         <TouchableOpacity
                             style={{ padding: 10, backgroundColor: 'rgba(0,0,0,0.05)', borderRadius: 20 }}
-                            onPress={() => setSelectedGallery(null)}
+                            onPress={() => { setIsOrderingGallery(false); setSelectedGallery(null); }}
                         >
                             <Feather name="x" size={24} color="#1E293B" />
                         </TouchableOpacity>
@@ -1470,10 +1559,30 @@ export default function ProfessionalProfileScreen({
                         columnWrapperStyle={{ justifyContent: 'space-between' }}
                         renderItem={({ item: img, index: i }) => (
                             <TouchableOpacity 
-                                style={{ width: '48%', marginBottom: 15, borderRadius: 12, overflow: 'hidden', borderWidth: 1, borderColor: '#E2E8F0' }}
-                                onPress={() => setSelectedImageIndex(i)}
+                                style={{ width: '48%', marginBottom: 15, borderRadius: 12, overflow: 'hidden', borderWidth: 2, borderColor: i === 0 && isOrderingGallery ? '#10B981' : '#E2E8F0', opacity: isOrderingGallery ? 1 : 1 }}
+                                onPress={() => { if (!isOrderingGallery) setSelectedImageIndex(i); }}
+                                activeOpacity={isOrderingGallery ? 1 : 0.7}
                             >
                                 <ExpoImage source={{ uri: img }} style={{ width: '100%', height: 150, resizeMode: 'cover' }} />
+                                {isOrderingGallery && (
+                                    <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.4)', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 10 }}>
+                                        {i > 0 ? (
+                                            <TouchableOpacity onPress={() => handleMoveImage(i, 'left')} style={{ backgroundColor: 'white', borderRadius: 15, width: 30, height: 30, justifyContent: 'center', alignItems: 'center' }}>
+                                                <Feather name="chevron-left" size={20} color="#1E293B" />
+                                            </TouchableOpacity>
+                                        ) : <View style={{ width: 30 }} />}
+                                        {i < (selectedGallery?.images?.length || 0) - 1 ? (
+                                            <TouchableOpacity onPress={() => handleMoveImage(i, 'right')} style={{ backgroundColor: 'white', borderRadius: 15, width: 30, height: 30, justifyContent: 'center', alignItems: 'center' }}>
+                                                <Feather name="chevron-right" size={20} color="#1E293B" />
+                                            </TouchableOpacity>
+                                        ) : <View style={{ width: 30 }} />}
+                                    </View>
+                                )}
+                                {i === 0 && (
+                                    <View style={{ position: 'absolute', top: 8, left: 8, backgroundColor: '#10B981', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 }}>
+                                        <Text style={{ color: 'white', fontSize: 10, fontWeight: 'bold' }}>PORTADA</Text>
+                                    </View>
+                                )}
                             </TouchableOpacity>
                         )}
                     />

@@ -320,7 +320,7 @@ const JobDetailPro = ({ job: initialJob, onBack, onSendQuote, onOpenChat, proSta
                                 <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                                     {job.images.map((img, i) => {
                                         const catTitle = typeof job.category === 'object' ? job.category?.name : (categories?.find(c => c._id === job.category || c.id === job.category)?.name || job.category);
-                                        const portfolioGallery = currentUser?.profiles?.[catTitle]?.gallery || [];
+                                        const portfolioGallery = currentUser?.profiles?.[catTitle]?.timelinePortfolio || [];
                                         const inPortfolio = portfolioGallery.includes(img);
                                         return (
                                             <TouchableOpacity

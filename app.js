@@ -812,40 +812,56 @@ function MainApp() {
         }
 
         try {
-            // 1. Get current profiles (handling both Map-like and Object-like structures)
-            const currentProfiles = { ...(currentUser.profiles || {}) };
-            const catProfile = { ...(currentProfiles[category] || { category, gallery: [], description: `Trabajos en ${category}` }) };
-
-            let newGallery = [...(catProfile.gallery || [])];
+            let updatedUser;
             let message = "";
 
-            if (newGallery.includes(mediaUrl)) {
-                // Remove
-                newGallery = newGallery.filter(url => url !== mediaUrl);
-                message = "Foto eliminada del portafolio";
+            if (userMode === 'client') {
+                let currentGallery = [...(currentUser.timelinePortfolio || [])];
+                if (currentGallery.includes(mediaUrl)) {
+                    currentGallery = currentGallery.filter(url => url !== mediaUrl);
+                    message = "Foto eliminada del portafolio";
+                } else {
+                    currentGallery.push(mediaUrl);
+                    message = "Foto agregada al portafolio";
+                }
+                updatedUser = { ...currentUser, timelinePortfolio: currentGallery };
             } else {
-                // Add
-                newGallery.push(mediaUrl);
-                message = "Foto agregada al portafolio";
+                const currentProfiles = { ...(currentUser.profiles || {}) };
+                const catProfile = { ...(currentProfiles[category] || { category, timelinePortfolio: [], gallery: [], description: `Trabajos en ${category}` }) };
+
+                let newGallery = [...(catProfile.timelinePortfolio || [])];
+
+                if (newGallery.includes(mediaUrl)) {
+                    // Remove
+                    newGallery = newGallery.filter(url => url !== mediaUrl);
+                    message = "Foto eliminada del portafolio";
+                } else {
+                    // Add
+                    newGallery.push(mediaUrl);
+                    message = "Foto agregada al portafolio";
+                }
+
+                updatedUser = {
+                    ...currentUser,
+                    profiles: {
+                        ...currentProfiles,
+                        [category]: {
+                            ...catProfile,
+                            timelinePortfolio: newGallery
+                        }
+                    }
+                };
             }
 
-            const updatedProfiles = {
-                ...currentProfiles,
-                [category]: {
-                    ...catProfile,
-                    gallery: newGallery
-                }
-            };
-
             // 2. Optimistic update (instant feedback)
-            const updatedUser = { ...currentUser, profiles: updatedProfiles };
             await updateUser(updatedUser);
             saveSession(updatedUser).catch(e => console.warn("Error saving session optimistically:", e));
 
             showAlert("¡Listo!", message);
 
             // 3. Update via API in background
-            api.updateProfile({ profiles: updatedProfiles }).then(async () => {
+            const payload = userMode === 'client' ? { timelinePortfolio: updatedUser.timelinePortfolio } : { profiles: updatedUser.profiles };
+            api.updateProfile(payload).then(async () => {
                 const freshUser = await api.getMe();
                 updateUser(freshUser);
                 saveSession(freshUser);
@@ -1960,19 +1976,19 @@ function MainApp() {
                     <RequestDetailClient
                         request={selectedRequest}
                         onViewImage={setFullscreenImage}
-                        onViewUserProfile={(user) => {
-                            // 1. Set basic info immediately for quick navigation
-                            const basicUser = { ...user, _id: user.id || user._id };
-                            setSelectedUser(basicUser);
-                            setShowProProfileModal(true);
-
-                            // 2. Fetch full profile (profiles, stats, etc) in background
-                            api.getPublicProfile(basicUser._id)
-                                .then(fullProfile => {
-                                    console.log("Full profile fetched:", fullProfile.name);
-                                    setSelectedUser(prev => ({ ...prev, ...fullProfile }));
-                                })
-                                .catch(e => console.error("Error fetching full profile:", e));
+                        onViewUserProfile={async (user) => {
+                            setIsOpeningRequest(true);
+                            try {
+                                const basicUser = { ...user, _id: user.id || user._id };
+                                const fullProfile = await api.getPublicProfile(basicUser._id);
+                                setSelectedUser({ ...basicUser, ...fullProfile });
+                                setShowProProfileModal(true);
+                            } catch (e) {
+                                console.error("Error fetching full profile:", e);
+                                showAlert("Error", "No se pudo cargar el perfil del profesional.");
+                            } finally {
+                                setIsOpeningRequest(false);
+                            }
                         }}
                         categories={categories}
                         onBack={() => setView('my-requests')}

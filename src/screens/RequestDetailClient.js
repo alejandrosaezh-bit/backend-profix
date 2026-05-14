@@ -291,7 +291,7 @@ const RequestDetailClient = ({ request, onBack, onAcceptOffer, onOpenChat, onUpd
                                     <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                                         {data.images && data.images.map((img, i) => {
                                             const catTitle = typeof data.category === 'object' ? data.category?.name : (categories?.find(c => c._id === data.category || c.id === data.category)?.name || data.category);
-                                            const portfolioGallery = currentUser?.profiles?.[catTitle]?.gallery || [];
+                                            const portfolioGallery = currentUser?.timelinePortfolio || [];
                                             const inPortfolio = portfolioGallery.includes(img);
                                             return (
                                             <View key={i} style={{ position: 'relative', marginRight: 10 }}>
