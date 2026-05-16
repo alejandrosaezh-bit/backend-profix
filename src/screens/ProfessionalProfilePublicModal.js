@@ -75,7 +75,7 @@ const ClientProfileView = ({ client, visible, onClose }) => {
                                     <Text style={styles.headerName} numberOfLines={1}>{name}</Text>
                                     <View style={styles.headerRating}>
                                         <FontAwesome5 name="star" solid size={14} color="#FBBF24" />
-                                        <Text style={styles.headerRatingText}>{ratingDisplay} â€¢ {reviewCount} reseÃ±as</Text>
+                                        <Text style={styles.headerRatingText}>{ratingDisplay} • {reviewCount} reseñas</Text>
                                     </View>
                                 </View>
                             </View>
@@ -86,7 +86,7 @@ const ClientProfileView = ({ client, visible, onClose }) => {
                             {/* INFO BIO (If exists) */}
                             {(client?.bio || client?.description) ? (
                                 <View style={[styles.infoCard, { padding: 18, backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#EFF6FF' }]}>
-                                    <Text style={[styles.sectionTitle, { marginBottom: 12, color: '#2563EB' }]}>SOBRE MÃ</Text>
+                                    <Text style={[styles.sectionTitle, { marginBottom: 12, color: '#2563EB' }]}>SOBRE MÍ</Text>
                                     <Text style={{ fontSize: 14, color: '#334155', fontStyle: 'italic', lineHeight: 22 }}>
                                         "{client?.bio || client?.description}"
                                     </Text>
@@ -102,7 +102,7 @@ const ClientProfileView = ({ client, visible, onClose }) => {
                                 ) : reviews.length === 0 ? (
                                     <View style={styles.emptyContainer}>
                                         <Feather name="message-circle" size={40} color="#E2E8F0" />
-                                        <Text style={styles.emptyText}>Este cliente aÃºn no ha sido valorado por otros profesionales.</Text>
+                                        <Text style={styles.emptyText}>Este cliente aún no ha sido valorado por otros profesionales.</Text>
                                     </View>
                                 ) : (
                                     reviews.map((review, idx) => (
@@ -174,7 +174,7 @@ const ClientProfileView = ({ client, visible, onClose }) => {
                                 })()}
                             </View>
 
-                            {/* BOTÃ“N CERRAR FOOTER */}
+                            {/* BOTÓN CERRAR FOOTER */}
                             <TouchableOpacity onPress={onClose} style={styles.footerCloseButton}>
                                 <Text style={styles.footerCloseText}>Cerrar Perfil</Text>
                             </TouchableOpacity>
