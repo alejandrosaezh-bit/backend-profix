@@ -2,20 +2,17 @@ import { Briefcase, Hammer } from 'lucide-react-native';
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
-export default function Header({ userMode, toggleMode }: { userMode: 'client' | 'professional'; toggleMode: () => void }) {
+export default function Header({ userMode, toggleMode }) {
   return (
     <View style={styles.header}>
       <View style={styles.headerLeft}>
         <View style={[styles.logoIcon, { backgroundColor: userMode === 'client' ? '#F97316' : '#2563EB' }]}>
           {userMode === 'client' ? <Hammer color="white" size={18} /> : <Briefcase color="white" size={18} />}
         </View>
-        <Text style={styles.logoText}>
-          <Text style={{ color: '#2563EB' }}>Profesional</Text>{' '}
-          <Text style={{ color: '#EA580C' }}>Cercano</Text>
-        </Text>
+        <Text style={styles.logoText}>ProFix</Text>
       </View>
       <TouchableOpacity style={styles.modeButton} onPress={toggleMode}>
-        <Text style={styles.modeButtonText}>{userMode === 'client' ? 'Modo Cliente' : 'Soy Pro'}</Text>
+          <Text style={styles.modeButtonText}>{userMode === 'client' ? 'Modo Cliente' : 'Soy Pro'}</Text>
       </TouchableOpacity>
     </View>
   );

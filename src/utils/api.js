@@ -617,6 +617,28 @@ export const api = {
         }
         return res.json();
     },
+
+    verifyProfile: async (documentsData) => {
+        const token = await AsyncStorage.getItem('userToken');
+        if (!token) throw new Error("No token");
+        
+        console.log(`[api.verifyProfile] Sending POST /auth/verify-profile`);
+        const res = await fetch(`${API_URL}/auth/verify-profile`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(documentsData)
+        });
+        if (!res.ok) {
+            const errorText = await res.text();
+            console.warn("verifyProfile error response:", errorText);
+            throw new Error(`Error en verifyProfile: ${res.status}`);
+        }
+        return res.json();
+    },
+
     reportSubscriptionPayment: async (paymentData) => {
         const headers = await getHeaders();
         const res = await fetchWithTimeout(`${API_URL}/subscription/report`, {

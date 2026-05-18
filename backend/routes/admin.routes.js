@@ -87,7 +87,13 @@ router.get('/users', async (req, res) => {
 // Obtener usuarios pendientes de verificación (Legacy support)
 router.get('/users/pending', async (req, res) => {
     try {
-        const users = await User.find({ role: 'professional', isVerified: false });
+        const users = await User.find({ 
+            role: 'professional', 
+            $or: [
+                { 'verificationDetails.status': 'pending' },
+                { isVerified: false, documents: { $exists: true, $not: { $size: 0 } } } // Legacy support
+            ]
+        }).select('-password -profiles');
         res.json(users);
     } catch (error) {
         res.status(500).json({ message: error.message });
@@ -97,11 +103,26 @@ router.get('/users/pending', async (req, res) => {
 // Verificar un usuario
 router.put('/users/verify/:id', async (req, res) => {
     try {
+        const { status, rejectionReason } = req.body;
         const user = await User.findById(req.params.id);
         if (user) {
-            user.isVerified = true;
+            if (status === 'verified') {
+                user.isVerified = true;
+                if (!user.verificationDetails) user.verificationDetails = {};
+                user.verificationDetails.status = 'verified';
+                user.verificationDetails.verifiedAt = new Date();
+                user.verificationDetails.rejectionReason = null;
+            } else if (status === 'rejected') {
+                user.isVerified = false;
+                if (!user.verificationDetails) user.verificationDetails = {};
+                user.verificationDetails.status = 'rejected';
+                user.verificationDetails.rejectionReason = rejectionReason || 'Los documentos no cumplen con los requisitos.';
+            } else {
+                // Legacy fallback if no body status
+                user.isVerified = true;
+            }
             await user.save();
-            res.json({ message: 'Usuario verificado exitosamente' });
+            res.json({ message: 'Estado de verificación actualizado', user });
         } else {
             res.status(404).json({ message: 'Usuario no encontrado' });
         }

@@ -200,6 +200,8 @@ export const ProAccountSettings = ({
     onSwitchMode,
     onOpenSubscriptions,
     onOpenNotifications,
+    onOpenVerification,
+    user,
     otherModeCount = 0
 }) => {
     return (
@@ -235,6 +237,19 @@ export const ProAccountSettings = ({
                         <Feather name="bell" size={18} color="#16A34A" />
                     </View>
                     <Text style={styles.settingText}>Notificaciones</Text>
+                </View>
+                <Feather name="chevron-right" size={18} color="#9CA3AF" />
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.settingRow} onPress={onOpenVerification}>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <View style={[styles.iconBox, { backgroundColor: '#EEF2FF' }]}>
+                        <Feather name="shield" size={18} color="#4F46E5" />
+                    </View>
+                    <Text style={styles.settingText}>
+                        Verificación de Identidad
+                        {user?.isVerified ? ' (Verificado)' : (user?.verificationDetails?.status === 'pending' ? ' (En revisión)' : '')}
+                    </Text>
                 </View>
                 <Feather name="chevron-right" size={18} color="#9CA3AF" />
             </TouchableOpacity>

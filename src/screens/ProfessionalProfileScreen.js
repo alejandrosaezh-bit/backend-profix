@@ -24,6 +24,7 @@ import {
 import { ProSubscriptionModal } from '../components/profile/ProSubscriptionModal';
 import { ProGamificationModal } from '../components/profile/ProGamificationModal';
 import { ProCategorySelectionModal, ProPersonalEditModal, ProProfileEditModal } from '../components/profile/ProProfileModals';
+import { ProVerificationModal } from '../components/profile/ProVerificationModal';
 import NotificationPreferencesModal from '../components/NotificationPreferencesModal';
 import CrossProfileNotificationModal from '../components/CrossProfileNotificationModal';
 import { api, API_URL } from '../utils/api';
@@ -78,6 +79,7 @@ export default function ProfessionalProfileScreen({
     const [isEditingPersonal, setIsEditingPersonal] = useState(false); // Personal Data Editing
     const [isSubscriptionsVisible, setIsSubscriptionsVisible] = useState(false); // Subscriptions Modal
     const [isGamificationVisible, setIsGamificationVisible] = useState(false); // Gamification Modal
+    const [isVerificationVisible, setIsVerificationVisible] = useState(false); // Verification Modal
     const [showNotifications, setShowNotifications] = useState(false); // Notification Preferences
     const [personalData, setPersonalData] = useState({}); // Temp state for personal data editing
     const [reviews, setReviews] = useState([]);
@@ -696,9 +698,11 @@ export default function ProfessionalProfileScreen({
                                 <View style={styles.headerMain}>
                                     <View style={styles.avatarContainerPublic}>
                                         <ExpoImage source={{ uri: getAvatarUri() }} style={styles.avatarPublic} />
-                                        <View style={styles.verifiedBadgePublic}>
-                                            <Feather name="shield" size={12} color="white" />
-                                        </View>
+                                        {user?.isVerified && (
+                                            <View style={styles.verifiedBadgePublic}>
+                                                <Feather name="shield" size={12} color="white" />
+                                            </View>
+                                        )}
                                     </View>
                                     <View style={{ marginLeft: 20, flex: 1 }}>
                                         <Text style={styles.headerNamePublic} numberOfLines={1}>{profileData.name || 'Profesional'}</Text>
@@ -1430,8 +1434,10 @@ export default function ProfessionalProfileScreen({
                         handleResetApplicationData={handleResetApplicationData}
                         onSwitchMode={onSwitchMode}
                         onOpenSubscriptions={() => setIsSubscriptionsVisible(true)}
+                        onOpenVerification={() => setIsVerificationVisible(true)}
                         onOpenNotifications={() => setShowNotifications(true)}
                         otherModeCount={otherModeCount}
+                        user={user}
                     />
                 )}
 
@@ -1447,6 +1453,14 @@ export default function ProfessionalProfileScreen({
                     visible={isGamificationVisible}
                     onClose={() => setIsGamificationVisible(false)}
                     user={user}
+                />
+
+                {/* MODAL: VERIFICACIÓN DE PERFIL */}
+                <ProVerificationModal
+                    visible={isVerificationVisible}
+                    onClose={() => setIsVerificationVisible(false)}
+                    user={user}
+                    onUpdate={onUpdate}
                 />
 
                 {/* MODAL 1: SELECTOR DE CATEGORÍAS REDISEÑADO */}

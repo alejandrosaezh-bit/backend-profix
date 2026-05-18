@@ -487,4 +487,40 @@ router.post('/reset-password', async (req, res) => {
     }
 });
 
+
+// Verificar perfil de profesional
+router.post('/verify-profile', protect, async (req, res) => {
+    try {
+        const user = await User.findById(req.user.id);
+        if (!user) return res.status(404).json({ message: 'Usuario no encontrado' });
+
+        const { idFront, idBack, selfie } = req.body;
+        
+        let idFrontUrl = '';
+        let idBackUrl = '';
+        let selfieUrl = '';
+
+        if (idFront) idFrontUrl = await uploadImage(idFront, 'verifications');
+        if (idBack) idBackUrl = await uploadImage(idBack, 'verifications');
+        if (selfie) selfieUrl = await uploadImage(selfie, 'verifications');
+
+        user.verificationDetails = {
+            status: 'pending',
+            idFrontUrl,
+            idBackUrl,
+            selfieUrl,
+            submittedAt: new Date(),
+            rejectionReason: null,
+            verifiedAt: null
+        };
+        user.isVerified = false; // Until admin approves
+        
+        await user.save();
+        res.json({ message: 'Documentos enviados a verificación', user });
+    } catch (err) {
+        console.error('Error in /verify-profile:', err);
+        res.status(500).json({ message: 'Error en el servidor al enviar verificación' });
+    }
+});
+
 module.exports = router;

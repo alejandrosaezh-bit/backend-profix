@@ -16,7 +16,16 @@ const userSchema = mongoose.Schema({
 
     // Campos específicos para Profesionales
     isActive: { type: Boolean, default: true }, // Soft delete status
-    isVerified: { type: Boolean, default: false }, // Verificación de identidad
+    isVerified: { type: Boolean, default: false }, // Verificación de identidad legacy (computed or synced)
+    verificationDetails: {
+        status: { type: String, enum: ['unverified', 'pending', 'verified', 'rejected'], default: 'unverified' },
+        idFrontUrl: { type: String },
+        idBackUrl: { type: String },
+        selfieUrl: { type: String },
+        submittedAt: { type: Date },
+        rejectionReason: { type: String },
+        verifiedAt: { type: Date }
+    },
     acceptsUrgentJobs: { type: Boolean, default: false }, // Disposición a atender Urgencias
     documents: [{ type: String }], // URLs de documentos subidos
     specialties: [{ type: String }], // Categorías que atiende (Legacy simple list)

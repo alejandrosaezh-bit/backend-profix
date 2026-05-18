@@ -1145,7 +1145,9 @@ function MainApp() {
         }
 
         setSelectedChatRequest({ ...request, targetUser: finalTarget, initialMessage });
-        setPreviousView(view);
+        if (view !== 'chat-detail') {
+            setPreviousView(view);
+        }
         setView('chat-detail');
     };
 
