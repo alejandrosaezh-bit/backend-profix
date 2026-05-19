@@ -5,6 +5,7 @@ const Article = require('../models/Article');
 const Business = require('../models/Business');
 const Review = require('../models/Review');
 const User = require('../models/User');
+const Job = require('../models/Job');
 
 // --- RUTAS PÚBLICAS (APP) ---
 
@@ -101,6 +102,80 @@ router.get('/professionals/:id', async (req, res) => {
         if (!user) return res.status(404).json({ message: 'Profesional no encontrado' });
         res.json(user);
     } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
+// 7. Solicitud Web de Servicio (Formulario Cliente)
+router.post('/web-request', async (req, res) => {
+    try {
+        const { category, location, description, name, email, phone } = req.body;
+        
+        if (!category || !location || !email) {
+            return res.status(400).json({ message: 'Faltan datos obligatorios (category, location, email)' });
+        }
+
+        let user = await User.findOne({ email });
+        if (!user) {
+            user = await User.create({
+                name: name || 'Usuario Web',
+                email,
+                phone: phone || '',
+                role: 'client'
+            });
+        }
+
+        let categoryDoc = await Category.findOne({ name: new RegExp(category, 'i') });
+        if (!categoryDoc) {
+            categoryDoc = await Category.findOne(); 
+        }
+        if (!categoryDoc) {
+             return res.status(400).json({ message: 'No hay categorías en el sistema' });
+        }
+
+        const job = await Job.create({
+            client: user._id,
+            title: `Solicitud Web: ${category}`,
+            description: description || `Servicio requerido en ${location}. Contactar para más detalles.`,
+            category: categoryDoc._id,
+            location: location,
+            status: 'active'
+        });
+
+        res.status(201).json({ message: 'Solicitud creada con éxito', job: job._id });
+    } catch (error) {
+        console.error('Error en /web-request:', error);
+        res.status(500).json({ message: error.message });
+    }
+});
+
+// 8. Registro Web de Profesional (B2B Form)
+router.post('/web-register', async (req, res) => {
+    try {
+        const { name, email, specialty, phone } = req.body;
+        
+        if (!name || !email) {
+             return res.status(400).json({ message: 'Faltan datos obligatorios (name, email)' });
+        }
+
+        let user = await User.findOne({ email });
+        if (user) {
+             return res.status(400).json({ message: 'El correo ya está registrado' });
+        }
+
+        user = await User.create({
+            name,
+            email,
+            phone: phone || '',
+            role: 'professional',
+            specialties: specialty ? [specialty] : [],
+            isVerified: false,
+            verificationDetails: { status: 'pending', submittedAt: new Date() }
+        });
+
+        res.status(201).json({ message: 'Profesional registrado con éxito', user: user._id });
+    } catch (error) {
+        console.error('Error en /web-register:', error);
         res.status(500).json({ message: error.message });
     }
 });
