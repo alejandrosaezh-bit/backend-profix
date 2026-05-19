@@ -14,6 +14,7 @@ const chatRoutes = require('./routes/chat.routes');
 const messageRoutes = require('./routes/messages.routes');
 const subscriptionRoutes = require('./routes/subscription.routes');
 const { notFound, errorHandler } = require('./middleware/errorMiddleware');
+const { protect, admin } = require('./middleware/authMiddleware');
 
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
@@ -88,7 +89,7 @@ app.use('/api/jobs', jobRoutes);
 app.use('/api', publicRoutes);
 
 // Rutas de Administración
-app.use('/api/admin', adminRoutes);
+app.use('/api/admin', protect, admin, adminRoutes);
 
 // Rutas de Chat
 app.use('/api/chats', chatRoutes);

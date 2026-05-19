@@ -668,20 +668,6 @@ router.put('/payments/:id/resolve', async (req, res) => {
 
 // --- UTILIDADES DEL SISTEMA ---
 
-// RESET COMPLETO DE LA BASE DE DATOS
-router.delete('/reset', async (req, res) => {
-    try {
-        // Eliminar todas las colecciones relevantes
-        await User.deleteMany({});
-        await Job.deleteMany({});
-        await Category.deleteMany({});
-        await Article.deleteMany({});
-        await Business.deleteMany({});
-
-        res.json({ message: 'Base de datos reseteada completamente. Todos los datos han sido eliminados.' });
-    } catch (error) {
-        res.status(500).json({ message: error.message });
-    }
-});
+// Endpoint /reset eliminado por razones de seguridad.
 
 module.exports = router;
