@@ -43680,3 +43680,5 @@
 [2026-05-16T01:06:49.971Z] START GET /api/chats
 [2026-05-16T01:06:50.706Z] END GET /api/chats - Status: 304 (735ms) Size: unknown bytes [User: 6941cfdcfd8ac2c570c363fa / alejandrosaezh@gmail.com]
 [2026-05-16T01:06:51.211Z] END GET /api/jobs/me - Status: 200 (1243ms) Size: 17052 bytes [User: 6941cfdcfd8ac2c570c363fa / alejandrosaezh@gmail.com]
+[2026-05-19T02:01:00.290Z] START GET /api/categories
+[2026-05-19T02:01:02.428Z] END GET /api/categories - Status: 200 (2140ms) Size: 492636 bytes [No User]

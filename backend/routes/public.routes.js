@@ -109,7 +109,7 @@ router.get('/professionals/:id', async (req, res) => {
 // 7. Solicitud Web de Servicio (Formulario Cliente)
 router.post('/web-request', async (req, res) => {
     try {
-        const { category, location, description, name, email, phone } = req.body;
+        const { category, subcategory, title, location, description, name, email, phone } = req.body;
         
         if (!category || !location || !email) {
             return res.status(400).json({ message: 'Faltan datos obligatorios (category, location, email)' });
@@ -125,7 +125,14 @@ router.post('/web-request', async (req, res) => {
             });
         }
 
-        let categoryDoc = await Category.findOne({ name: new RegExp(category, 'i') });
+        // Buscar categoría por ID (primero) o por nombre
+        let categoryDoc = null;
+        if (category.match(/^[0-9a-fA-F]{24}$/)) {
+            categoryDoc = await Category.findById(category);
+        } else {
+            categoryDoc = await Category.findOne({ name: new RegExp(category, 'i') });
+        }
+        
         if (!categoryDoc) {
             categoryDoc = await Category.findOne(); 
         }
@@ -135,9 +142,10 @@ router.post('/web-request', async (req, res) => {
 
         const job = await Job.create({
             client: user._id,
-            title: `Solicitud Web: ${category}`,
+            title: title || `Solicitud Web: ${categoryDoc.name}`,
             description: description || `Servicio requerido en ${location}. Contactar para más detalles.`,
             category: categoryDoc._id,
+            subcategory: subcategory || '',
             location: location,
             status: 'active'
         });
