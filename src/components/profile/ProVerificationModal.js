@@ -65,8 +65,8 @@ export function ProVerificationModal({ visible, onClose, user, onUpdate }) {
     };
 
     const submitVerification = async () => {
-        if (!idFront || !idBack || !selfie) {
-            Alert.alert("Faltan fotos", "Debes subir la parte frontal, trasera de tu documento y una selfie.");
+        if (!idFront || !selfie) {
+            Alert.alert("Faltan fotos", "Debes subir la parte frontal de tu documento y una selfie.");
             return;
         }
 
@@ -129,7 +129,7 @@ export function ProVerificationModal({ visible, onClose, user, onUpdate }) {
                                     {idFront ? <ExpoImage source={{ uri: idFront }} style={styles.imagePreview} /> : <Feather name="camera" size={30} color="#9CA3AF" />}
                                 </TouchableOpacity>
 
-                                <Text style={styles.sectionTitle}>2. Documento Reverso</Text>
+                                <Text style={styles.sectionTitle}>2. Documento Reverso (Opcional)</Text>
                                 <TouchableOpacity style={styles.imageUploadBtn} onPress={() => handleOptions(setIdBack)}>
                                     {idBack ? <ExpoImage source={{ uri: idBack }} style={styles.imagePreview} /> : <Feather name="camera" size={30} color="#9CA3AF" />}
                                 </TouchableOpacity>

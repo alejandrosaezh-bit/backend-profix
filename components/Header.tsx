@@ -1,6 +1,6 @@
 import { Briefcase, Hammer } from 'lucide-react-native';
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View, Image } from 'react-native';
 
 export default function Header({ userMode, toggleMode }) {
   return (

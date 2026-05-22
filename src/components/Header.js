@@ -1,6 +1,6 @@
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useEffect, useRef } from 'react';
-import { Animated, Easing, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Animated, Easing, Platform, StyleSheet, Text, TouchableOpacity, View, Image } from 'react-native';
 
 const Header = ({ userMode, toggleMode, isLoggedIn, onLoginPress, currentUser, onOpenProfile, clientCounts, proCounts }) => {
     const rotateAnim = useRef(new Animated.Value(userMode === 'client' ? 0 : 1)).current;

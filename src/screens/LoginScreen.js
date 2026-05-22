@@ -1,6 +1,6 @@
 import { Feather } from '@expo/vector-icons';
 import { useContext, useEffect, useState } from 'react';
-import { Keyboard, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View, Modal, Alert } from 'react-native';
+import { Keyboard, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View, Modal, Alert, Image } from 'react-native';
 import { AuthContext } from '../context/AuthContext';
 import { api } from '../utils/api';
 import { OTA_VERSION } from '../utils/version';
@@ -133,7 +133,7 @@ export default function LoginScreen({ navigation }) {
       {(!keyboardVisible || Platform.OS === 'web') && (
         <View style={[styles.header, keyboardVisible && { marginBottom: 10 }]}>
           <View style={[styles.logoContainer, keyboardVisible && { padding: 8, marginBottom: 4 }]}>
-            <Feather name="tool" size={keyboardVisible ? 24 : 40} color="white" />
+            <Image source={require('../../assets/images/logo.png')} style={{ width: keyboardVisible ? 24 : 40, height: keyboardVisible ? 24 : 40, resizeMode: 'contain' }} />
           </View>
           {!keyboardVisible && (
             <View style={{ backgroundColor: 'white', paddingHorizontal: 15, paddingVertical: 5, borderRadius: 10, marginTop: 10 }}>
