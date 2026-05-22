@@ -9,7 +9,7 @@ export default function Header({ userMode, toggleMode }) {
         <View style={[styles.logoIcon, { backgroundColor: userMode === 'client' ? '#F97316' : '#2563EB' }]}>
           {userMode === 'client' ? <Hammer color="white" size={18} /> : <Briefcase color="white" size={18} />}
         </View>
-        <Text style={styles.logoText}>ProFix</Text>
+        <Text style={styles.logoText}>Profesional Cercano</Text>
       </View>
       <TouchableOpacity style={styles.modeButton} onPress={toggleMode}>
           <Text style={styles.modeButtonText}>{userMode === 'client' ? 'Modo Cliente' : 'Soy Pro'}</Text>

@@ -21,7 +21,8 @@ import {
     Text,
     TouchableOpacity,
     View,
-    Alert
+    Alert,
+    AppState
 } from 'react-native';
 
 // --- IMPORTS DE UTILIDADES ---
@@ -276,6 +277,31 @@ function MainApp() {
 
             return true;
         });
+    }, []);
+
+    // --- LIMPIEZA DE NOTIFICACIONES ---
+    useEffect(() => {
+        if (Platform.OS !== 'web') {
+            const clearBadge = async () => {
+                try {
+                    await Notifications.setBadgeCountAsync(0);
+                } catch (e) {
+                    console.warn("Error clearing badge count:", e);
+                }
+            };
+            
+            clearBadge();
+            
+            const subscription = AppState.addEventListener('change', nextAppState => {
+                if (nextAppState === 'active') {
+                    clearBadge();
+                }
+            });
+            
+            return () => {
+                if (subscription && subscription.remove) subscription.remove();
+            };
+        }
     }, []);
 
     // --- ESTADO GLOBAL (Data) ---
