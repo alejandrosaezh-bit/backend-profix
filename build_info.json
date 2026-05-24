@@ -1,0 +1,50 @@
+{
+  "id": "be4f8108-85a1-4fa9-a0fa-74ba19a855ce",
+  "status": "ERRORED",
+  "platform": "ANDROID",
+  "error": {
+    "errorCode": "EAS_BUILD_UNKNOWN_GRADLE_ERROR",
+    "message": "Gradle build failed with unknown error. See logs for the \"Run gradlew\" phase for more information."
+  },
+  "artifacts": {},
+  "fingerprint": {
+    "id": "019e5174-c86d-79f6-b878-aae32c3c2abe",
+    "hash": "a96ea03214fb6c3643d368d91c06e755f06cf4c5"
+  },
+  "initiatingActor": {
+    "id": "d1955531-367e-4ac8-9050-67a501e1b146",
+    "displayName": "alejandrosaezh"
+  },
+  "logFiles": [
+    "https://storage.googleapis.com/eas-workflows-production/logs/19584c7c-7dfb-4799-aa70-26a452f02714/be4f8108-85a1-4fa9-a0fa-74ba19a855ce/2026-05-22T20%3A51%3A09Z-0ab2cfdd-d315-4fa4-bea6-fd81e8aae9ba.txt?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-Credential=www-production%40exponentjs.iam.gserviceaccount.com%2F20260523%2Fauto%2Fstorage%2Fgoog4_request&X-Goog-Date=20260523T024011Z&X-Goog-Expires=900&X-Goog-SignedHeaders=host&X-Goog-Signature=0c28b34194a1dd67bd93893ebd7d1c6906bd93010bc2ffa6edf9902da1f21e3d6025f25c218694d308b408b4a6eeffe1d006485d5c6f67642284b2f7e8ee13d3790be2c907d397a3aa1a03e9db80419b8ac21fad31de682f5a31c51614b2ab24660c9acdd8c220e5d4f3d565847f47faac4a4c80719de0558e95a5777c2e4879aa489d38cda12da98578dd10da21aabf01f97715a51e76c30710cdb68087eccaf275764a800d5aa99e0a14cb0c9c8e0bdf4a9bd7bb1133892f867e9d4bec826f491b21c99247297100c9307394bf38f3a740de2b439aa0ffbf2a1c76dc7bb4c407c3f0ac203205d31c6ef58f6e4722d0a2c61253f74f7e41fb9790944b060b52"
+  ],
+  "project": {
+    "id": "19584c7c-7dfb-4799-aa70-26a452f02714",
+    "name": "profix",
+    "slug": "profix",
+    "ownerAccount": {
+      "id": "b7c61ffb-636c-484b-949a-9534f245a2ab",
+      "name": "alejandrosaezh"
+    }
+  },
+  "channel": "preview",
+  "distribution": "INTERNAL",
+  "buildProfile": "preview",
+  "sdkVersion": "54.0.0",
+  "appVersion": "1.0.65",
+  "appBuildVersion": "78",
+  "runtimeVersion": "1.0.65",
+  "gitCommitHash": "ea634dee1ec9c6ee401fa7724635ed879a9fe7e2",
+  "gitCommitMessage": "fix: safely generate android adaptive icon",
+  "priority": "HIGH",
+  "createdAt": "2026-05-22T20:51:08.462Z",
+  "updatedAt": "2026-05-23T00:01:15.765Z",
+  "completedAt": "2026-05-22T21:00:03.204Z",
+  "expirationDate": "2026-08-20T20:51:08.508Z",
+  "isForIosSimulator": false,
+  "metrics": {
+    "buildWaitTime": 592,
+    "buildQueueTime": 4532,
+    "buildDuration": 529618
+  }
+}
