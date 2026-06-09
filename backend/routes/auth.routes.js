@@ -188,6 +188,8 @@ router.put('/profile', protect, async (req, res) => {
             if (req.body.cedula) updateFields.cedula = req.body.cedula;
             if (req.body.pushToken) updateFields.pushToken = req.body.pushToken;
             if (req.body.notificationPreferences) updateFields.notificationPreferences = req.body.notificationPreferences;
+            if (req.body.profileTheme) updateFields.profileTheme = req.body.profileTheme;
+            if (req.body.presentationVideoUrl !== undefined) updateFields.presentationVideoUrl = req.body.presentationVideoUrl;
 
             if (Object.keys(updateFields).length > 0) {
                 console.log("[PUT /profile] Performing lightweight update:", Object.keys(updateFields));
@@ -224,6 +226,8 @@ router.put('/profile', protect, async (req, res) => {
         if (req.body.cedula) user.cedula = req.body.cedula;
         if (req.body.pushToken) user.pushToken = req.body.pushToken;
         if (req.body.notificationPreferences) user.notificationPreferences = req.body.notificationPreferences;
+        if (req.body.profileTheme) user.profileTheme = req.body.profileTheme;
+        if (req.body.presentationVideoUrl !== undefined) user.presentationVideoUrl = req.body.presentationVideoUrl;
         
         if (req.body.timelinePortfolio) {
              user.timelinePortfolio = req.body.timelinePortfolio;

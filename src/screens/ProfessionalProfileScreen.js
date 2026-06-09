@@ -80,6 +80,8 @@ export default function ProfessionalProfileScreen({
     const [isSubscriptionsVisible, setIsSubscriptionsVisible] = useState(false); // Subscriptions Modal
     const [isGamificationVisible, setIsGamificationVisible] = useState(false); // Gamification Modal
     const [isVerificationVisible, setIsVerificationVisible] = useState(false); // Verification Modal
+    const [isThemeSelectorVisible, setIsThemeSelectorVisible] = useState(false); // Theme Selector Modal
+    const [isPreviewMode, setIsPreviewMode] = useState(false); // Preview Public View
     const [showNotifications, setShowNotifications] = useState(false); // Notification Preferences
     const [personalData, setPersonalData] = useState({}); // Temp state for personal data editing
     const [reviews, setReviews] = useState([]);
@@ -678,8 +680,9 @@ export default function ProfessionalProfileScreen({
     if (!user) return null;
 
     const levelNames = { 1: 'ASPIRANTE', 2: 'VERIFICADO', 3: 'DESTACADO', 4: 'MAESTRO' };
+    const activeTheme = profileData.profileTheme || 'social';
 
-    if (!isOwner) {
+    if (!isOwner || isPreviewMode) {
         return (
             <>
                 <View style={styles.modalOverlay}>
@@ -687,37 +690,37 @@ export default function ProfessionalProfileScreen({
                         <View style={styles.dragHandle} />
 
                         <ScrollView contentContainerStyle={{ paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
-                            <View style={styles.blueHeader}>
+                            <View style={[styles.blueHeader, activeTheme === 'social' && { backgroundColor: 'white', elevation: 0, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' }, activeTheme === 'modular' && { backgroundColor: '#1E293B' }]}>
                                 <View style={styles.headerTop}>
-                                    <Text style={styles.headerTitle}>Perfil Profesional</Text>
-                                    <TouchableOpacity onPress={onBack} style={styles.closeButton}>
-                                        <Feather name="x" size={24} color="white" />
+                                    <Text style={[styles.headerTitle, activeTheme === 'social' && { color: '#0F172A' }]}>{isPreviewMode ? 'Previsualización Pública' : 'Perfil Profesional'}</Text>
+                                    <TouchableOpacity onPress={isPreviewMode ? () => setIsPreviewMode(false) : onBack} style={[styles.closeButton, activeTheme === 'social' && { backgroundColor: '#F1F5F9' }]}>
+                                        <Feather name="x" size={24} color={activeTheme === 'social' ? "#64748B" : "white"} />
                                     </TouchableOpacity>
                                 </View>
 
-                                <View style={styles.headerMain}>
-                                    <View style={styles.avatarContainerPublic}>
-                                        <ExpoImage source={{ uri: getAvatarUri() }} style={styles.avatarPublic} />
+                                <View style={[styles.headerMain, activeTheme === 'social' && { flexDirection: 'column', alignItems: 'center', marginTop: 10 }]}>
+                                    <View style={[styles.avatarContainerPublic, activeTheme === 'social' && { width: 100, height: 100, borderRadius: 50, marginBottom: 15 }]}>
+                                        <ExpoImage source={{ uri: getAvatarUri() }} style={[styles.avatarPublic, activeTheme === 'social' && { borderRadius: 50 }]} />
                                         {user?.isVerified && (
-                                            <View style={styles.verifiedBadgePublic}>
-                                                <Feather name="shield" size={12} color="white" />
+                                            <View style={[styles.verifiedBadgePublic, activeTheme === 'social' && { width: 28, height: 28, borderRadius: 14 }]}>
+                                                <Feather name="shield" size={14} color="white" />
                                             </View>
                                         )}
                                     </View>
-                                    <View style={{ marginLeft: 20, flex: 1 }}>
-                                        <Text style={styles.headerNamePublic} numberOfLines={1}>{profileData.name || 'Profesional'}</Text>
-                                        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2, marginBottom: 4 }}>
+                                    <View style={[{ marginLeft: 20, flex: 1 }, activeTheme === 'social' && { marginLeft: 0, alignItems: 'center' }]}>
+                                        <Text style={[styles.headerNamePublic, activeTheme === 'social' && { color: '#0F172A', fontSize: 26, textAlign: 'center' }]} numberOfLines={1}>{profileData.name || 'Profesional'}</Text>
+                                        <View style={[{ flexDirection: 'row', alignItems: 'center', marginTop: 2, marginBottom: 4 }, activeTheme === 'social' && { justifyContent: 'center' }]}>
                                             <TouchableOpacity 
-                                                style={{ backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, flexDirection: 'row', alignItems: 'center' }}
+                                                style={[{ backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, flexDirection: 'row', alignItems: 'center' }, activeTheme === 'social' && { backgroundColor: '#DBEAFE' }]}
                                                 onPress={() => setIsGamificationVisible(true)}
                                             >
-                                                <Text style={{ color: 'white', fontSize: 11, fontWeight: 'bold', marginRight: 4 }}>NIVEL {levelNames[user?.gamification?.currentLevel || 1]}</Text>
-                                                <Feather name="info" size={10} color="white" />
+                                                <Text style={[{ color: 'white', fontSize: 11, fontWeight: 'bold', marginRight: 4 }, activeTheme === 'social' && { color: '#1E3A8A' }]}>NIVEL {levelNames[user?.gamification?.currentLevel || 1]}</Text>
+                                                <Feather name="info" size={10} color={activeTheme === 'social' ? "#1E3A8A" : "white"} />
                                             </TouchableOpacity>
                                         </View>
-                                        <View style={styles.headerRatingPublic}>
+                                        <View style={[styles.headerRatingPublic, activeTheme === 'social' && { justifyContent: 'center' }]}>
                                             <FontAwesome5 name="star" solid size={14} color="#FBBF24" />
-                                            <Text style={styles.headerRatingTextPublic}>{catReviews.length > 0 ? (catReviews.reduce((acc, r) => acc + (r.rating || 5), 0) / catReviews.length).toFixed(1) : '0.0'} • {catReviews.length} reseñas</Text>
+                                            <Text style={[styles.headerRatingTextPublic, activeTheme === 'social' && { color: '#64748B' }]}>{catReviews.length > 0 ? (catReviews.reduce((acc, r) => acc + (r.rating || 5), 0) / catReviews.length).toFixed(1) : '0.0'} • {catReviews.length} reseñas</Text>
                                         </View>
                                     </View>
                                 </View>
@@ -739,7 +742,20 @@ export default function ProfessionalProfileScreen({
                                                 </Text>
                                             </View>
                                         )}
+
+                                        {/* VIDEO MODULAR */}
+                                        {activeTheme === 'modular' && profileData.presentationVideoUrl ? (
+                                            <View style={{ backgroundColor: 'black', borderRadius: 24, overflow: 'hidden', marginBottom: 16, height: 200, elevation: 3 }}>
+                                                <ExpoImage source={{ uri: profileData.presentationVideoUrl.endsWith('.mp4') ? profileData.presentationVideoUrl.replace('.mp4', '.jpg') : profileData.presentationVideoUrl }} style={{ width: '100%', height: '100%', opacity: 0.6 }} />
+                                                <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center' }}>
+                                                    <Feather name="play-circle" size={54} color="white" />
+                                                    <Text style={{ color: 'white', marginTop: 10, fontWeight: 'bold' }}>Ver Video de Presentación</Text>
+                                                </View>
+                                            </View>
+                                        ) : null}
+
                                         {/* ACTIVIDAD */}
+                                        {activeTheme !== 'social' && (
                                         <View style={{ backgroundColor: 'white', borderRadius: 24, padding: 20, marginBottom: 16, elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8 }}>
                                             <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#64748B', marginBottom: 20 }}>{`CATEGORÍA (${selectedCategory?.name?.toUpperCase()})`}</Text>
                                             <View style={{ flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center' }}>
@@ -759,6 +775,7 @@ export default function ProfessionalProfileScreen({
                                                 </View>
                                             </View>
                                         </View>
+                                        )}
 
                                         {/* BIO, DETALLES Y FOTOS DE PRESENTACIÓN */}
                                         <View style={{ backgroundColor: 'white', borderRadius: 24, paddingVertical: 20, marginBottom: 16, elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, marginHorizontal: -10 }}>
@@ -1027,24 +1044,6 @@ export default function ProfessionalProfileScreen({
                                 ))}
                             </View>
                         </ScrollView>
-
-                        <View style={{ padding: 20, borderTopWidth: 1, borderTopColor: '#E2E8F0', backgroundColor: 'white' }}>
-                            <TouchableOpacity
-                                style={{ backgroundColor: '#2563EB', paddingVertical: 14, borderRadius: 12, alignItems: 'center', flexDirection: 'row', justifyContent: 'center' }}
-                                onPress={() => {
-                                    const jobId = selectedGallery?.jobId;
-                                    setSelectedGallery(null);
-                                    if (jobId) {
-                                        alert('Navegando a la Oferta: ' + jobId);
-                                    } else {
-                                        alert('No se pudo encontrar la oferta asociada.');
-                                    }
-                                }}
-                            >
-                                <Feather name="external-link" size={16} color="white" style={{ marginRight: 8 }} />
-                                <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 16 }}>Ir a la Oferta</Text>
-                            </TouchableOpacity>
-                        </View>
                     </View>
                 </Modal>
 
@@ -1436,6 +1435,8 @@ export default function ProfessionalProfileScreen({
                         onOpenSubscriptions={() => setIsSubscriptionsVisible(true)}
                         onOpenVerification={() => setIsVerificationVisible(true)}
                         onOpenNotifications={() => setShowNotifications(true)}
+                        onOpenThemeSelector={() => setIsThemeSelectorVisible(true)}
+                        onOpenPreview={() => setIsPreviewMode(true)}
                         otherModeCount={otherModeCount}
                         user={user}
                     />

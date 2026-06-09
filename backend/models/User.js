@@ -29,6 +29,11 @@ const userSchema = mongoose.Schema({
     acceptsUrgentJobs: { type: Boolean, default: false }, // Disposición a atender Urgencias
     documents: [{ type: String }], // URLs de documentos subidos
     specialties: [{ type: String }], // Categorías que atiende (Legacy simple list)
+    
+    // Perfiles dinámicos
+    profileTheme: { type: String, enum: ['social', 'corporate', 'modular'], default: 'social' },
+    presentationVideoUrl: { type: String },
+    
     profiles: {
         type: Map,
         of: new mongoose.Schema({
