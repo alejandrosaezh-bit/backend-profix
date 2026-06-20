@@ -1,3 +1,4 @@
+import React, { useState, useEffect } from 'react';
 import { Feather, FontAwesome5 } from '@expo/vector-icons';
 import {
     Image,
@@ -225,8 +226,11 @@ export function ProProfileEditModal({
     updateCurrentProfile,
     pickImage,
     removeImage,
-    handleSaveProfessional
+    handleSaveProfessional,
+    onOpenThemeSelector,
+    onOpenPreview
 }) {
+    const activeColor = currentCatProfile?.profileColor || '#2563EB';
     return (
         <Modal
             visible={visible}
@@ -383,9 +387,39 @@ export function ProProfileEditModal({
                             onChangeText={(t) => updateCurrentProfile({ bio: t })}
                         />
 
-                        {/* 4. Fotos */}
+                        {/* 4. Personalizar Diseño */}
+                        <Text style={styles.stepTitle}>4. Personalizar Diseño</Text>
+                        <TouchableOpacity style={{ backgroundColor: '#EEF2FF', padding: 16, borderRadius: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 5, marginBottom: 25, borderWidth: 1, borderColor: '#C7D2FE' }} onPress={onOpenThemeSelector}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: 'white', justifyContent: 'center', alignItems: 'center', marginRight: 12 }}>
+                                    <Feather name="layout" size={20} color="#4F46E5" />
+                                </View>
+                                <View>
+                                    <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#312E81' }}>Apariencia y Colores</Text>
+                                    <Text style={{ fontSize: 12, color: '#4338CA', marginTop: 2 }}>Elige colores, fuentes y estilo visual</Text>
+                                </View>
+                            </View>
+                            <Feather name="chevron-right" size={20} color="#6366F1" />
+                        </TouchableOpacity>
+
+                        {/* 5. Previsualizar Perfil */}
+                        <Text style={styles.stepTitle}>5. Previsualizar Perfil</Text>
+                        <TouchableOpacity style={{ backgroundColor: '#FEF2F2', padding: 16, borderRadius: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 5, marginBottom: 25, borderWidth: 1, borderColor: '#FECACA' }} onPress={onOpenPreview}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: 'white', justifyContent: 'center', alignItems: 'center', marginRight: 12 }}>
+                                    <Feather name="eye" size={20} color="#EF4444" />
+                                </View>
+                                <View>
+                                    <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#991B1B' }}>Previsualizar Perfil Público</Text>
+                                    <Text style={{ fontSize: 12, color: '#B91C1C', marginTop: 2 }}>Ver cómo te ven los clientes</Text>
+                                </View>
+                            </View>
+                            <Feather name="external-link" size={20} color="#EF4444" />
+                        </TouchableOpacity>
+
+                        {/* 6. Fotos */}
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 15 }}>
-                            <Text style={styles.stepTitle}>4. Fotos de Presentación</Text>
+                            <Text style={styles.stepTitle}>6. Fotos de Presentación</Text>
                             <TouchableOpacity onPress={pickImage} style={{ backgroundColor: '#EFF6FF', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10 }}>
                                 <Text style={{ color: '#2563EB', fontWeight: 'bold', fontSize: 12 }}>+ Añadir</Text>
                             </TouchableOpacity>
@@ -419,7 +453,7 @@ export function ProProfileEditModal({
                         >
                             <Text style={[styles.btnTextCancel, { color: '#64748B' }]}>Descartar</Text>
                         </TouchableOpacity>
-                        <TouchableOpacity style={styles.btnSave} onPress={handleSaveProfessional}>
+                        <TouchableOpacity style={[styles.btnSave, { backgroundColor: activeColor }]} onPress={handleSaveProfessional}>
                             <Text style={styles.btnTextSave}>Guardar Perfil</Text>
                         </TouchableOpacity>
                     </View>
@@ -548,3 +582,93 @@ const styles = StyleSheet.create({
         justifyContent: 'center'
     }
 });
+
+export function ProThemeSelectorModal({
+    visible,
+    onClose,
+    currentTheme,
+    currentColor,
+    onSave
+}) {
+    const [selectedTheme, setSelectedTheme] = useState(currentTheme || 'social');
+    const [selectedColor, setSelectedColor] = useState(currentColor || '#2563EB');
+    const [customColor, setCustomColor] = useState('');
+
+    useEffect(() => {
+        if (visible) {
+            setSelectedTheme(currentTheme || 'social');
+            setSelectedColor(currentColor || '#2563EB');
+            setCustomColor('');
+        }
+    }, [visible, currentTheme, currentColor]);
+
+    const PREDEFINED_COLORS = ['#2563EB', '#10B981', '#EF4444', '#F59E0B', '#8B5CF6', '#EC4899', '#1F2937', '#14B8A6'];
+
+    return (
+        <Modal visible={visible} animationType="slide" transparent={true} onRequestClose={onClose}>
+            <KeyboardAvoidingView style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+                <View style={{ backgroundColor: 'white', borderTopLeftRadius: 32, borderTopRightRadius: 32, padding: 24, paddingBottom: Platform.OS === 'ios' ? 40 : 24, maxHeight: '90%' }}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                        <Text style={{ fontSize: 22, fontWeight: 'bold', color: '#111827' }}>Personalizar Diseño</Text>
+                        <TouchableOpacity onPress={onClose} style={{ padding: 5, backgroundColor: '#F3F4F6', borderRadius: 20 }}>
+                            <Feather name="x" size={20} color="#6B7280" />
+                        </TouchableOpacity>
+                    </View>
+                    <ScrollView showsVerticalScrollIndicator={false}>
+                        <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#374151', marginBottom: 15 }}>Tipo de Presentación</Text>
+                        <View style={{ flexDirection: 'row', gap: 10, marginBottom: 30 }}>
+                            {['social', 'corporate', 'modular'].map(theme => (
+                                <TouchableOpacity 
+                                    key={theme} 
+                                    style={{ flex: 1, padding: 15, borderRadius: 12, borderWidth: 2, borderColor: selectedTheme === theme ? selectedColor : '#E5E7EB', alignItems: 'center', backgroundColor: selectedTheme === theme ? `${selectedColor}15` : 'white' }}
+                                    onPress={() => setSelectedTheme(theme)}
+                                >
+                                    <Feather name={theme === 'social' ? 'instagram' : theme === 'corporate' ? 'briefcase' : 'grid'} size={24} color={selectedTheme === theme ? selectedColor : '#9CA3AF'} style={{ marginBottom: 8 }} />
+                                    <Text style={{ fontWeight: 'bold', color: selectedTheme === theme ? selectedColor : '#4B5563', textTransform: 'capitalize' }}>{theme}</Text>
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+                        
+                        <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#374151', marginBottom: 15 }}>Color Primario</Text>
+                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 20 }}>
+                            {PREDEFINED_COLORS.map(color => (
+                                <TouchableOpacity 
+                                    key={color} 
+                                    style={{ width: 45, height: 45, borderRadius: 22.5, backgroundColor: color, justifyContent: 'center', alignItems: 'center', borderWidth: selectedColor === color ? 3 : 0, borderColor: '#111827' }}
+                                    onPress={() => setSelectedColor(color)}
+                                >
+                                    {selectedColor === color && <Feather name="check" size={20} color="white" />}
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+
+                        <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#6B7280', marginBottom: 8 }}>O usa un color personalizado (Hex):</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+                            <View style={{ flex: 1, backgroundColor: '#F9FAFB', borderRadius: 12, borderWidth: 1, borderColor: '#E5E7EB', paddingHorizontal: 15, paddingVertical: 12, flexDirection: 'row', alignItems: 'center' }}>
+                                <Text style={{ color: '#9CA3AF', marginRight: 5 }}>#</Text>
+                                <TextInput 
+                                    style={{ flex: 1, fontSize: 16, color: '#111827' }} 
+                                    placeholder="2563EB" 
+                                    maxLength={6} 
+                                    value={customColor.replace('#', '')} 
+                                    onChangeText={text => {
+                                        setCustomColor(text);
+                                        if(text.length === 6) setSelectedColor('#' + text);
+                                    }} 
+                                />
+                            </View>
+                            <View style={{ width: 45, height: 45, borderRadius: 12, backgroundColor: selectedColor, borderWidth: 1, borderColor: '#E5E7EB' }} />
+                        </View>
+                    </ScrollView>
+                    
+                    <TouchableOpacity 
+                        style={{ backgroundColor: selectedColor, padding: 18, borderRadius: 16, alignItems: 'center', marginTop: 10 }}
+                        onPress={() => { onSave(selectedTheme, selectedColor); onClose(); }}
+                    >
+                        <Text style={{ color: 'white', fontSize: 16, fontWeight: 'bold' }}>Guardar Apariencia</Text>
+                    </TouchableOpacity>
+                </View>
+            </KeyboardAvoidingView>
+        </Modal>
+    );
+}

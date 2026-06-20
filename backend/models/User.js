@@ -45,7 +45,10 @@ const userSchema = mongoose.Schema({
             experience: String,
             priceRange: String,
             acceptsUrgentJobs: { type: Boolean, default: false },
-            isActive: { type: Boolean, default: true }
+            isActive: { type: Boolean, default: true },
+            profileTheme: { type: String, enum: ['social', 'corporate', 'modular'] },
+            profileColor: { type: String },
+            presentationVideoUrl: { type: String }
         }, { _id: false })
     },
     

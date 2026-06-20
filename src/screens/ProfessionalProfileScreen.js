@@ -246,6 +246,7 @@ export default function ProfessionalProfileScreen({
     // Helper: Obtener perfil de la categoría actual
     const realProfile = profileData.profiles?.[categoryKey];
     const currentCatProfile = realProfile || { bio: '', subcategories: [], gallery: [], zones: [] };
+    const activeColor = currentCatProfile?.profileColor || '#2563EB';
     const isCategoryActive = !!realProfile && realProfile.isActive !== false;
 
     // --- ORDENAMIENTO DE CATEGORÍAS (Activas primero) ---
@@ -690,7 +691,7 @@ export default function ProfessionalProfileScreen({
                         <View style={styles.dragHandle} />
 
                         <ScrollView contentContainerStyle={{ paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
-                            <View style={[styles.blueHeader, activeTheme === 'social' && { backgroundColor: 'white', elevation: 0, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' }, activeTheme === 'modular' && { backgroundColor: '#1E293B' }]}>
+                            <View style={[styles.blueHeader, { backgroundColor: activeColor }, activeTheme === 'social' && { backgroundColor: 'white', elevation: 0, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' }, activeTheme === 'modular' && { backgroundColor: '#1E293B' }]}>
                                 <View style={styles.headerTop}>
                                     <Text style={[styles.headerTitle, activeTheme === 'social' && { color: '#0F172A' }]}>{isPreviewMode ? 'Previsualización Pública' : 'Perfil Profesional'}</Text>
                                     <TouchableOpacity onPress={isPreviewMode ? () => setIsPreviewMode(false) : onBack} style={[styles.closeButton, activeTheme === 'social' && { backgroundColor: '#F1F5F9' }]}>
@@ -711,10 +712,10 @@ export default function ProfessionalProfileScreen({
                                         <Text style={[styles.headerNamePublic, activeTheme === 'social' && { color: '#0F172A', fontSize: 26, textAlign: 'center' }]} numberOfLines={1}>{profileData.name || 'Profesional'}</Text>
                                         <View style={[{ flexDirection: 'row', alignItems: 'center', marginTop: 2, marginBottom: 4 }, activeTheme === 'social' && { justifyContent: 'center' }]}>
                                             <TouchableOpacity 
-                                                style={[{ backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, flexDirection: 'row', alignItems: 'center' }, activeTheme === 'social' && { backgroundColor: '#DBEAFE' }]}
+                                                style={[{ backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, flexDirection: 'row', alignItems: 'center' }, activeTheme === 'social' && { backgroundColor: '#F1F5F9' }]}
                                                 onPress={() => setIsGamificationVisible(true)}
                                             >
-                                                <Text style={[{ color: 'white', fontSize: 11, fontWeight: 'bold', marginRight: 4 }, activeTheme === 'social' && { color: '#1E3A8A' }]}>NIVEL {levelNames[user?.gamification?.currentLevel || 1]}</Text>
+                                                <Text style={[{ color: 'white', fontSize: 11, fontWeight: 'bold', marginRight: 4 }, activeTheme === 'social' && { color: activeColor }]}>NIVEL {levelNames[user?.gamification?.currentLevel || 1]}</Text>
                                                 <Feather name="info" size={10} color={activeTheme === 'social' ? "#1E3A8A" : "white"} />
                                             </TouchableOpacity>
                                         </View>
@@ -905,7 +906,7 @@ export default function ProfessionalProfileScreen({
                                                                         {r.reviewer?.avatar ? (
                                                                             <ExpoImage source={{ uri: r.reviewer.avatar }} style={{ width: 36, height: 36, borderRadius: 18, marginRight: 10 }} />
                                                                         ) : (
-                                                                            <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#EFF6FF', justifyContent: 'center', alignItems: 'center', marginRight: 10 }}>
+                                                                            <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center', marginRight: 10 }}>
                                                                                 <Feather name="user" size={16} color="#2563EB" />
                                                                             </View>
                                                                         )}
@@ -970,7 +971,7 @@ export default function ProfessionalProfileScreen({
                                                                             {item.review.reviewer?.avatar ? (
                                                                                 <ExpoImage source={{ uri: item.review.reviewer.avatar }} style={{ width: 20, height: 20, borderRadius: 10, marginRight: 6, resizeMode: 'cover' }} />
                                                                             ) : (
-                                                                                <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: '#EFF6FF', justifyContent: 'center', alignItems: 'center', marginRight: 6 }}>
+                                                                                <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center', marginRight: 6 }}>
                                                                                     <Feather name="user" size={10} color="#2563EB" />
                                                                                 </View>
                                                                             )}
@@ -996,7 +997,7 @@ export default function ProfessionalProfileScreen({
                                                                 {/* BOTON VER MAS FOTOS */}
                                                                 {item.images && item.images.length > 0 && (
                                                                     <TouchableOpacity 
-                                                                        style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#EFF6FF', paddingVertical: 8, borderRadius: 10, marginTop: 12, width: '100%' }}
+                                                                        style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#F1F5F9', paddingVertical: 8, borderRadius: 10, marginTop: 12, width: '100%' }}
                                                                         onPress={() => setSelectedGallery({ title: item.title, images: item.images, jobId: item.jobId })}
                                                                     >
                                                                         <Feather name="image" size={14} color="#2563EB" style={{ marginRight: 6 }} />
@@ -1081,7 +1082,7 @@ export default function ProfessionalProfileScreen({
     return (
         <View style={styles.container}>
             <ScrollView contentContainerStyle={{ paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
-                <View style={[styles.blueHeader, { borderBottomLeftRadius: 32, borderBottomRightRadius: 32, paddingBottom: 35 }]}>
+                <View style={[styles.blueHeader, { backgroundColor: activeColor, borderBottomLeftRadius: 32, borderBottomRightRadius: 32, paddingBottom: 35 }]}>
                     <View style={[styles.headerTop, { paddingTop: Platform.OS === 'ios' ? 44 : 10, marginBottom: 5 }]}>
                         <Text style={styles.headerTitle}>Perfil Profesional</Text>
                         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -1099,7 +1100,7 @@ export default function ProfessionalProfileScreen({
                             <View style={styles.verifiedBadgePublic}>
                                 <Feather name="shield" size={12} color="white" />
                             </View>
-                            <TouchableOpacity style={[styles.editBadge, { right: -5, bottom: -5, width: 28, height: 28, borderRadius: 14, justifyContent: 'center', alignItems: 'center', padding: 0 }]} onPress={pickMainImage}>
+                            <TouchableOpacity style={[styles.editBadge, { backgroundColor: activeColor, right: -5, bottom: -5, width: 28, height: 28, borderRadius: 14, justifyContent: 'center', alignItems: 'center', padding: 0 }]} onPress={pickMainImage}>
                                 <Feather name="camera" size={12} color="white" />
                             </TouchableOpacity>
                         </View>
@@ -1160,7 +1161,7 @@ export default function ProfessionalProfileScreen({
                             <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#64748B' }}>MIS SERVICIOS</Text>
                             <TouchableOpacity
                                 onPress={() => setIsCategorySelectionVisible(true)}
-                                style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#EFF6FF', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12, borderWidth: 1, borderColor: '#DBEAFE' }}
+                                style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#F1F5F9', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12, borderWidth: 1, borderColor: '#DBEAFE' }}
                             >
                                 <Feather name="settings" size={12} color="#2563EB" style={{ marginRight: 6 }} />
                                 <Text style={{ color: '#2563EB', fontWeight: 'bold', fontSize: 12 }}>Configurar</Text>
@@ -1317,7 +1318,7 @@ export default function ProfessionalProfileScreen({
                                                             {r.reviewer?.avatar ? (
                                                                 <ExpoImage source={{ uri: r.reviewer.avatar }} style={{ width: 36, height: 36, borderRadius: 18, marginRight: 10 }} />
                                                             ) : (
-                                                                <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#EFF6FF', justifyContent: 'center', alignItems: 'center', marginRight: 10 }}>
+                                                                <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center', marginRight: 10 }}>
                                                                     <Feather name="user" size={16} color="#2563EB" />
                                                                 </View>
                                                             )}
@@ -1382,7 +1383,7 @@ export default function ProfessionalProfileScreen({
                                                                 {item.review.reviewer?.avatar ? (
                                                                     <ExpoImage source={{ uri: item.review.reviewer.avatar }} style={{ width: 20, height: 20, borderRadius: 10, marginRight: 6, resizeMode: 'cover' }} />
                                                                 ) : (
-                                                                    <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: '#EFF6FF', justifyContent: 'center', alignItems: 'center', marginRight: 6 }}>
+                                                                    <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center', marginRight: 6 }}>
                                                                         <Feather name="user" size={10} color="#2563EB" />
                                                                     </View>
                                                                 )}
@@ -1408,7 +1409,7 @@ export default function ProfessionalProfileScreen({
                                                     {/* BOTON VER MAS FOTOS */}
                                                     {item.images && item.images.length > 0 && (
                                                         <TouchableOpacity 
-                                                            style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#EFF6FF', paddingVertical: 8, borderRadius: 10, marginTop: 12, width: '100%' }}
+                                                            style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#F1F5F9', paddingVertical: 8, borderRadius: 10, marginTop: 12, width: '100%' }}
                                                             onPress={() => setSelectedGallery({ title: item.title, images: item.images, jobId: item.jobId })}
                                                         >
                                                             <Feather name="image" size={14} color="#2563EB" style={{ marginRight: 6 }} />
@@ -1506,6 +1507,14 @@ export default function ProfessionalProfileScreen({
                     pickImage={pickImage}
                     removeImage={removeImage}
                     handleSaveProfessional={handleSaveProfessional}
+                    onOpenThemeSelector={() => {
+                        setIsEditing(false);
+                        setTimeout(() => setIsThemeSelectorVisible(true), 300);
+                    }}
+                    onOpenPreview={() => {
+                        setIsEditing(false);
+                        setTimeout(() => setIsPreviewMode(true), 300);
+                    }}
                 />
 
                 {/* MODAL 3: DATOS PERSONALES */}
@@ -1848,7 +1857,7 @@ const styles = StyleSheet.create({
         elevation: 5
     },
     categoryCardSelected: {
-        backgroundColor: '#EFF6FF',
+        backgroundColor: '#F1F5F9',
         borderColor: '#2563EB',
         borderWidth: 2
     },
@@ -1900,14 +1909,14 @@ const styles = StyleSheet.create({
         width: '30%',
         paddingVertical: 8,
         borderRadius: 20,
-        backgroundColor: '#EFF6FF',
+        backgroundColor: '#F1F5F9',
         borderWidth: 1,
         borderColor: '#DBEAFE',
         justifyContent: 'center',
         alignItems: 'center'
     },
     chipSelected: {
-        backgroundColor: '#DBEAFE',
+        backgroundColor: '#F1F5F9',
         borderColor: '#2563EB'
     },
     chipText: {
@@ -1970,7 +1979,7 @@ const styles = StyleSheet.create({
     },
     zoneTag: {
         width: '46%',
-        backgroundColor: '#EFF6FF',
+        backgroundColor: '#F1F5F9',
         paddingVertical: 8,
         borderRadius: 20,
         borderWidth: 1,
@@ -2143,7 +2152,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         paddingVertical: 12,
         paddingHorizontal: 20,
-        backgroundColor: '#EFF6FF',
+        backgroundColor: '#F1F5F9',
         borderRadius: 20,
         marginBottom: 10,
         borderWidth: 1,

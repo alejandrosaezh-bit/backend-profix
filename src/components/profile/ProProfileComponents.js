@@ -233,25 +233,9 @@ export const ProAccountSettings = ({
                 <Feather name="chevron-right" size={18} color="#9CA3AF" />
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.settingRow} onPress={onOpenThemeSelector}>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <View style={[styles.iconBox, { backgroundColor: '#F3E8FF' }]}>
-                        <Feather name="layout" size={18} color="#9333EA" />
-                    </View>
-                    <Text style={styles.settingText}>Apariencia de Perfil Público</Text>
-                </View>
-                <Feather name="chevron-right" size={18} color="#9CA3AF" />
-            </TouchableOpacity>
+            
 
-            <TouchableOpacity style={[styles.settingRow, { backgroundColor: '#FEF2F2', borderColor: '#FECACA', borderWidth: 1 }]} onPress={onOpenPreview}>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <View style={[styles.iconBox, { backgroundColor: 'white' }]}>
-                        <Feather name="eye" size={18} color="#EF4444" />
-                    </View>
-                    <Text style={[styles.settingText, { color: '#B91C1C', fontWeight: 'bold' }]}>Previsualizar Perfil Público</Text>
-                </View>
-                <Feather name="arrow-up-right" size={18} color="#EF4444" />
-            </TouchableOpacity>
+            
 
             <TouchableOpacity style={styles.settingRow} onPress={onOpenNotifications}>
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
