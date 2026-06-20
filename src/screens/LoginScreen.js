@@ -4,10 +4,13 @@ import { Keyboard, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text,
 import { AuthContext } from '../context/AuthContext';
 import { api } from '../utils/api';
 import { OTA_VERSION } from '../utils/version';
+import WebLandingProScreen from './WebLandingProScreen';
 
 export default function LoginScreen({ navigation }) {
   const { login, register, isLoading } = useContext(AuthContext);
   const [isRegistering, setIsRegistering] = useState(false);
+  const [showProLanding, setShowProLanding] = useState(false);
+  const [registerRole, setRegisterRole] = useState('client');
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
@@ -105,7 +108,7 @@ export default function LoginScreen({ navigation }) {
           return;
         }
         console.log("Calling register...");
-        await register(name, email, password, phone, cedula, 'client');
+        await register(name, email, password, phone, cedula, registerRole);
         console.log("Register returned");
       } else {
         console.log("Calling login...");
@@ -366,6 +369,19 @@ export default function LoginScreen({ navigation }) {
             )}
           </View>
         </KeyboardAvoidingView>
+      </Modal>
+
+    
+      {/* Landing Page Profesional */}
+      <Modal visible={showProLanding} animationType="slide" presentationStyle="pageSheet">
+        <WebLandingProScreen 
+          onGoBack={() => setShowProLanding(false)}
+          onStartRegistration={() => {
+            setShowProLanding(false);
+            setRegisterRole('pro');
+            setIsRegistering(true);
+          }}
+        />
       </Modal>
 
     </KeyboardAvoidingView>
