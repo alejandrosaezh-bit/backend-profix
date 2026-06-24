@@ -14,6 +14,23 @@ import {
 } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
 
+const AccordionSection = ({ title, expanded, onPress, children }) => (
+    <View style={{ marginBottom: 12, backgroundColor: 'white', borderRadius: 16, borderWidth: 1, borderColor: expanded ? '#CBD5E1' : '#F1F5F9', overflow: 'hidden' }}>
+        <TouchableOpacity 
+            style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, backgroundColor: expanded ? '#F8FAFC' : 'white' }} 
+            onPress={onPress}
+        >
+            <Text style={{ fontSize: 16, fontWeight: 'bold', color: expanded ? '#0F172A' : '#475569' }}>{title}</Text>
+            <Feather name={expanded ? "chevron-up" : "chevron-down"} size={20} color={expanded ? "#2563EB" : "#94A3B8"} />
+        </TouchableOpacity>
+        {expanded && (
+            <View style={{ padding: 16, borderTopWidth: 1, borderTopColor: '#F1F5F9' }}>
+                {children}
+            </View>
+        )}
+    </View>
+);
+
 export function ProCategorySelectionModal({
     visible,
     onClose,
@@ -77,7 +94,6 @@ export function ProCategorySelectionModal({
                                         setSelectedCategory(cat);
                                         if (onActivateCategory) onActivateCategory(catKey);
                                         onClose();
-                                        setIsEditing(true);
                                     }}
                                 >
                                     <View style={{
@@ -227,10 +243,33 @@ export function ProProfileEditModal({
     pickImage,
     removeImage,
     handleSaveProfessional,
+    combinedHistory = [],
     onOpenThemeSelector,
     onOpenPreview
 }) {
     const activeColor = currentCatProfile?.profileColor || '#2563EB';
+    const [expandedSection, setExpandedSection] = useState(1);
+    const [customColor, setCustomColor] = useState('');
+
+    const togglePortfolioImage = (imgUrl) => {
+        const currentHidden = currentCatProfile?.hiddenPortfolioImages || [];
+        let newHidden;
+        if (currentHidden.includes(imgUrl)) {
+            newHidden = currentHidden.filter(url => url !== imgUrl);
+        } else {
+            newHidden = [...currentHidden, imgUrl];
+        }
+        updateCurrentProfile({ hiddenPortfolioImages: newHidden });
+    };
+
+    const portfolioImages = [];
+    combinedHistory.forEach(item => {
+        if (item.images) {
+            item.images.forEach(img => {
+                if (!portfolioImages.includes(img)) portfolioImages.push(img);
+            });
+        }
+    });
     return (
         <Modal
             visible={visible}
@@ -261,200 +300,246 @@ export function ProProfileEditModal({
 
                     <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }}>
                         {/* 1. Especialidades */}
-                        <Text style={styles.stepTitle}>1. Especialidades</Text>
-                        <View style={styles.gridContainer}>
-                            {(allSubcategories[categoryKey] || []).map((sub, i) => {
-                                const subName = typeof sub === 'object' ? sub.name : sub;
-                                const isSelected = currentCatProfile.subcategories?.includes(subName);
+                        <AccordionSection title="1. Especialidades" expanded={expandedSection === 1} onPress={() => setExpandedSection(expandedSection === 1 ? null : 1)}>
+                            <View style={styles.gridContainer}>
+                                {(allSubcategories[categoryKey] || []).map((sub, i) => {
+                                    const subName = typeof sub === 'object' ? sub.name : sub;
+                                    const isSelected = currentCatProfile.subcategories?.includes(subName);
+                                    return (
+                                        <TouchableOpacity
+                                            key={i}
+                                            style={[styles.chip, isSelected && styles.chipSelected, { width: '31%' }]}
+                                            onPress={() => toggleSubcategory(subName)}
+                                        >
+                                            <Text style={[styles.chipText, isSelected && styles.chipTextSelected, { fontSize: 10 }]} numberOfLines={1}>{subName}</Text>
+                                        </TouchableOpacity>
+                                    );
+                                })}
+                            </View>
+
+                            {(() => {
+                                const selectedSubs = currentCatProfile.subcategories || [];
+                                const urgentSubs = (allSubcategories[categoryKey] || []).filter(sub => {
+                                    const subName = typeof sub === 'object' ? sub.name : sub;
+                                    const isUrgent = typeof sub === 'object' ? sub.isUrgent : false;
+                                    return selectedSubs.includes(subName) && isUrgent;
+                                });
+
+                                if (urgentSubs.length === 0) return null;
+
+                                const urgentNames = urgentSubs.map(s => typeof s === 'object' ? s.name : s).join(', ');
+
                                 return (
-                                    <TouchableOpacity
-                                        key={i}
-                                        style={[styles.chip, isSelected && styles.chipSelected, { width: '31%' }]}
-                                        onPress={() => toggleSubcategory(subName)}
-                                    >
-                                        <Text style={[styles.chipText, isSelected && styles.chipTextSelected, { fontSize: 10 }]} numberOfLines={1}>{subName}</Text>
-                                    </TouchableOpacity>
-                                );
-                            })}
-                        </View>
-
-                        {/* 1.5 Trabajos Urgentes */}
-                        {(() => {
-                            const selectedSubs = currentCatProfile.subcategories || [];
-                            const urgentSubs = (allSubcategories[categoryKey] || []).filter(sub => {
-                                const subName = typeof sub === 'object' ? sub.name : sub;
-                                const isUrgent = typeof sub === 'object' ? sub.isUrgent : false;
-                                return selectedSubs.includes(subName) && isUrgent;
-                            });
-
-                            if (urgentSubs.length === 0) return null;
-
-                            const urgentNames = urgentSubs.map(s => typeof s === 'object' ? s.name : s).join(', ');
-
-                            return (
-                                <View style={{ marginTop: 25, marginBottom: 10, padding: 16, backgroundColor: currentCatProfile.acceptsUrgentJobs ? '#FEF2F2' : '#F8FAFC', borderRadius: 16, borderWidth: 1, borderColor: currentCatProfile.acceptsUrgentJobs ? '#FECACA' : '#E5E7EB', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                                    <View style={{ flex: 1, paddingRight: 15 }}>
-                                        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
-                                            <Feather name="alert-triangle" size={18} color={currentCatProfile.acceptsUrgentJobs ? '#EF4444' : '#64748B'} style={{ marginRight: 8 }} />
-                                            <Text style={{ fontSize: 16, fontWeight: 'bold', color: currentCatProfile.acceptsUrgentJobs ? '#991B1B' : '#334155' }}>
-                                                Trabajos Urgentes 24/7
+                                    <View style={{ marginTop: 25, marginBottom: 10, padding: 16, backgroundColor: currentCatProfile.acceptsUrgentJobs ? '#FEF2F2' : '#F8FAFC', borderRadius: 16, borderWidth: 1, borderColor: currentCatProfile.acceptsUrgentJobs ? '#FECACA' : '#E5E7EB', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                                        <View style={{ flex: 1, paddingRight: 15 }}>
+                                            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+                                                <Feather name="alert-triangle" size={18} color={currentCatProfile.acceptsUrgentJobs ? '#EF4444' : '#64748B'} style={{ marginRight: 8 }} />
+                                                <Text style={{ fontSize: 16, fontWeight: 'bold', color: currentCatProfile.acceptsUrgentJobs ? '#991B1B' : '#334155' }}>
+                                                    Trabajos Urgentes 24/7
+                                                </Text>
+                                            </View>
+                                            <Text style={{ fontSize: 12, color: currentCatProfile.acceptsUrgentJobs ? '#B91C1C' : '#64748B' }}>
+                                                ¿Deseas recibir solicitudes de {urgentNames} urgentes 24/7? Recibirás notificaciones prioritarias.
                                             </Text>
                                         </View>
-                                        <Text style={{ fontSize: 12, color: currentCatProfile.acceptsUrgentJobs ? '#B91C1C' : '#64748B' }}>
-                                            ¿Deseas recibir solicitudes de {urgentNames} urgentes 24/7? Recibirás notificaciones prioritarias.
-                                        </Text>
+                                        <TouchableOpacity
+                                            onPress={() => updateCurrentProfile({ acceptsUrgentJobs: !currentCatProfile.acceptsUrgentJobs })}
+                                            style={{ width: 50, height: 28, borderRadius: 14, backgroundColor: currentCatProfile.acceptsUrgentJobs ? '#EF4444' : '#CBD5E1', justifyContent: 'center', alignItems: currentCatProfile.acceptsUrgentJobs ? 'flex-end' : 'flex-start', paddingHorizontal: 4 }}
+                                        >
+                                            <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: 'white' }} />
+                                        </TouchableOpacity>
                                     </View>
-                                    <TouchableOpacity
-                                        onPress={() => updateCurrentProfile({ acceptsUrgentJobs: !currentCatProfile.acceptsUrgentJobs })}
-                                        style={{ width: 50, height: 28, borderRadius: 14, backgroundColor: currentCatProfile.acceptsUrgentJobs ? '#EF4444' : '#CBD5E1', justifyContent: 'center', alignItems: currentCatProfile.acceptsUrgentJobs ? 'flex-end' : 'flex-start', paddingHorizontal: 4 }}
-                                    >
-                                        <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: 'white' }} />
-                                    </TouchableOpacity>
-                                </View>
-                            );
-                        })()}
-
-                        {/* 2. Zonas */}
-                        <Text style={styles.stepTitle}>2. Zonas de Cobertura</Text>
-                        <View style={{ borderWidth: 1, borderColor: '#F3F4F6', borderRadius: 16, overflow: 'hidden', backgroundColor: 'white' }}>
-                            {(() => {
-                                const states = Object.keys(allZones).sort((a, b) => {
-                                    if (a === 'Gran Caracas') return -1;
-                                    if (b === 'Gran Caracas') return 1;
-                                    return a.localeCompare(b);
-                                });
-                                const visibleStates = showAllStates ? states : states.slice(0, 3);
-                                return (
-                                    <>
-                                        {visibleStates.map((state) => {
-                                            const municipalities = allZones[state];
-                                            const isExpanded = expandedStates[state];
-                                            const selectedInState = getSelectedMunicipalitiesInState(state);
-                                            const hasSelection = selectedInState.length > 0;
-                                            return (
-                                                <View key={state}>
-                                                    <TouchableOpacity
-                                                        style={[styles.stateItem, { paddingHorizontal: 15, backgroundColor: hasSelection ? '#F8FAFC' : 'white' }]}
-                                                        onPress={() => toggleStateExpansion(state)}
-                                                    >
-                                                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                                            <Feather name={isExpanded ? "chevron-down" : "chevron-right"} size={18} color={hasSelection ? "#2563EB" : "#6B7280"} />
-                                                            <Text style={[styles.stateName, hasSelection && { color: '#2563EB', fontWeight: 'bold' }]}>
-                                                                {state}
-                                                                {hasSelection && <Text style={{ color: '#64748B', fontWeight: 'normal' }}> ({selectedInState.length})</Text>}
-                                                            </Text>
-                                                        </View>
-                                                    </TouchableOpacity>
-                                                    {isExpanded && (
-                                                        <View style={[styles.municipalityList, { paddingBottom: 15, paddingHorizontal: 10 }]}>
-                                                            <View style={styles.gridContainer}>
-                                                                {municipalities.map(muni => {
-                                                                    const fullZone = `${muni}, ${state}`;
-                                                                    const isSelected = currentCatProfile.zones?.includes(fullZone);
-                                                                    return (
-                                                                        <TouchableOpacity
-                                                                            key={muni}
-                                                                            style={[styles.chip, isSelected && styles.chipSelected, { width: '47%', marginVertical: 4 }]}
-                                                                            onPress={() => toggleMunicipality(muni, state)}
-                                                                        >
-                                                                            <Text style={[styles.chipText, isSelected && styles.chipTextSelected, { fontSize: 10 }]} numberOfLines={1}>{muni}</Text>
-                                                                        </TouchableOpacity>
-                                                                    );
-                                                                })}
-                                                            </View>
-                                                        </View>
-                                                    )}
-                                                </View>
-                                            );
-                                        })}
-                                        {!showAllStates && (
-                                            <TouchableOpacity style={{ padding: 15, alignItems: 'center', backgroundColor: '#F8FAFC' }} onPress={() => setShowAllStates(true)}>
-                                                <Text style={{ color: '#2563EB', fontWeight: 'bold' }}>Mostrar más zonas...</Text>
-                                            </TouchableOpacity>
-                                        )}
-                                    </>
                                 );
                             })()}
-                        </View>
+                        </AccordionSection>
 
-                        {/* 3. Bio */}
-                        <Text style={styles.stepTitle}>3. Presentación</Text>
-                        <TextInput
-                            style={[styles.modalInput, { height: 120, textAlignVertical: 'top' }]}
-                            multiline
-                            placeholder="Describe tu experiencia y por qué deberían contratarte..."
-                            value={currentCatProfile.bio}
-                            onChangeText={(t) => updateCurrentProfile({ bio: t })}
-                        />
+                        {/* 2. Zonas de Cobertura */}
+                        <AccordionSection title="2. Zonas de Cobertura" expanded={expandedSection === 2} onPress={() => setExpandedSection(expandedSection === 2 ? null : 2)}>
+                            <View style={{ borderWidth: 1, borderColor: '#F3F4F6', borderRadius: 16, overflow: 'hidden', backgroundColor: 'white' }}>
+                                {(() => {
+                                    const states = Object.keys(allZones).sort((a, b) => {
+                                        if (a === 'Gran Caracas') return -1;
+                                        if (b === 'Gran Caracas') return 1;
+                                        return a.localeCompare(b);
+                                    });
+                                    const visibleStates = showAllStates ? states : states.slice(0, 3);
+                                    return (
+                                        <>
+                                            {visibleStates.map((state) => {
+                                                const municipalities = allZones[state];
+                                                const isExpanded = expandedStates[state];
+                                                const selectedInState = getSelectedMunicipalitiesInState(state);
+                                                const hasSelection = selectedInState.length > 0;
+                                                return (
+                                                    <View key={state}>
+                                                        <TouchableOpacity
+                                                            style={[styles.stateItem, { paddingHorizontal: 15, backgroundColor: hasSelection ? '#F8FAFC' : 'white' }]}
+                                                            onPress={() => toggleStateExpansion(state)}
+                                                        >
+                                                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                                                <Feather name={isExpanded ? "chevron-down" : "chevron-right"} size={18} color={hasSelection ? "#2563EB" : "#6B7280"} />
+                                                                <Text style={[styles.stateName, hasSelection && { color: '#2563EB', fontWeight: 'bold' }]}>
+                                                                    {state}
+                                                                    {hasSelection && <Text style={{ color: '#64748B', fontWeight: 'normal' }}> ({selectedInState.length})</Text>}
+                                                                </Text>
+                                                            </View>
+                                                        </TouchableOpacity>
+                                                        {isExpanded && (
+                                                            <View style={[styles.municipalityList, { paddingBottom: 15, paddingHorizontal: 10 }]}>
+                                                                <View style={styles.gridContainer}>
+                                                                    {municipalities.map(muni => {
+                                                                        const fullZone = `${muni}, ${state}`;
+                                                                        const isSelected = currentCatProfile.zones?.includes(fullZone);
+                                                                        return (
+                                                                            <TouchableOpacity
+                                                                                key={muni}
+                                                                                style={[styles.chip, isSelected && styles.chipSelected, { width: '47%', marginVertical: 4 }]}
+                                                                                onPress={() => toggleMunicipality(muni, state)}
+                                                                            >
+                                                                                <Text style={[styles.chipText, isSelected && styles.chipTextSelected, { fontSize: 10 }]} numberOfLines={1}>{muni}</Text>
+                                                                            </TouchableOpacity>
+                                                                        );
+                                                                    })}
+                                                                </View>
+                                                            </View>
+                                                        )}
+                                                    </View>
+                                                );
+                                            })}
+                                            {!showAllStates && (
+                                                <TouchableOpacity style={{ padding: 15, alignItems: 'center', backgroundColor: '#F8FAFC' }} onPress={() => setShowAllStates(true)}>
+                                                    <Text style={{ color: '#2563EB', fontWeight: 'bold' }}>Mostrar más zonas...</Text>
+                                                </TouchableOpacity>
+                                            )}
+                                        </>
+                                    );
+                                })()}
+                            </View>
+                        </AccordionSection>
+
+                        {/* 3. Presentación */}
+                        <AccordionSection title="3. Presentación" expanded={expandedSection === 3} onPress={() => setExpandedSection(expandedSection === 3 ? null : 3)}>
+                            <TextInput
+                                style={[styles.modalInput, { height: 120, textAlignVertical: 'top' }]}
+                                multiline
+                                placeholder="Describe tu experiencia y por qué deberían contratarte..."
+                                value={currentCatProfile.bio}
+                                onChangeText={(t) => updateCurrentProfile({ bio: t })}
+                            />
+                        </AccordionSection>
 
                         {/* 4. Personalizar Diseño */}
-                        <Text style={styles.stepTitle}>4. Personalizar Diseño</Text>
-                        <TouchableOpacity style={{ backgroundColor: '#EEF2FF', padding: 16, borderRadius: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 5, marginBottom: 25, borderWidth: 1, borderColor: '#C7D2FE' }} onPress={onOpenThemeSelector}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: 'white', justifyContent: 'center', alignItems: 'center', marginRight: 12 }}>
-                                    <Feather name="layout" size={20} color="#4F46E5" />
-                                </View>
-                                <View>
-                                    <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#312E81' }}>Apariencia y Colores</Text>
-                                    <Text style={{ fontSize: 12, color: '#4338CA', marginTop: 2 }}>Elige colores, fuentes y estilo visual</Text>
-                                </View>
-                            </View>
-                            <Feather name="chevron-right" size={20} color="#6366F1" />
-                        </TouchableOpacity>
-
-                        {/* 5. Previsualizar Perfil */}
-                        <Text style={styles.stepTitle}>5. Previsualizar Perfil</Text>
-                        <TouchableOpacity style={{ backgroundColor: '#FEF2F2', padding: 16, borderRadius: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 5, marginBottom: 25, borderWidth: 1, borderColor: '#FECACA' }} onPress={onOpenPreview}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: 'white', justifyContent: 'center', alignItems: 'center', marginRight: 12 }}>
-                                    <Feather name="eye" size={20} color="#EF4444" />
-                                </View>
-                                <View>
-                                    <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#991B1B' }}>Previsualizar Perfil Público</Text>
-                                    <Text style={{ fontSize: 12, color: '#B91C1C', marginTop: 2 }}>Ver cómo te ven los clientes</Text>
-                                </View>
-                            </View>
-                            <Feather name="external-link" size={20} color="#EF4444" />
-                        </TouchableOpacity>
-
-                        {/* 6. Fotos */}
-                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 15 }}>
-                            <Text style={styles.stepTitle}>6. Fotos de Presentación</Text>
-                            <TouchableOpacity onPress={pickImage} style={{ backgroundColor: '#EFF6FF', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10 }}>
-                                <Text style={{ color: '#2563EB', fontWeight: 'bold', fontSize: 12 }}>+ Añadir</Text>
-                            </TouchableOpacity>
-                        </View>
-                        <ScrollView horizontal style={{ marginBottom: 20 }}>
-                            {(currentCatProfile.gallery || []).map((img, i) => (
-                                <View key={i} style={{ position: 'relative', marginRight: 12 }}>
-                                    <ExpoImage source={{ uri: img }} style={[styles.galleryImage, { borderRadius: 12 }]} />
-                                    <TouchableOpacity
-                                        style={[styles.deleteImageButton, { backgroundColor: '#EF4444', borderBottomLeftRadius: 10, borderTopRightRadius: 10 }]}
-                                        onPress={() => removeImage(i)}
+                        <AccordionSection title="4. Personalizar Diseño" expanded={expandedSection === 4} onPress={() => setExpandedSection(expandedSection === 4 ? null : 4)}>
+                            <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#374151', marginBottom: 10 }}>Tipo de Presentación</Text>
+                            <View style={{ flexDirection: 'row', gap: 10, marginBottom: 20 }}>
+                                {['social', 'corporate', 'modular'].map(theme => (
+                                    <TouchableOpacity 
+                                        key={theme} 
+                                        style={{ flex: 1, padding: 12, borderRadius: 12, borderWidth: 2, borderColor: currentCatProfile.profileTheme === theme ? activeColor : '#E5E7EB', alignItems: 'center', backgroundColor: currentCatProfile.profileTheme === theme ? `${activeColor}15` : 'white' }}
+                                        onPress={() => updateCurrentProfile({ profileTheme: theme })}
                                     >
-                                        <Feather name="x" size={12} color="white" />
+                                        <Feather name={theme === 'social' ? 'instagram' : theme === 'corporate' ? 'briefcase' : 'grid'} size={20} color={currentCatProfile.profileTheme === theme ? activeColor : '#9CA3AF'} style={{ marginBottom: 6 }} />
+                                        <Text style={{ fontWeight: 'bold', fontSize: 11, color: currentCatProfile.profileTheme === theme ? activeColor : '#4B5563', textTransform: 'capitalize' }}>{theme}</Text>
                                     </TouchableOpacity>
+                                ))}
+                            </View>
+                            
+                            <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#374151', marginBottom: 10 }}>Color Primario</Text>
+                            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 20 }}>
+                                {['#2563EB', '#10B981', '#EF4444', '#F59E0B', '#8B5CF6', '#EC4899', '#1F2937', '#14B8A6'].map(color => (
+                                    <TouchableOpacity 
+                                        key={color} 
+                                        style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: color, justifyContent: 'center', alignItems: 'center', borderWidth: currentCatProfile.profileColor === color ? 3 : 0, borderColor: '#111827' }}
+                                        onPress={() => updateCurrentProfile({ profileColor: color })}
+                                    >
+                                        {currentCatProfile.profileColor === color && <Feather name="check" size={18} color="white" />}
+                                    </TouchableOpacity>
+                                ))}
+                            </View>
+
+                            <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#6B7280', marginBottom: 8 }}>O usa un color personalizado (Hex):</Text>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                                <View style={{ flex: 1, backgroundColor: '#F9FAFB', borderRadius: 12, borderWidth: 1, borderColor: '#E5E7EB', paddingHorizontal: 15, paddingVertical: 10, flexDirection: 'row', alignItems: 'center' }}>
+                                    <Text style={{ color: '#9CA3AF', marginRight: 5 }}>#</Text>
+                                    <TextInput 
+                                        style={{ flex: 1, fontSize: 15, color: '#111827' }} 
+                                        placeholder="2563EB" 
+                                        maxLength={6} 
+                                        value={customColor.replace('#', '')} 
+                                        onChangeText={text => {
+                                            setCustomColor(text);
+                                            if(text.length === 6) updateCurrentProfile({ profileColor: '#' + text });
+                                        }} 
+                                    />
                                 </View>
-                            ))}
-                            {(!currentCatProfile.gallery?.length) && (
-                                <View style={{ width: 100, height: 100, borderRadius: 12, borderStyle: 'dashed', borderWidth: 1, borderColor: '#CBD5E1', justifyContent: 'center', alignItems: 'center', backgroundColor: '#F8FAFC' }}>
-                                    <Feather name="image" size={24} color="#94A3B8" />
+                                <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: activeColor, borderWidth: 1, borderColor: '#E5E7EB' }} />
+                            </View>
+                        </AccordionSection>
+
+                        {/* 5. Fotos de Presentación */}
+                        <AccordionSection title="5. Fotos de Presentación" expanded={expandedSection === 5} onPress={() => setExpandedSection(expandedSection === 5 ? null : 5)}>
+                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 }}>
+                                <Text style={{ fontSize: 13, color: '#64748B' }}>Añade fotos a tu carrusel público.</Text>
+                                <TouchableOpacity onPress={pickImage} style={{ backgroundColor: '#EFF6FF', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10 }}>
+                                    <Text style={{ color: '#2563EB', fontWeight: 'bold', fontSize: 12 }}>+ Añadir</Text>
+                                </TouchableOpacity>
+                            </View>
+                            <ScrollView horizontal style={{ marginBottom: 5 }}>
+                                {(currentCatProfile.gallery || []).map((img, i) => (
+                                    <View key={i} style={{ position: 'relative', marginRight: 12 }}>
+                                        <ExpoImage source={{ uri: img }} style={[styles.galleryImage, { borderRadius: 12 }]} />
+                                        <TouchableOpacity
+                                            style={[styles.deleteImageButton, { backgroundColor: '#EF4444', borderBottomLeftRadius: 10, borderTopRightRadius: 10 }]}
+                                            onPress={() => removeImage(i)}
+                                        >
+                                            <Feather name="x" size={12} color="white" />
+                                        </TouchableOpacity>
+                                    </View>
+                                ))}
+                                {(!currentCatProfile.gallery?.length) && (
+                                    <View style={{ width: 100, height: 100, borderRadius: 12, borderStyle: 'dashed', borderWidth: 1, borderColor: '#CBD5E1', justifyContent: 'center', alignItems: 'center', backgroundColor: '#F8FAFC' }}>
+                                        <Feather name="image" size={24} color="#94A3B8" />
+                                    </View>
+                                )}
+                            </ScrollView>
+                        </AccordionSection>
+
+                        {/* 6. Mostrar en Portafolio */}
+                        {portfolioImages.length > 0 && (
+                            <AccordionSection title="6. Mostrar en Portafolio" expanded={expandedSection === 6} onPress={() => setExpandedSection(expandedSection === 6 ? null : 6)}>
+                                <Text style={{ fontSize: 13, color: '#64748B', marginBottom: 15 }}>Toca las imágenes de tus trabajos finalizados para ocultarlas o mostrarlas en tu perfil público.</Text>
+                                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                                    {portfolioImages.map((img, idx) => {
+                                        const isHidden = (currentCatProfile?.hiddenPortfolioImages || []).includes(img);
+                                        return (
+                                            <TouchableOpacity 
+                                                key={idx} 
+                                                style={{ width: '31%', aspectRatio: 1, borderRadius: 12, overflow: 'hidden', position: 'relative', opacity: isHidden ? 0.5 : 1, borderWidth: isHidden ? 2 : 0, borderColor: '#EF4444' }}
+                                                onPress={() => togglePortfolioImage(img)}
+                                            >
+                                                <ExpoImage source={{ uri: img }} style={{ width: '100%', height: '100%', backgroundColor: '#F1F5F9' }} />
+                                                <View style={{ position: 'absolute', top: 5, right: 5, width: 24, height: 24, borderRadius: 12, backgroundColor: isHidden ? '#EF4444' : '#10B981', justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: 'white' }}>
+                                                    <Feather name={isHidden ? "eye-off" : "check"} size={14} color="white" />
+                                                </View>
+                                            </TouchableOpacity>
+                                        );
+                                    })}
                                 </View>
-                            )}
-                        </ScrollView>
+                            </AccordionSection>
+                        )}
                         <View style={{ height: 30 }} />
                     </ScrollView>
 
                     {/* Sticky Footer */}
-                    <View style={{ flexDirection: 'row', gap: 12, paddingTop: 15, paddingBottom: Platform.OS === 'android' ? 20 : 0, borderTopWidth: 1, borderTopColor: '#F3F4F6' }}>
-                        <TouchableOpacity
-                            style={[styles.btnCancel, { backgroundColor: '#F1F5F9' }]}
-                            onPress={onClose}
-                        >
-                            <Text style={[styles.btnTextCancel, { color: '#64748B' }]}>Descartar</Text>
+                    <View style={{ flexDirection: 'row', backgroundColor: 'white', borderTopWidth: 1, borderColor: '#E5E7EB', paddingBottom: Platform.OS === 'ios' ? 25 : 10, paddingTop: 12, minHeight: 70, marginHorizontal: -20, marginBottom: -20, borderBottomLeftRadius: 40, borderBottomRightRadius: 40 }}>
+                        <TouchableOpacity style={{ alignItems: 'center', justifyContent: 'center', flex: 1 }} onPress={onClose}>
+                            <Feather name="x" size={22} color="#64748B" />
+                            <Text style={{ fontSize: 11, color: '#64748B', marginTop: 4, fontWeight: '600' }}>Descartar</Text>
                         </TouchableOpacity>
-                        <TouchableOpacity style={[styles.btnSave, { backgroundColor: activeColor }]} onPress={handleSaveProfessional}>
-                            <Text style={styles.btnTextSave}>Guardar Perfil</Text>
+                        
+                        <TouchableOpacity style={{ alignItems: 'center', justifyContent: 'center', flex: 1 }} onPress={handleSaveProfessional}>
+                            <Feather name="check" size={22} color={activeColor} />
+                            <Text style={{ fontSize: 11, color: activeColor, marginTop: 4, fontWeight: '600' }}>Guardar Perfil</Text>
                         </TouchableOpacity>
                     </View>
                 </View>
@@ -583,92 +668,4 @@ const styles = StyleSheet.create({
     }
 });
 
-export function ProThemeSelectorModal({
-    visible,
-    onClose,
-    currentTheme,
-    currentColor,
-    onSave
-}) {
-    const [selectedTheme, setSelectedTheme] = useState(currentTheme || 'social');
-    const [selectedColor, setSelectedColor] = useState(currentColor || '#2563EB');
-    const [customColor, setCustomColor] = useState('');
 
-    useEffect(() => {
-        if (visible) {
-            setSelectedTheme(currentTheme || 'social');
-            setSelectedColor(currentColor || '#2563EB');
-            setCustomColor('');
-        }
-    }, [visible, currentTheme, currentColor]);
-
-    const PREDEFINED_COLORS = ['#2563EB', '#10B981', '#EF4444', '#F59E0B', '#8B5CF6', '#EC4899', '#1F2937', '#14B8A6'];
-
-    return (
-        <Modal visible={visible} animationType="slide" transparent={true} onRequestClose={onClose}>
-            <KeyboardAvoidingView style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-                <View style={{ backgroundColor: 'white', borderTopLeftRadius: 32, borderTopRightRadius: 32, padding: 24, paddingBottom: Platform.OS === 'ios' ? 40 : 24, maxHeight: '90%' }}>
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-                        <Text style={{ fontSize: 22, fontWeight: 'bold', color: '#111827' }}>Personalizar Diseño</Text>
-                        <TouchableOpacity onPress={onClose} style={{ padding: 5, backgroundColor: '#F3F4F6', borderRadius: 20 }}>
-                            <Feather name="x" size={20} color="#6B7280" />
-                        </TouchableOpacity>
-                    </View>
-                    <ScrollView showsVerticalScrollIndicator={false}>
-                        <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#374151', marginBottom: 15 }}>Tipo de Presentación</Text>
-                        <View style={{ flexDirection: 'row', gap: 10, marginBottom: 30 }}>
-                            {['social', 'corporate', 'modular'].map(theme => (
-                                <TouchableOpacity 
-                                    key={theme} 
-                                    style={{ flex: 1, padding: 15, borderRadius: 12, borderWidth: 2, borderColor: selectedTheme === theme ? selectedColor : '#E5E7EB', alignItems: 'center', backgroundColor: selectedTheme === theme ? `${selectedColor}15` : 'white' }}
-                                    onPress={() => setSelectedTheme(theme)}
-                                >
-                                    <Feather name={theme === 'social' ? 'instagram' : theme === 'corporate' ? 'briefcase' : 'grid'} size={24} color={selectedTheme === theme ? selectedColor : '#9CA3AF'} style={{ marginBottom: 8 }} />
-                                    <Text style={{ fontWeight: 'bold', color: selectedTheme === theme ? selectedColor : '#4B5563', textTransform: 'capitalize' }}>{theme}</Text>
-                                </TouchableOpacity>
-                            ))}
-                        </View>
-                        
-                        <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#374151', marginBottom: 15 }}>Color Primario</Text>
-                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 20 }}>
-                            {PREDEFINED_COLORS.map(color => (
-                                <TouchableOpacity 
-                                    key={color} 
-                                    style={{ width: 45, height: 45, borderRadius: 22.5, backgroundColor: color, justifyContent: 'center', alignItems: 'center', borderWidth: selectedColor === color ? 3 : 0, borderColor: '#111827' }}
-                                    onPress={() => setSelectedColor(color)}
-                                >
-                                    {selectedColor === color && <Feather name="check" size={20} color="white" />}
-                                </TouchableOpacity>
-                            ))}
-                        </View>
-
-                        <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#6B7280', marginBottom: 8 }}>O usa un color personalizado (Hex):</Text>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 20 }}>
-                            <View style={{ flex: 1, backgroundColor: '#F9FAFB', borderRadius: 12, borderWidth: 1, borderColor: '#E5E7EB', paddingHorizontal: 15, paddingVertical: 12, flexDirection: 'row', alignItems: 'center' }}>
-                                <Text style={{ color: '#9CA3AF', marginRight: 5 }}>#</Text>
-                                <TextInput 
-                                    style={{ flex: 1, fontSize: 16, color: '#111827' }} 
-                                    placeholder="2563EB" 
-                                    maxLength={6} 
-                                    value={customColor.replace('#', '')} 
-                                    onChangeText={text => {
-                                        setCustomColor(text);
-                                        if(text.length === 6) setSelectedColor('#' + text);
-                                    }} 
-                                />
-                            </View>
-                            <View style={{ width: 45, height: 45, borderRadius: 12, backgroundColor: selectedColor, borderWidth: 1, borderColor: '#E5E7EB' }} />
-                        </View>
-                    </ScrollView>
-                    
-                    <TouchableOpacity 
-                        style={{ backgroundColor: selectedColor, padding: 18, borderRadius: 16, alignItems: 'center', marginTop: 10 }}
-                        onPress={() => { onSave(selectedTheme, selectedColor); onClose(); }}
-                    >
-                        <Text style={{ color: 'white', fontSize: 16, fontWeight: 'bold' }}>Guardar Apariencia</Text>
-                    </TouchableOpacity>
-                </View>
-            </KeyboardAvoidingView>
-        </Modal>
-    );
-}

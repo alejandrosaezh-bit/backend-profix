@@ -2242,17 +2242,19 @@ function MainApp() {
                 </View>
             </Modal>
 
-            {/* NAV INFERIOR */}
-            <BottomNav
-                view={view}
-                userMode={userMode}
-                isLoggedIn={isLoggedIn}
-                counts={counts}
-                setView={setView}
-                loadRequests={loadRequests}
-                setShowAuth={setShowAuth}
-                markAllProInteractionsAsRead={markAllProInteractionsAsRead}
-            />
+                        {/* NAV INFERIOR */}
+            {!(view === 'profile' && userMode === 'pro') && (
+                <BottomNav
+                    view={view}
+                    userMode={userMode}
+                    isLoggedIn={isLoggedIn}
+                    counts={counts}
+                    setView={setView}
+                    loadRequests={loadRequests}
+                    setShowAuth={setShowAuth}
+                    markAllProInteractionsAsRead={markAllProInteractionsAsRead}
+                />
+            )}
 
             <CloseRequestModal
                 visible={showCloseModal}

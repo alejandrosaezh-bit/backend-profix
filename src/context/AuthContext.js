@@ -7,6 +7,7 @@ export const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
     const [isLoading, setIsLoading] = useState(true);
+    const [isAuthLoading, setIsAuthLoading] = useState(false);
     const [userToken, setUserToken] = useState(null);
     const [userInfo, setUserInfo] = useState(null);
 
@@ -16,7 +17,7 @@ export const AuthProvider = ({ children }) => {
     };
 
     const login = async (email, password) => {
-        setIsLoading(true);
+        setIsAuthLoading(true);
         try {
             const res = await api.login(email, password);
             console.log("Login success:", res);
@@ -24,15 +25,15 @@ export const AuthProvider = ({ children }) => {
             await AsyncStorage.setItem('userToken', res.token);
             await saveUserInfo(res);
         } catch (error) {
-            console.error("Login error:", error);
+            // console.error("Login error:", error);
             throw error;
         } finally {
-            setIsLoading(false);
+            setIsAuthLoading(false);
         }
     };
 
     const register = async (name, email, password, phone, cedula, role = 'client') => {
-        setIsLoading(true);
+        setIsAuthLoading(true);
         try {
             const res = await api.register({ name, email, password, phone, cedula, role });
             console.log("Register success:", res);
@@ -43,12 +44,12 @@ export const AuthProvider = ({ children }) => {
             console.error("Register error:", error);
             throw error;
         } finally {
-            setIsLoading(false);
+            setIsAuthLoading(false);
         }
     };
 
     const googleLogin = async (googleUser) => {
-        setIsLoading(true);
+        setIsAuthLoading(true);
         try {
             const res = await api.googleLogin(googleUser);
             console.log("Google Login success:", res.email);
@@ -59,7 +60,7 @@ export const AuthProvider = ({ children }) => {
             console.error("Google Login error:", error);
             throw error;
         } finally {
-            setIsLoading(false);
+            setIsAuthLoading(false);
         }
     };
 
@@ -155,7 +156,7 @@ export const AuthProvider = ({ children }) => {
     }, []);
 
     return (
-        <AuthContext.Provider value={{ login, register, googleLogin, logout, updateUser, isLoading, userToken, userInfo }}>
+        <AuthContext.Provider value={{ login, register, googleLogin, logout, updateUser, isLoading, isAuthLoading, userToken, userInfo }}>
             {children}
         </AuthContext.Provider>
     );

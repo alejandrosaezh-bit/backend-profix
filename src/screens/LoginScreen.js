@@ -1,13 +1,13 @@
 import { Feather } from '@expo/vector-icons';
 import { useContext, useEffect, useState } from 'react';
-import { Keyboard, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View, Modal, Alert, Image } from 'react-native';
+import { Keyboard, KeyboardAvoidingView, ToastAndroid, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View, Modal, Alert, Image } from 'react-native';
 import { AuthContext } from '../context/AuthContext';
 import { api } from '../utils/api';
 import { OTA_VERSION } from '../utils/version';
 import WebLandingProScreen from './WebLandingProScreen';
 
 export default function LoginScreen({ navigation }) {
-  const { login, register, isLoading } = useContext(AuthContext);
+  const { login, register, isAuthLoading } = useContext(AuthContext);
   const [isRegistering, setIsRegistering] = useState(false);
   const [showProLanding, setShowProLanding] = useState(false);
   const [registerRole, setRegisterRole] = useState('client');
@@ -76,6 +76,7 @@ export default function LoginScreen({ navigation }) {
   const [phone, setPhone] = useState('');
   const [cedula, setCedula] = useState('');
   const [errorMessage, setErrorMessage] = useState(''); // Estado para mensajes de error en UI
+
   const [diagStatus, setDiagStatus] = useState(''); // Estado para diagnóstico
 
   const runDiagnostics = async () => {
@@ -88,8 +89,9 @@ export default function LoginScreen({ navigation }) {
     }
   };
 
-  const handleSubmit = async () => {
-    setErrorMessage(''); // Limpiar errores previos
+  const handleSubmit = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    // setErrorMessage(''); // Removed to test if this causes flashing
     console.log("handleSubmit called. isRegistering:", isRegistering);
     console.log("Form data:", { email, password, name, phone, cedula });
 
@@ -116,11 +118,20 @@ export default function LoginScreen({ navigation }) {
         console.log("Login returned");
       }
     } catch (error) {
-      console.error("handleSubmit error:", error);
-      // Mostrar error en la UI en lugar de usar Alert que puede cerrarse
-      setErrorMessage(error.message || 'Error de autenticación');
-      // Doble confirmación visual
-      // Alert.alert("Error de Registro", error.message || 'Error desconocido');
+      // console.error("handleSubmit error:", error);
+      
+
+      const errorMsg = 'Usuario o contraseña incorrectos.';
+      setErrorMessage(errorMsg);
+
+      
+      // En lugar de Alert.alert (que falla sobre Modales en iOS), usamos un overlay interno
+      
+
+      // Limpiar solo la contraseña por seguridad y para que reintente, pero mantener el email
+      if (!isRegistering) {
+        setPassword('');
+      }
     }
   };
 
@@ -228,7 +239,7 @@ export default function LoginScreen({ navigation }) {
         )}
 
         {errorMessage ? (
-          <View style={{ marginBottom: 15, padding: 12, backgroundColor: '#FEF2F2', borderRadius: 12, borderWidth: 1, borderColor: '#FCA5A5' }}>
+          <View style={{ marginBottom: 5, padding: 12, backgroundColor: '#FEF2F2', borderRadius: 12, borderWidth: 1, borderColor: '#FCA5A5' }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 5 }}>
                 <Feather name="alert-circle" size={18} color="#DC2626" style={{ marginRight: 8 }} />
                 <Text style={{ color: '#DC2626', fontWeight: 'bold', fontSize: 15, flex: 1 }}>Atención</Text>
@@ -251,9 +262,9 @@ export default function LoginScreen({ navigation }) {
         <TouchableOpacity
           style={styles.authButton}
           onPress={handleSubmit}
-          disabled={isLoading}
+          disabled={isAuthLoading}
         >
-          {isLoading ? (
+          {isAuthLoading ? (
             <View style={{ transform: [{ scale: 0.6 }] }}>
               <View style={{ width: 40, height: 40, justifyContent: 'center', alignItems: 'center' }}>
                 <View style={{
@@ -271,7 +282,7 @@ export default function LoginScreen({ navigation }) {
           )}
         </TouchableOpacity>
 
-        {isLoading && (
+        {isAuthLoading && (
           <Text style={{ textAlign: 'center', color: '#6B7280', fontSize: 12, marginTop: 10 }}>
             El servidor puede tardar unos segundos en despertar. Por favor, espera...
           </Text>
