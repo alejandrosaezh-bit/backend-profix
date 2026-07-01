@@ -793,6 +793,7 @@ const handleMoveImage = (index, direction) => {
                             combinedHistory={combinedHistory}
                             isLoadingProfile={isLoadingProfile}
                             isCategoryActive={catCurrentProfile?.isActive !== false}
+                            onActivateCategory={toggleCategoryActivation}
                             setOuterScrollEnabled={setIsPagerScrollEnabled}
                             onViewImage={onViewImage}
                             onViewGallery={setSelectedGallery}

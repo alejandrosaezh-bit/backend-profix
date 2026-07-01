@@ -37,6 +37,7 @@ export default function ProfessionalProfileView({
     combinedHistory = [],
     isLoadingProfile,
     isCategoryActive,
+    onActivateCategory,
     setOuterScrollEnabled,
     onViewImage,
     onViewGallery,
@@ -578,13 +579,31 @@ export default function ProfessionalProfileView({
     const renderContent = () => {
         if (!isCategoryActive) {
             return (
-                <View style={{ flex: 1, padding: 20, backgroundColor: '#F8FAFC' }}>
-                    <View style={{ backgroundColor: '#FFFBEB', borderRadius: 16, padding: 16, marginBottom: 16, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#FEF3C7' }}>
-                        <Feather name="info" size={20} color="#D97706" style={{ marginRight: 12 }} />
-                        <Text style={{ flex: 1, fontSize: 13, color: '#92400E' }}>
-                            Este profesional tiene pausadas las nuevas solicitudes para esta categoría temporalmente.
-                        </Text>
-                    </View>
+                <View style={{ flex: 1, padding: 20, backgroundColor: '#F8FAFC', justifyContent: 'center', alignItems: 'center', minHeight: 400 }}>
+                    {(!isOwner || isPreviewMode) ? (
+                        <View style={{ backgroundColor: '#FFFBEB', borderRadius: 16, padding: 16, marginBottom: 16, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#FEF3C7', width: '100%', maxWidth: 500 }}>
+                            <Feather name="info" size={20} color="#D97706" style={{ marginRight: 12 }} />
+                            <Text style={{ flex: 1, fontSize: 13, color: '#92400E' }}>
+                                Este profesional tiene pausadas las nuevas solicitudes para esta categoría temporalmente.
+                            </Text>
+                        </View>
+                    ) : (
+                        <View style={{ backgroundColor: 'white', borderRadius: 24, padding: 30, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.1, shadowRadius: 20, elevation: 10, width: '100%', maxWidth: 400 }}>
+                            <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: '#F3F4F6', justifyContent: 'center', alignItems: 'center', marginBottom: 20 }}>
+                                <Feather name="pause-circle" size={40} color="#9CA3AF" />
+                            </View>
+                            <Text style={{ fontSize: 22, fontWeight: 'bold', color: '#111827', marginBottom: 10, textAlign: 'center' }}>Categoría Pausada</Text>
+                            <Text style={{ fontSize: 15, color: '#64748B', textAlign: 'center', marginBottom: 25, lineHeight: 22 }}>
+                                Actualmente tienes pausada tu participación en esta categoría. ¿Deseas volver a conseguir trabajos y que los clientes puedan contactarte?
+                            </Text>
+                            <TouchableOpacity onPress={onActivateCategory} style={{ backgroundColor: activeColor || '#3B82F6', width: '100%', paddingVertical: 14, borderRadius: 12, alignItems: 'center', marginBottom: 12 }}>
+                                <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 16 }}>Activar Categoría</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity onPress={onChangeCategory} style={{ paddingVertical: 10 }}>
+                                <Text style={{ color: '#64748B', fontWeight: '600', fontSize: 14 }}>Ver otras categorías</Text>
+                            </TouchableOpacity>
+                        </View>
+                    )}
                 </View>
             );
         }
