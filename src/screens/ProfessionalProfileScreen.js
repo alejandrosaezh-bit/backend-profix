@@ -836,6 +836,7 @@ const handleMoveImage = (index, direction) => {
                 const sProfile = getProfile(sCatName);
                 const sColor = sProfile?.profileColor || '#2563EB';
                 const sIcon = ICON_MAP[sCatName] || 'box';
+                if (!isOwner) return null;
                 return (
                     <Animated.View style={{
                         position: 'absolute',
