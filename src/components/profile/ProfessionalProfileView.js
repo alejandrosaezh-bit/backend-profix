@@ -417,84 +417,88 @@ export default function ProfessionalProfileView({
     // RENDER: THEME SOCIAL (Instagram Style)
     // --------------------------------------------------------------------------------
     const renderSocial = () => {
-        const itemSize = (SCREEN_WIDTH - 4) / 3;
+        const isTablet = SCREEN_WIDTH >= 768;
+        const containerMaxWidth = isTablet ? 650 : SCREEN_WIDTH;
+        const itemSize = (containerMaxWidth - 4) / 3;
         
         return (
-            <View style={{ flex: 1, backgroundColor: 'white' }}>
-                {/* HEADER */}
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingTop: 15, paddingBottom: 5 }}>
-                    {(!isOwner || isPreviewMode) ? (
-                        <TouchableOpacity onPress={onClose}><Feather name="arrow-left" size={24} color="#111827" /></TouchableOpacity>
-                    ) : (
-                        <View style={{ width: 24 }} />
-                    )}
-                </View>
+            <View style={{ flex: 1, backgroundColor: 'white', alignItems: 'center' }}>
+                <View style={{ width: '100%', maxWidth: containerMaxWidth, alignSelf: 'center' }}>
+                    {/* HEADER */}
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingTop: 15, paddingBottom: 5 }}>
+                        {(!isOwner || isPreviewMode) ? (
+                            <TouchableOpacity onPress={onClose}><Feather name="arrow-left" size={24} color="#111827" /></TouchableOpacity>
+                        ) : (
+                            <View style={{ width: 24 }} />
+                        )}
+                    </View>
 
-                {/* PROFILE HEADER INFO */}
-                <View style={{ alignItems: 'center', paddingHorizontal: 20 }}>
-                    <TouchableOpacity onPress={() => onViewImage && onViewImage(getAvatarUri())}>
-                        <View style={{ width: 140, height: 140, borderRadius: 70, borderWidth: 3, borderColor: activeColor || '#E2E8F0', padding: 4, position: 'relative' }}>
-                            <ExpoImage source={{ uri: getAvatarUri() }} style={{ width: '100%', height: '100%', borderRadius: 66 }} />
-                        </View>
-                    </TouchableOpacity>
-                    
-                    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12 }}>
-                        <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#111827', marginRight: 6 }}>{profileData?.name || user?.name}</Text>
-                        {isVerified && <Feather name="check-circle" size={18} color={activeColor || "#3B82F6"} />}
-                    </View>
-                    
-                    <Text style={{ fontSize: 14, color: activeColor || '#3B82F6', fontWeight: 'bold', marginTop: 4, textAlign: 'center' }}>{subcategories.join(', ')}</Text>
-                    <Text style={{ fontSize: 12, color: '#94A3B8', marginTop: 4, textAlign: 'center' }}><Feather name="map-pin" size={10} /> {formattedZonesStr}</Text>
-                    
-                    <Text style={{ fontSize: 14, color: '#1E293B', textAlign: 'center', marginTop: 15, lineHeight: 20, paddingHorizontal: 10 }}>{bio}</Text>
-                </View>
-
-                {/* STATS ROW (Social Format) */}
-                <View style={{ flexDirection: 'row', justifyContent: 'space-around', marginTop: 20, paddingHorizontal: 10, paddingVertical: 15, borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#F1F5F9' }}>
-                    <View style={{ alignItems: 'center' }}>
-                        <Text style={{ fontSize: 16, fontWeight: 'bold', color: activeColor || '#3B82F6' }}>{levelNames[user?.gamification?.currentLevel || 1]}</Text>
-                        <Text style={{ fontSize: 12, fontWeight: '600', color: '#111827', marginTop: 4 }}>Nivel</Text>
-                    </View>
-                    <View style={{ alignItems: 'center' }}>
-                        <Text style={{ fontSize: 16, fontWeight: 'bold', color: activeColor || '#3B82F6' }}>{quotesSent}</Text>
-                        <Text style={{ fontSize: 12, fontWeight: '600', color: '#111827', marginTop: 4 }}>Enviadas</Text>
-                    </View>
-                    <View style={{ alignItems: 'center' }}>
-                        <Text style={{ fontSize: 16, fontWeight: 'bold', color: activeColor || '#3B82F6' }}>{jobsWon}</Text>
-                        <Text style={{ fontSize: 12, fontWeight: '600', color: '#111827', marginTop: 4 }}>Ganadas</Text>
-                    </View>
-                </View>
-
-                {/* ACTION BUTTONS */}
-                {(!isOwner || isPreviewMode) && (
-                    <View style={{ flexDirection: 'row', justifyContent: 'center', marginTop: 15, paddingHorizontal: 20, gap: 10, marginBottom: 15 }}>
-                        <TouchableOpacity style={{ flex: 1, backgroundColor: activeColor || '#3B82F6', paddingVertical: 10, borderRadius: 8, alignItems: 'center' }} onPress={onContact}>
-                            <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 14 }}>Contactar</Text>
+                    {/* PROFILE HEADER INFO */}
+                    <View style={{ alignItems: 'center', paddingHorizontal: 20 }}>
+                        <TouchableOpacity onPress={() => onViewImage && onViewImage(getAvatarUri())}>
+                            <View style={{ width: 140, height: 140, borderRadius: 70, borderWidth: 3, borderColor: activeColor || '#E2E8F0', padding: 4, position: 'relative' }}>
+                                <ExpoImage source={{ uri: getAvatarUri() }} style={{ width: '100%', height: '100%', borderRadius: 66 }} />
+                            </View>
                         </TouchableOpacity>
+                        
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12 }}>
+                            <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#111827', marginRight: 6 }}>{profileData?.name || user?.name}</Text>
+                            {isVerified && <Feather name="check-circle" size={18} color={activeColor || "#3B82F6"} />}
+                        </View>
+                        
+                        <Text style={{ fontSize: 14, color: activeColor || '#3B82F6', fontWeight: 'bold', marginTop: 4, textAlign: 'center' }}>{subcategories.join(', ')}</Text>
+                        <Text style={{ fontSize: 12, color: '#94A3B8', marginTop: 4, textAlign: 'center' }}><Feather name="map-pin" size={10} /> {formattedZonesStr}</Text>
+                        
+                        <Text style={{ fontSize: 14, color: '#1E293B', textAlign: 'center', marginTop: 15, lineHeight: 20, paddingHorizontal: 10 }}>{bio}</Text>
                     </View>
-                )}
 
-                {/* PRESENTATION CAROUSEL */}
-                {presentationImages.length > 0 && (
-                    <View style={{ marginVertical: 10 }}>
-                        <ScrollView horizontal showsHorizontalScrollIndicator={false}
-                            onTouchStart={() => setOuterScrollEnabled && setOuterScrollEnabled(false)}
-                            onTouchEnd={() => setOuterScrollEnabled && setOuterScrollEnabled(true)}
-                            onTouchCancel={() => setOuterScrollEnabled && setOuterScrollEnabled(true)}
-                            onScrollEndDrag={() => setOuterScrollEnabled && setOuterScrollEnabled(true)} style={{ paddingHorizontal: 5 }}>
-                            {presentationImages.map((img, idx) => (
-                                <TouchableOpacity key={idx} onPress={() => onViewImage && onViewImage(img)}>
-                                    <View style={{ width: 70, height: 70, borderRadius: 35, padding: 3, borderWidth: 2, borderColor: activeColor || '#E2E8F0', marginLeft: 10 }}>
-                                        <ExpoImage source={{ uri: img }} style={{ width: '100%', height: '100%', borderRadius: 30 }} />
-                                    </View>
-                                </TouchableOpacity>
-                            ))}
-                        </ScrollView>
+                    {/* STATS ROW (Social Format) */}
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-around', marginTop: 20, paddingHorizontal: 10, paddingVertical: 15, borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#F1F5F9' }}>
+                        <View style={{ alignItems: 'center' }}>
+                            <Text style={{ fontSize: 16, fontWeight: 'bold', color: activeColor || '#3B82F6' }}>{levelNames[user?.gamification?.currentLevel || 1]}</Text>
+                            <Text style={{ fontSize: 12, fontWeight: '600', color: '#111827', marginTop: 4 }}>Nivel</Text>
+                        </View>
+                        <View style={{ alignItems: 'center' }}>
+                            <Text style={{ fontSize: 16, fontWeight: 'bold', color: activeColor || '#3B82F6' }}>{quotesSent}</Text>
+                            <Text style={{ fontSize: 12, fontWeight: '600', color: '#111827', marginTop: 4 }}>Enviadas</Text>
+                        </View>
+                        <View style={{ alignItems: 'center' }}>
+                            <Text style={{ fontSize: 16, fontWeight: 'bold', color: activeColor || '#3B82F6' }}>{jobsWon}</Text>
+                            <Text style={{ fontSize: 12, fontWeight: '600', color: '#111827', marginTop: 4 }}>Ganadas</Text>
+                        </View>
                     </View>
-                )}
 
-                {/* PORTFOLIO GRID */}
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 2, marginTop: 10 }}>
+                    {/* ACTION BUTTONS */}
+                    {(!isOwner || isPreviewMode) && (
+                        <View style={{ flexDirection: 'row', justifyContent: 'center', marginTop: 15, paddingHorizontal: 20, gap: 10, marginBottom: 15 }}>
+                            <TouchableOpacity style={{ flex: 1, backgroundColor: activeColor || '#3B82F6', paddingVertical: 10, borderRadius: 8, alignItems: 'center' }} onPress={onContact}>
+                                <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 14 }}>Contactar</Text>
+                            </TouchableOpacity>
+                        </View>
+                    )}
+
+                    {/* PRESENTATION CAROUSEL */}
+                    {presentationImages.length > 0 && (
+                        <View style={{ marginVertical: 10 }}>
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false}
+                                contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}
+                                onTouchStart={() => setOuterScrollEnabled && setOuterScrollEnabled(false)}
+                                onTouchEnd={() => setOuterScrollEnabled && setOuterScrollEnabled(true)}
+                                onTouchCancel={() => setOuterScrollEnabled && setOuterScrollEnabled(true)}
+                                onScrollEndDrag={() => setOuterScrollEnabled && setOuterScrollEnabled(true)} style={{ paddingHorizontal: 5 }}>
+                                {presentationImages.map((img, idx) => (
+                                    <TouchableOpacity key={idx} onPress={() => onViewImage && onViewImage(img)}>
+                                        <View style={{ width: 70, height: 70, borderRadius: 35, padding: 3, borderWidth: 2, borderColor: activeColor || '#E2E8F0', marginHorizontal: 5 }}>
+                                            <ExpoImage source={{ uri: img }} style={{ width: '100%', height: '100%', borderRadius: 30 }} />
+                                        </View>
+                                    </TouchableOpacity>
+                                ))}
+                            </ScrollView>
+                        </View>
+                    )}
+
+                    {/* PORTFOLIO GRID */}
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 2, marginTop: 10 }}>
                     {portfolioImagesWithDetails.length > 0 ? portfolioImagesWithDetails.map((item, idx) => (
                         <TouchableOpacity key={idx} style={{ position: 'relative' }} onPress={() => {
                             if (onViewGallery) onViewGallery({ title: item.title, images: item.jobImages, rating: item.rating, jobId: item.jobId });
@@ -533,6 +537,7 @@ export default function ProfessionalProfileView({
                 )}
                 
                 <View style={{ height: 60 }} />
+                </View>
             </View>
         );
     };
