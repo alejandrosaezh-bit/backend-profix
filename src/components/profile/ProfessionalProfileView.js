@@ -417,88 +417,110 @@ export default function ProfessionalProfileView({
     // RENDER: THEME SOCIAL (Instagram Style)
     // --------------------------------------------------------------------------------
     const renderSocial = () => {
-        const isTablet = SCREEN_WIDTH >= 768;
-        const containerMaxWidth = isTablet ? 650 : SCREEN_WIDTH;
-        const itemSize = (containerMaxWidth - 4) / 3;
+        const gap = 1;
+        const itemSize = (SCREEN_WIDTH - (gap * 2)) / 3;
         
         return (
-            <View style={{ flex: 1, backgroundColor: 'white', alignItems: 'center' }}>
-                <View style={{ width: '100%', maxWidth: containerMaxWidth, alignSelf: 'center' }}>
-                    {/* HEADER */}
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingTop: 15, paddingBottom: 5 }}>
-                        {(!isOwner || isPreviewMode) ? (
-                            <TouchableOpacity onPress={onClose}><Feather name="arrow-left" size={24} color="#111827" /></TouchableOpacity>
-                        ) : (
-                            <View style={{ width: 24 }} />
-                        )}
-                    </View>
-
-                    {/* PROFILE HEADER INFO */}
-                    <View style={{ alignItems: 'center', paddingHorizontal: 20 }}>
-                        <TouchableOpacity onPress={() => onViewImage && onViewImage(getAvatarUri())}>
-                            <View style={{ width: 140, height: 140, borderRadius: 70, borderWidth: 3, borderColor: activeColor || '#E2E8F0', padding: 4, position: 'relative' }}>
-                                <ExpoImage source={{ uri: getAvatarUri() }} style={{ width: '100%', height: '100%', borderRadius: 66 }} />
-                            </View>
+            <View style={{ flex: 1, backgroundColor: 'white' }}>
+                {/* HEADER (Top bar) */}
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 15, paddingTop: 15, paddingBottom: 10 }}>
+                    {(!isOwner || isPreviewMode) ? (
+                        <TouchableOpacity onPress={onClose} style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            <Feather name="arrow-left" size={24} color="#111827" />
+                            <Text style={{ fontSize: 18, fontWeight: 'bold', marginLeft: 15, color: '#111827' }}>{profileData?.name || user?.name}</Text>
                         </TouchableOpacity>
-                        
-                        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12 }}>
-                            <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#111827', marginRight: 6 }}>{profileData?.name || user?.name}</Text>
-                            {isVerified && <Feather name="check-circle" size={18} color={activeColor || "#3B82F6"} />}
-                        </View>
-                        
-                        <Text style={{ fontSize: 14, color: activeColor || '#3B82F6', fontWeight: 'bold', marginTop: 4, textAlign: 'center' }}>{subcategories.join(', ')}</Text>
-                        <Text style={{ fontSize: 12, color: '#94A3B8', marginTop: 4, textAlign: 'center' }}><Feather name="map-pin" size={10} /> {formattedZonesStr}</Text>
-                        
-                        <Text style={{ fontSize: 14, color: '#1E293B', textAlign: 'center', marginTop: 15, lineHeight: 20, paddingHorizontal: 10 }}>{bio}</Text>
-                    </View>
-
-                    {/* STATS ROW (Social Format) */}
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-around', marginTop: 20, paddingHorizontal: 10, paddingVertical: 15, borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#F1F5F9' }}>
-                        <View style={{ alignItems: 'center' }}>
-                            <Text style={{ fontSize: 16, fontWeight: 'bold', color: activeColor || '#3B82F6' }}>{levelNames[user?.gamification?.currentLevel || 1]}</Text>
-                            <Text style={{ fontSize: 12, fontWeight: '600', color: '#111827', marginTop: 4 }}>Nivel</Text>
-                        </View>
-                        <View style={{ alignItems: 'center' }}>
-                            <Text style={{ fontSize: 16, fontWeight: 'bold', color: activeColor || '#3B82F6' }}>{quotesSent}</Text>
-                            <Text style={{ fontSize: 12, fontWeight: '600', color: '#111827', marginTop: 4 }}>Enviadas</Text>
-                        </View>
-                        <View style={{ alignItems: 'center' }}>
-                            <Text style={{ fontSize: 16, fontWeight: 'bold', color: activeColor || '#3B82F6' }}>{jobsWon}</Text>
-                            <Text style={{ fontSize: 12, fontWeight: '600', color: '#111827', marginTop: 4 }}>Ganadas</Text>
-                        </View>
-                    </View>
-
-                    {/* ACTION BUTTONS */}
-                    {(!isOwner || isPreviewMode) && (
-                        <View style={{ flexDirection: 'row', justifyContent: 'center', marginTop: 15, paddingHorizontal: 20, gap: 10, marginBottom: 15 }}>
-                            <TouchableOpacity style={{ flex: 1, backgroundColor: activeColor || '#3B82F6', paddingVertical: 10, borderRadius: 8, alignItems: 'center' }} onPress={onContact}>
-                                <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 14 }}>Contactar</Text>
-                            </TouchableOpacity>
+                    ) : (
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#111827' }}>{profileData?.name || user?.name}</Text>
                         </View>
                     )}
+                </View>
 
-                    {/* PRESENTATION CAROUSEL */}
-                    {presentationImages.length > 0 && (
-                        <View style={{ marginVertical: 10 }}>
-                            <ScrollView horizontal showsHorizontalScrollIndicator={false}
-                                contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}
-                                onTouchStart={() => setOuterScrollEnabled && setOuterScrollEnabled(false)}
-                                onTouchEnd={() => setOuterScrollEnabled && setOuterScrollEnabled(true)}
-                                onTouchCancel={() => setOuterScrollEnabled && setOuterScrollEnabled(true)}
-                                onScrollEndDrag={() => setOuterScrollEnabled && setOuterScrollEnabled(true)} style={{ paddingHorizontal: 5 }}>
-                                {presentationImages.map((img, idx) => (
-                                    <TouchableOpacity key={idx} onPress={() => onViewImage && onViewImage(img)}>
-                                        <View style={{ width: 70, height: 70, borderRadius: 35, padding: 3, borderWidth: 2, borderColor: activeColor || '#E2E8F0', marginHorizontal: 5 }}>
-                                            <ExpoImage source={{ uri: img }} style={{ width: '100%', height: '100%', borderRadius: 30 }} />
+                {/* PROFILE HEADER INFO (Avatar + Stats) */}
+                <View style={{ flexDirection: 'row', paddingHorizontal: 15, marginTop: 5, alignItems: 'center' }}>
+                    <TouchableOpacity onPress={() => onViewImage && onViewImage(getAvatarUri())}>
+                        <View style={{ width: 86, height: 86, borderRadius: 43, borderWidth: 2, borderColor: activeColor || '#E2E8F0', padding: 3 }}>
+                            <ExpoImage source={{ uri: getAvatarUri() }} style={{ width: '100%', height: '100%', borderRadius: 40 }} />
+                        </View>
+                    </TouchableOpacity>
+                    
+                    <View style={{ flex: 1, flexDirection: 'row', justifyContent: 'space-around', marginLeft: 15 }}>
+                        <View style={{ alignItems: 'center' }}>
+                            <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#111827' }}>{levelNames[user?.gamification?.currentLevel || 1]}</Text>
+                            <Text style={{ fontSize: 13, color: '#111827' }}>Nivel</Text>
+                        </View>
+                        <View style={{ alignItems: 'center' }}>
+                            <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#111827' }}>{quotesSent}</Text>
+                            <Text style={{ fontSize: 13, color: '#111827' }}>Enviadas</Text>
+                        </View>
+                        <View style={{ alignItems: 'center' }}>
+                            <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#111827' }}>{jobsWon}</Text>
+                            <Text style={{ fontSize: 13, color: '#111827' }}>Ganadas</Text>
+                        </View>
+                    </View>
+                </View>
+
+                {/* BIO AND DETAILS (Left aligned) */}
+                <View style={{ paddingHorizontal: 15, marginTop: 12 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#111827' }}>{profileData?.name || user?.name}</Text>
+                        {isVerified && <Feather name="check-circle" size={14} color={activeColor || "#3B82F6"} style={{ marginLeft: 4 }} />}
+                    </View>
+                    <Text style={{ fontSize: 14, color: '#64748B', marginTop: 2 }}>{subcategories.join(', ')}</Text>
+                    <Text style={{ fontSize: 14, color: '#111827', marginTop: 2, lineHeight: 20 }}>{bio}</Text>
+                    <Text style={{ fontSize: 13, color: '#3B82F6', marginTop: 4, fontWeight: '500' }}><Feather name="map-pin" size={12} /> {formattedZonesStr}</Text>
+                </View>
+
+                {/* ACTION BUTTONS */}
+                {(!isOwner || isPreviewMode) && (
+                    <View style={{ flexDirection: 'row', marginTop: 15, paddingHorizontal: 15, gap: 8 }}>
+                        <TouchableOpacity style={{ flex: 1, backgroundColor: '#EFEFEF', paddingVertical: 8, borderRadius: 8, alignItems: 'center' }} onPress={onContact}>
+                            <Text style={{ color: '#111827', fontWeight: 'bold', fontSize: 14 }}>Contactar</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={{ flex: 1, backgroundColor: '#EFEFEF', paddingVertical: 8, borderRadius: 8, alignItems: 'center' }}>
+                            <Text style={{ color: '#111827', fontWeight: 'bold', fontSize: 14 }}>Mensaje</Text>
+                        </TouchableOpacity>
+                    </View>
+                )}
+
+                {/* PRESENTATION CAROUSEL (Highlights) */}
+                {presentationImages.length > 0 && (
+                    <View style={{ marginTop: 20, paddingBottom: 10 }}>
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false}
+                            onTouchStart={() => setOuterScrollEnabled && setOuterScrollEnabled(false)}
+                            onTouchEnd={() => setOuterScrollEnabled && setOuterScrollEnabled(true)}
+                            onTouchCancel={() => setOuterScrollEnabled && setOuterScrollEnabled(true)}
+                            onScrollEndDrag={() => setOuterScrollEnabled && setOuterScrollEnabled(true)} style={{ paddingHorizontal: 10 }}>
+                            {presentationImages.map((img, idx) => (
+                                <View key={idx} style={{ alignItems: 'center', marginHorizontal: 8 }}>
+                                    <TouchableOpacity onPress={() => onViewImage && onViewImage(img)}>
+                                        <View style={{ width: 64, height: 64, borderRadius: 32, padding: 2, borderWidth: 1, borderColor: '#D1D5DB' }}>
+                                            <View style={{ width: '100%', height: '100%', borderRadius: 30, borderWidth: 2, borderColor: 'white', overflow: 'hidden' }}>
+                                                <ExpoImage source={{ uri: img }} style={{ width: '100%', height: '100%' }} />
+                                            </View>
                                         </View>
                                     </TouchableOpacity>
-                                ))}
-                            </ScrollView>
-                        </View>
-                    )}
+                                    <Text style={{ fontSize: 11, color: '#111827', marginTop: 4, maxWidth: 64 }} numberOfLines={1}>
+                                        Trabajo {idx + 1}
+                                    </Text>
+                                </View>
+                            ))}
+                        </ScrollView>
+                    </View>
+                )}
 
-                    {/* PORTFOLIO GRID */}
-                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 2, marginTop: 10 }}>
+                {/* GRID TABS */}
+                <View style={{ flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center', height: 44, borderTopWidth: 1, borderColor: '#F1F5F9' }}>
+                    <View style={{ flex: 1, alignItems: 'center', borderBottomWidth: 1, borderColor: '#111827', paddingVertical: 10 }}>
+                        <Feather name="grid" size={24} color="#111827" />
+                    </View>
+                    <View style={{ flex: 1, alignItems: 'center', paddingVertical: 10 }}>
+                        <Feather name="star" size={24} color="#9CA3AF" />
+                    </View>
+                </View>
+
+                {/* PORTFOLIO GRID */}
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: gap }}>
                     {portfolioImagesWithDetails.length > 0 ? portfolioImagesWithDetails.map((item, idx) => (
                         <TouchableOpacity key={idx} style={{ position: 'relative' }} onPress={() => {
                             if (onViewGallery) onViewGallery({ title: item.title, images: item.jobImages, rating: item.rating, jobId: item.jobId });
@@ -537,7 +559,6 @@ export default function ProfessionalProfileView({
                 )}
                 
                 <View style={{ height: 60 }} />
-                </View>
             </View>
         );
     };
