@@ -912,16 +912,6 @@ const handleMoveImage = (index, direction) => {
                     profileData={profileData}
                     ICON_MAP={ICON_MAP}
                     setSelectedCategory={setSelectedCategory}
-                    setIsEditing={setIsEditing}
-                    onActivateCategory={(catKey) => {
-                        const newProfiles = { ...profileData.profiles };
-                        if (!newProfiles[catKey]) {
-                            newProfiles[catKey] = { bio: '', subcategories: [], gallery: [], isActive: true };
-                        } else {
-                            newProfiles[catKey] = { ...newProfiles[catKey], isActive: true };
-                        }
-                        setProfileData({ ...profileData, profiles: newProfiles });
-                    }}
                 />
 
                 {/* MODAL 2: EDICIÓN PROFESIONAL */}
