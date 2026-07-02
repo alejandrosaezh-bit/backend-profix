@@ -309,7 +309,8 @@ export default function ProfessionalProfileScreen({
     const activeCategories = isOwner ? sortedCategories.filter(cat => {
         const key = cat.fullName || cat.name;
         const profile = getProfile(key);
-        return !!profile && profile.isActive !== false;
+        const selectedKey = selectedCategory?.fullName || selectedCategory?.name || selectedCategory;
+        return !!profile || key === selectedKey; // Include created profiles AND the selected category
     }) : sortedCategories.filter(cat => {
         const key = cat.fullName || cat.name;
         const selectedKey = selectedCategory?.fullName || selectedCategory?.name || selectedCategory;
@@ -798,7 +799,7 @@ const handleMoveImage = (index, direction) => {
                             categoryStats={categoryStats} // You might want to compute this per category, but let's keep it global for now or it was global anyway
                             combinedHistory={combinedHistory}
                             isLoadingProfile={isLoadingProfile}
-                            isCategoryActive={catCurrentProfile?.isActive !== false}
+                            isCategoryActive={!!catRealProfile && catCurrentProfile?.isActive !== false}
                             onActivateCategory={toggleCategoryActivation}
                             setOuterScrollEnabled={setIsPagerScrollEnabled}
                             topInset={insets.top}
