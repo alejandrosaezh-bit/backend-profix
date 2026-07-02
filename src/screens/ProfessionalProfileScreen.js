@@ -1,4 +1,5 @@
 import { Feather, FontAwesome5 } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
 import { Image as ExpoImage } from 'expo-image';
@@ -77,6 +78,7 @@ export default function ProfessionalProfileScreen({
     requestedCategoryName,
     otherModeCount
 }) {
+    const insets = useSafeAreaInsets();
     const [isPagerScrollEnabled, setIsPagerScrollEnabled] = useState(true);
     const [isEditing, setIsEditing] = useState(false); // Professional Profile Editing
     const [isCategorySelectionVisible, setIsCategorySelectionVisible] = useState(false); // Category Selection Modal
@@ -304,10 +306,14 @@ export default function ProfessionalProfileScreen({
     
     
     // --- SWIPE PARA CAMBIAR CATEGORÍA ---
-    const activeCategories = sortedCategories.filter(cat => {
+    const activeCategories = isOwner ? sortedCategories.filter(cat => {
         const key = cat.fullName || cat.name;
         const profile = getProfile(key);
         return !!profile && profile.isActive !== false;
+    }) : sortedCategories.filter(cat => {
+        const key = cat.fullName || cat.name;
+        const selectedKey = selectedCategory?.fullName || selectedCategory?.name || selectedCategory;
+        return key === selectedKey;
     });
 
     useEffect(() => {
@@ -795,6 +801,7 @@ const handleMoveImage = (index, direction) => {
                             isCategoryActive={catCurrentProfile?.isActive !== false}
                             onActivateCategory={toggleCategoryActivation}
                             setOuterScrollEnabled={setIsPagerScrollEnabled}
+                            topInset={insets.top}
                             onViewImage={onViewImage}
                             onViewGallery={setSelectedGallery}
                             onContact={() => {}}

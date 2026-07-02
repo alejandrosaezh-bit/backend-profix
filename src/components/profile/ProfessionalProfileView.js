@@ -45,6 +45,7 @@ export default function ProfessionalProfileView({
     onEditProfile,
     onChangeCategory,
     onGamification,
+    topInset = 0,
     onClose,
     children
 }) {
@@ -119,7 +120,7 @@ export default function ProfessionalProfileView({
     // --------------------------------------------------------------------------------
     const renderModular = () => {
         return (
-            <View style={{ flex: 1, backgroundColor: '#0F172A', padding: 16 }}>
+            <View style={{ flex: 1, backgroundColor: '#0F172A', padding: 16, paddingTop: Math.max(topInset + 10, 16) }}>
                 {/* BACK BUTTON */}
                 {(!isOwner || isPreviewMode) && (
                     <TouchableOpacity onPress={onClose} style={{ marginBottom: 15 }}>
@@ -268,9 +269,9 @@ export default function ProfessionalProfileView({
         return (
             <View style={{ flex: 1, backgroundColor: 'white' }}>
                 {/* HEADER COLOR */}
-                <View style={{ backgroundColor: activeColor || '#3B82F6', height: 120, position: 'relative' }}>
+                <View style={{ backgroundColor: activeColor || '#3B82F6', height: 120 + topInset, position: 'relative' }}>
                     {(!isOwner || isPreviewMode) && (
-                        <TouchableOpacity onPress={onClose} style={{ position: 'absolute', top: 40, left: 20, zIndex: 10 }}>
+                        <TouchableOpacity onPress={onClose} style={{ position: 'absolute', top: topInset + 20, left: 20, zIndex: 10 }}>
                             <Feather name="arrow-left" size={24} color="white" />
                         </TouchableOpacity>
                     )}
@@ -424,7 +425,7 @@ export default function ProfessionalProfileView({
         return (
             <View style={{ flex: 1, backgroundColor: 'white' }}>
                 {/* HEADER (Top bar) */}
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 15, paddingTop: 15, paddingBottom: 10 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 15, paddingTop: Math.max(topInset + 10, 15), paddingBottom: 10 }}>
                     {(!isOwner || isPreviewMode) ? (
                         <TouchableOpacity onPress={onClose} style={{ flexDirection: 'row', alignItems: 'center' }}>
                             <Feather name="arrow-left" size={24} color="#111827" />
