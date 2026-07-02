@@ -1,9 +1,9 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, FlatList, StyleSheet, Dimensions, Linking } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, FlatList, StyleSheet, Dimensions, Linking, useWindowDimensions } from 'react-native';
 import { Feather, FontAwesome5 } from '@expo/vector-icons';
 import { Image as ExpoImage } from 'expo-image';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
 
 const ICON_MAP = {
     'Hogar': 'home',
@@ -49,6 +49,7 @@ export default function ProfessionalProfileView({
     onClose,
     children
 }) {
+    const { width: SCREEN_WIDTH } = useWindowDimensions();
 
     const getAvatarUri = () => {
         if (user?.avatar?.startsWith('data:image')) return user.avatar;

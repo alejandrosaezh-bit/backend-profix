@@ -18,7 +18,8 @@ import {
     View,
     ActivityIndicator,
     PanResponder,
-    Animated
+    Animated,
+    useWindowDimensions
 } from 'react-native';
 import {
     ProAccountSettings,
@@ -35,8 +36,6 @@ import { api, API_URL } from '../utils/api';
 import { getProStatus } from '../utils/helpers';
 import { compressAvatar, compressImage } from '../utils/imageCompressor';
 import { clearRequests } from '../utils/requests';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 // --- MOCK DATA REMOVED ---
 
@@ -79,6 +78,7 @@ export default function ProfessionalProfileScreen({
     otherModeCount
 }) {
     const insets = useSafeAreaInsets();
+    const { width: SCREEN_WIDTH } = useWindowDimensions();
     const [isPagerScrollEnabled, setIsPagerScrollEnabled] = useState(true);
     const [isEditing, setIsEditing] = useState(false); // Professional Profile Editing
     const [isCategorySelectionVisible, setIsCategorySelectionVisible] = useState(false); // Category Selection Modal
@@ -320,7 +320,7 @@ export default function ProfessionalProfileScreen({
         if (scrollRef.current && activeCategories.length > 0) {
             const index = activeCategories.findIndex(c => (c.fullName || c.name) === (selectedCategory?.fullName || selectedCategory?.name || selectedCategory));
             if (index !== -1) {
-                scrollRef.current.scrollTo({ x: index * Dimensions.get('window').width, animated: true });
+                scrollRef.current.scrollTo({ x: index * SCREEN_WIDTH, animated: true });
             }
         }
     }, [selectedCategory, activeCategories.length]);
@@ -761,7 +761,7 @@ const handleMoveImage = (index, direction) => {
             style={{ flex: 1, backgroundColor: '#F8FAFC' }}
             onMomentumScrollEnd={(e) => {
                 const offsetX = e.nativeEvent.contentOffset.x;
-                const index = Math.round(offsetX / Dimensions.get('window').width);
+                const index = Math.round(offsetX / SCREEN_WIDTH);
                 if (activeCategories[index]) {
                     setSelectedCategory(activeCategories[index]);
                 }
@@ -785,7 +785,7 @@ const handleMoveImage = (index, direction) => {
                 });
                 
                 return (
-                    <View style={{ width: Dimensions.get('window').width, flex: 1 }} key={catKey}>
+                    <View style={{ width: SCREEN_WIDTH, flex: 1 }} key={catKey}>
                         <ProfessionalProfileView
                             user={user}
                             profileData={{ ...profileData, ...catCurrentProfile }}
@@ -831,7 +831,8 @@ const handleMoveImage = (index, direction) => {
                     </View>
                 );
             }) : (
-                <View style={{ width: Dimensions.get('window').width, flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+                <View style={{ width: SCREEN_WIDTH, flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+                    <Feather name="alert-circle" size={48} color="#9CA3AF" style={{ marginBottom: 16 }} />
                     <Text style={{ color: '#64748B' }}>No tienes categorías activas.</Text>
                 </View>
             )}
