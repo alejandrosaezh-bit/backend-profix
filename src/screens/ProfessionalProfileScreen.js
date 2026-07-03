@@ -318,7 +318,7 @@ export default function ProfessionalProfileScreen({
             const index = activeCategories.findIndex(c => (c.fullName || c.name) === (selectedCategory?.fullName || selectedCategory?.name || selectedCategory));
             if (index !== -1) {
                 setTimeout(() => {
-                    scrollRef.current?.scrollTo({ x: index * pagerWidth, animated: true });
+                    scrollRef.current?.scrollTo({ x: index * pagerWidth, animated: Platform.OS !== 'web' });
                 }, 100);
             }
         }
