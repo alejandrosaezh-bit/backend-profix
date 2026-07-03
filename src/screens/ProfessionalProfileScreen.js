@@ -790,9 +790,10 @@ const handleMoveImage = (index, direction) => {
                     return String(revCat).toLowerCase() === String(catKey).toLowerCase();
                 });
                 
-                const categoryIsUncreated = !catRealProfile || (!catRealProfile.bio && (!catRealProfile.subcategories || catRealProfile.subcategories.length === 0) && (!catRealProfile.gallery || catRealProfile.gallery.length === 0));
+                const hasContent = catRealProfile && (!!catRealProfile.bio || (catRealProfile.subcategories && catRealProfile.subcategories.length > 0) || (catRealProfile.gallery && catRealProfile.gallery.length > 0));
+                const categoryIsActive = !!catRealProfile && (catCurrentProfile?.isActive === true || (catCurrentProfile?.isActive !== false && hasContent));
 
-                console.log("RENDER CATEGORY", catKey, { isCategoryActive: !!catRealProfile && catCurrentProfile?.isActive !== false && !categoryIsUncreated, categoryIsUncreated, catRealProfile });
+                console.log("RENDER CATEGORY", catKey, { isCategoryActive: categoryIsActive, hasContent, catRealProfile });
 
                 return (
                     <View style={{ width: pagerWidth, flex: 1 }} key={catKey}>
@@ -808,8 +809,8 @@ const handleMoveImage = (index, direction) => {
                             categoryStats={categoryStats}
                             combinedHistory={combinedHistory}
                             isLoadingProfile={isLoadingProfile}
-                            isCategoryActive={!!catRealProfile && catCurrentProfile?.isActive !== false && !categoryIsUncreated}
-                            isCategoryUncreated={categoryIsUncreated}
+                            isCategoryActive={categoryIsActive}
+                            isCategoryUncreated={!hasContent}
                             onActivateCategory={toggleCategoryActivation}
                             setOuterScrollEnabled={setIsPagerScrollEnabled}
                             topInset={insets.top}
