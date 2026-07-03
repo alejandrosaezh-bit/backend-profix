@@ -37,6 +37,7 @@ export default function ProfessionalProfileView({
     combinedHistory = [],
     isLoadingProfile,
     isCategoryActive,
+    isCategoryUncreated,
     onActivateCategory,
     setOuterScrollEnabled,
     onViewImage,
@@ -591,12 +592,16 @@ export default function ProfessionalProfileView({
                         </View>
                     ) : (
                         <View style={{ backgroundColor: 'white', borderRadius: 24, padding: 30, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.1, shadowRadius: 20, elevation: 10, width: '100%', maxWidth: 400 }}>
-                            <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: '#F3F4F6', justifyContent: 'center', alignItems: 'center', marginBottom: 20 }}>
-                                <Feather name="pause-circle" size={40} color="#9CA3AF" />
+                            <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: isCategoryUncreated ? '#EFF6FF' : '#F3F4F6', justifyContent: 'center', alignItems: 'center', marginBottom: 20 }}>
+                                <Feather name={isCategoryUncreated ? "plus-circle" : "pause-circle"} size={40} color={isCategoryUncreated ? "#3B82F6" : "#9CA3AF"} />
                             </View>
-                            <Text style={{ fontSize: 22, fontWeight: 'bold', color: '#111827', marginBottom: 10, textAlign: 'center' }}>Categoría Pausada</Text>
+                            <Text style={{ fontSize: 22, fontWeight: 'bold', color: '#111827', marginBottom: 10, textAlign: 'center' }}>
+                                {isCategoryUncreated ? "Categoría no activada" : "Categoría Pausada"}
+                            </Text>
                             <Text style={{ fontSize: 15, color: '#64748B', textAlign: 'center', marginBottom: 25, lineHeight: 22 }}>
-                                Actualmente tienes pausada tu participación en esta categoría. ¿Deseas volver a conseguir trabajos y que los clientes puedan contactarte?
+                                {isCategoryUncreated 
+                                    ? "Aún no tienes activada esta categoría. ¿Deseas activarla para poder obtener solicitudes de clientes y ganar dinero con ella?"
+                                    : "Actualmente tienes pausada tu participación en esta categoría. ¿Deseas volver a conseguir trabajos y que los clientes puedan contactarte?"}
                             </Text>
                             <TouchableOpacity onPress={onActivateCategory} style={{ backgroundColor: activeColor || '#3B82F6', width: '100%', paddingVertical: 14, borderRadius: 12, alignItems: 'center', marginBottom: 12 }}>
                                 <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 16 }}>Activar Categoría</Text>

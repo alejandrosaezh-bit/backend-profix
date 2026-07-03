@@ -802,6 +802,7 @@ const handleMoveImage = (index, direction) => {
                             combinedHistory={combinedHistory}
                             isLoadingProfile={isLoadingProfile}
                             isCategoryActive={!!catRealProfile && catCurrentProfile?.isActive !== false}
+                            isCategoryUncreated={!catRealProfile}
                             onActivateCategory={toggleCategoryActivation}
                             setOuterScrollEnabled={setIsPagerScrollEnabled}
                             topInset={insets.top}
