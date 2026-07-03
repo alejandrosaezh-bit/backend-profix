@@ -799,11 +799,11 @@ const handleMoveImage = (index, direction) => {
                             activeTheme={catActiveTheme}
                             activeColor={catActiveColor}
                             catReviews={currentCatReviews}
-                            categoryStats={categoryStats} // You might want to compute this per category, but let's keep it global for now or it was global anyway
+                            categoryStats={categoryStats}
                             combinedHistory={combinedHistory}
                             isLoadingProfile={isLoadingProfile}
                             isCategoryActive={!!catRealProfile && catCurrentProfile?.isActive !== false}
-                            isCategoryUncreated={!catRealProfile}
+                            isCategoryUncreated={!catRealProfile || (!catRealProfile.bio && (!catRealProfile.subcategories || catRealProfile.subcategories.length === 0) && (!catRealProfile.gallery || catRealProfile.gallery.length === 0))}
                             onActivateCategory={toggleCategoryActivation}
                             setOuterScrollEnabled={setIsPagerScrollEnabled}
                             topInset={insets.top}
