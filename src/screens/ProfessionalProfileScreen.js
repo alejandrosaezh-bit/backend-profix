@@ -321,10 +321,12 @@ export default function ProfessionalProfileScreen({
         if (scrollRef.current && activeCategories.length > 0) {
             const index = activeCategories.findIndex(c => (c.fullName || c.name) === (selectedCategory?.fullName || selectedCategory?.name || selectedCategory));
             if (index !== -1) {
-                scrollRef.current.scrollTo({ x: index * SCREEN_WIDTH, animated: true });
+                setTimeout(() => {
+                    scrollRef.current?.scrollTo({ x: index * SCREEN_WIDTH, animated: true });
+                }, 100);
             }
         }
-    }, [selectedCategory, activeCategories.length]);
+    }, [selectedCategory, activeCategories.length, SCREEN_WIDTH]);
 
 
     
