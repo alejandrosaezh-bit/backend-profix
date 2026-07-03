@@ -320,8 +320,8 @@ export default function ProfessionalProfileScreen({
             const index = activeCategories.findIndex(c => (c.fullName || c.name) === (selectedCategory?.fullName || selectedCategory?.name || selectedCategory));
             if (index !== -1) {
                 setTimeout(() => {
-                    scrollRef.current?.scrollTo({ x: index * pagerWidth, animated: Platform.OS !== 'web' });
-                }, 100);
+                    scrollRef.current?.scrollTo({ x: index * pagerWidth, animated: false });
+                }, 50);
             }
         }
     }, [selectedCategory, activeCategories.length, pagerWidth]);
