@@ -788,6 +788,8 @@ const handleMoveImage = (index, direction) => {
                     return String(revCat).toLowerCase() === String(catKey).toLowerCase();
                 });
                 
+                const categoryIsUncreated = !catRealProfile || (!catRealProfile.bio && (!catRealProfile.subcategories || catRealProfile.subcategories.length === 0) && (!catRealProfile.gallery || catRealProfile.gallery.length === 0));
+
                 return (
                     <View style={{ width: pagerWidth, flex: 1 }} key={catKey}>
                         <ProfessionalProfileView
@@ -802,8 +804,8 @@ const handleMoveImage = (index, direction) => {
                             categoryStats={categoryStats}
                             combinedHistory={combinedHistory}
                             isLoadingProfile={isLoadingProfile}
-                            isCategoryActive={!!catRealProfile && catCurrentProfile?.isActive !== false}
-                            isCategoryUncreated={!catRealProfile || (!catRealProfile.bio && (!catRealProfile.subcategories || catRealProfile.subcategories.length === 0) && (!catRealProfile.gallery || catRealProfile.gallery.length === 0))}
+                            isCategoryActive={!!catRealProfile && catCurrentProfile?.isActive !== false && !categoryIsUncreated}
+                            isCategoryUncreated={categoryIsUncreated}
                             onActivateCategory={toggleCategoryActivation}
                             setOuterScrollEnabled={setIsPagerScrollEnabled}
                             topInset={insets.top}

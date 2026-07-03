@@ -67,7 +67,9 @@ export function ProCategorySelectionModal({
                     <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-start', paddingBottom: 40 }}>
                         {categories.map((cat) => {
                             const catKey = cat.fullName || cat.name;
-                            const isActive = !!profileData.profiles?.[catKey] && profileData.profiles[catKey].isActive !== false;
+                            const catProfile = profileData.profiles?.[catKey];
+                            const isUncreated = !catProfile || (!catProfile.bio && (!catProfile.subcategories || catProfile.subcategories.length === 0) && (!catProfile.gallery || catProfile.gallery.length === 0));
+                            const isActive = !!catProfile && catProfile.isActive !== false && !isUncreated;
 
                             return (
                                 <TouchableOpacity
