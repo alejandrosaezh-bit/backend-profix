@@ -108,6 +108,7 @@ export default function ProfessionalProfileScreen({
     const [isOrderingGallery, setIsOrderingGallery] = useState(false);
     const [isSavingOrder, setIsSavingOrder] = useState(false);
     const [showCrossPopup, setShowCrossPopup] = useState(true);
+    const [pagerWidth, setPagerWidth] = useState(SCREEN_WIDTH);
     const [isLoadingProfile, setIsLoadingProfile] = useState(true);
 
     // Location Selector State
@@ -322,11 +323,11 @@ export default function ProfessionalProfileScreen({
             const index = activeCategories.findIndex(c => (c.fullName || c.name) === (selectedCategory?.fullName || selectedCategory?.name || selectedCategory));
             if (index !== -1) {
                 setTimeout(() => {
-                    scrollRef.current?.scrollTo({ x: index * SCREEN_WIDTH, animated: true });
+                    scrollRef.current?.scrollTo({ x: index * pagerWidth, animated: true });
                 }, 100);
             }
         }
-    }, [selectedCategory, activeCategories.length, SCREEN_WIDTH]);
+    }, [selectedCategory, activeCategories.length, pagerWidth]);
 
 
     
@@ -762,9 +763,14 @@ const handleMoveImage = (index, direction) => {
             scrollEnabled={isPagerScrollEnabled}
             showsHorizontalScrollIndicator={false}
             style={{ flex: 1, backgroundColor: '#F8FAFC' }}
+            onLayout={(e) => {
+                if (e.nativeEvent.layout.width > 0) {
+                    setPagerWidth(e.nativeEvent.layout.width);
+                }
+            }}
             onMomentumScrollEnd={(e) => {
                 const offsetX = e.nativeEvent.contentOffset.x;
-                const index = Math.round(offsetX / SCREEN_WIDTH);
+                const index = Math.round(offsetX / pagerWidth);
                 if (activeCategories[index]) {
                     setSelectedCategory(activeCategories[index]);
                 }
@@ -788,7 +794,7 @@ const handleMoveImage = (index, direction) => {
                 });
                 
                 return (
-                    <View style={{ width: SCREEN_WIDTH, flex: 1 }} key={catKey}>
+                    <View style={{ width: pagerWidth, flex: 1 }} key={catKey}>
                         <ProfessionalProfileView
                             user={user}
                             profileData={{ ...profileData, ...catCurrentProfile }}
