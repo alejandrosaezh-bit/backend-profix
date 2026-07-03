@@ -307,12 +307,7 @@ export default function ProfessionalProfileScreen({
     
     
     // --- SWIPE PARA CAMBIAR CATEGORÍA ---
-    const activeCategories = isOwner ? sortedCategories.filter(cat => {
-        const key = cat.fullName || cat.name;
-        const profile = getProfile(key);
-        const selectedKey = selectedCategory?.fullName || selectedCategory?.name || selectedCategory;
-        return !!profile || key === selectedKey; // Include created profiles AND the selected category
-    }) : sortedCategories.filter(cat => {
+    const activeCategories = isOwner ? sortedCategories : sortedCategories.filter(cat => {
         const key = cat.fullName || cat.name;
         const selectedKey = selectedCategory?.fullName || selectedCategory?.name || selectedCategory;
         return key === selectedKey;
