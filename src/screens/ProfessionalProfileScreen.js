@@ -246,6 +246,8 @@ export default function ProfessionalProfileScreen({
 
     // Auto-select first active category if current is not active/available (e.g. after fetch)
     useEffect(() => {
+        if (isOwner) return; // Owners can view inactive categories to activate them
+
         const currentKey = selectedCategory.fullName || selectedCategory.name;
         const hasProfile = getProfile(currentKey);
         const isActive = hasProfile && hasProfile.isActive !== false;
@@ -260,7 +262,7 @@ export default function ProfessionalProfileScreen({
                 if (found) setSelectedCategory(found);
             }
         }
-    }, [profileData.profiles]);
+    }, [profileData.profiles, isOwner]);
 
     // Helper: Obtener perfil de la categoría actual
     const realProfile = getProfile(categoryKey);
@@ -789,6 +791,8 @@ const handleMoveImage = (index, direction) => {
                 });
                 
                 const categoryIsUncreated = !catRealProfile || (!catRealProfile.bio && (!catRealProfile.subcategories || catRealProfile.subcategories.length === 0) && (!catRealProfile.gallery || catRealProfile.gallery.length === 0));
+
+                console.log("RENDER CATEGORY", catKey, { isCategoryActive: !!catRealProfile && catCurrentProfile?.isActive !== false && !categoryIsUncreated, categoryIsUncreated, catRealProfile });
 
                 return (
                     <View style={{ width: pagerWidth, flex: 1 }} key={catKey}>
