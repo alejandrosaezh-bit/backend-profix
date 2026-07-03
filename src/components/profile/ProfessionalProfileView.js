@@ -596,12 +596,10 @@ export default function ProfessionalProfileView({
                                 <Feather name={isCategoryUncreated ? "plus-circle" : "pause-circle"} size={40} color={isCategoryUncreated ? "#3B82F6" : "#9CA3AF"} />
                             </View>
                             <Text style={{ fontSize: 22, fontWeight: 'bold', color: '#111827', marginBottom: 10, textAlign: 'center' }}>
-                                {isCategoryUncreated ? "Categoría no activada" : "Categoría Pausada"}
+                                Categoría no activada
                             </Text>
                             <Text style={{ fontSize: 15, color: '#64748B', textAlign: 'center', marginBottom: 25, lineHeight: 22 }}>
-                                {isCategoryUncreated 
-                                    ? "Aún no tienes activada esta categoría. ¿Deseas activarla para poder obtener solicitudes de clientes y ganar dinero con ella?"
-                                    : "Actualmente tienes pausada tu participación en esta categoría. ¿Deseas volver a conseguir trabajos y que los clientes puedan contactarte?"}
+                                Aún no tienes activada esta categoría. ¿Deseas activarla para poder obtener solicitudes de clientes y ganar dinero con ella?
                             </Text>
                             <TouchableOpacity onPress={onActivateCategory} style={{ backgroundColor: activeColor || '#3B82F6', width: '100%', paddingVertical: 14, borderRadius: 12, alignItems: 'center', marginBottom: 12 }}>
                                 <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 16 }}>Activar Categoría</Text>
