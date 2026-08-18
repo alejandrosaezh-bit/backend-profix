@@ -55,7 +55,11 @@ const fetchWithTimeout = async (url, options = {}, timeout = 150000) => {
         else if (msg.toLowerCase().includes('abort')) msg = `La petición fue abortada externamente (${url})`;
 
         if (msg.toLowerCase().includes('network request failed')) {
-            msg += ` (Verifica tu IP ${LOCAL_IP} y Wi-Fi).`;
+            if (USE_LOCAL) {
+                msg += ` (Verifica tu IP ${LOCAL_IP} y Wi-Fi).`;
+            } else {
+                msg += ` (El servidor tardó en responder o no hay internet. Por favor, intenta de nuevo).`;
+            }
         }
 
         console.error(`[API] Fetch Error after ${duration}ms:`, error.name, msg);
