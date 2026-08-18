@@ -805,16 +805,11 @@ function MainApp() {
         try {
             const jobId = selectedRequest._id || selectedRequest.id;
 
-            // Map closure data to backend fields
-            const updateData = {
-                status: 'canceled',
-                cancelReason: closureData.reason || closureData.cancelReason,
-                feedback: closureData.feedback,
-                hireStatus: closureData.hireStatus
-            };
-
-            // Use updateJob to set status to canceled
-            await api.updateJob(jobId, updateData);
+            // Use closeJob to hit the correct backend endpoint
+            await api.closeJob(jobId, {
+                closureReason: closureData.reason || closureData.cancelReason,
+                hiredProId: null
+            });
 
             // Update Local State immediately
             const updatedReqs = allRequests.map(r =>
