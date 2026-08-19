@@ -409,43 +409,47 @@ const ServiceForm = ({ onSubmit, isLoggedIn, onTriggerLogin, initialCategory, in
                     <>
                         <View style={styles.inputGroup} onLayout={(e) => handleLayout('title', e)}>
                             <Text style={styles.label}>Ponle un título a tu necesidad</Text>
-                            <TextInput
-                                ref={titleInputRef}
-                                style={styles.inputBox}
-                                placeholder={placeholders.title}
-                                placeholderTextColor="#9CA3AF"
-                                value={formData.title}
-                                onChangeText={t => setFormData({ ...formData, title: t })}
-                                returnKeyType="next"
-                                onFocus={() => handleFocus('title')}
-                                onSubmitEditing={() => {
-                                    handleFocus('description');
-                                    if (descriptionInputRef.current) {
-                                        descriptionInputRef.current.focus();
-                                    }
-                                }}
-                            />
+                            <View style={styles.inputWrapper}>
+                                <TextInput
+                                    ref={titleInputRef}
+                                    style={{ flex: 1, paddingVertical: 12, fontSize: 17, color: '#111827', fontWeight: 'bold', outlineStyle: 'none' }}
+                                    placeholder={placeholders.title}
+                                    placeholderTextColor="#9CA3AF"
+                                    value={formData.title}
+                                    onChangeText={t => setFormData({ ...formData, title: t })}
+                                    returnKeyType="next"
+                                    onFocus={() => handleFocus('title')}
+                                    onSubmitEditing={() => {
+                                        handleFocus('description');
+                                        if (descriptionInputRef.current) {
+                                            descriptionInputRef.current.focus();
+                                        }
+                                    }}
+                                />
+                            </View>
                         </View>
                         <View style={styles.inputGroup} onLayout={(e) => handleLayout('description', e)}>
                             <Text style={styles.label}>Explícanos qué sucede</Text>
-                            <TextInput
-                                ref={descriptionInputRef}
-                                style={[styles.inputBox, { height: 120, textAlignVertical: 'top' }]}
-                                multiline
-                                placeholder={placeholders.description}
-                                placeholderTextColor="#9CA3AF"
-                                value={formData.description}
-                                onChangeText={t => setFormData({ ...formData, description: t })}
-                                blurOnSubmit={true}
-                                returnKeyType="next"
-                                onFocus={() => handleFocus('description')}
-                                onSubmitEditing={() => {
-                                    handleFocus('location');
-                                    if (locationInputRef.current) {
-                                        locationInputRef.current.focus();
-                                    }
-                                }}
-                            />
+                            <View style={[styles.inputWrapper, { alignItems: 'flex-start' }]}>
+                                <TextInput
+                                    ref={descriptionInputRef}
+                                    style={{ flex: 1, paddingVertical: 12, height: 120, textAlignVertical: 'top', fontSize: 17, color: '#111827', fontWeight: 'bold', outlineStyle: 'none' }}
+                                    multiline
+                                    placeholder={placeholders.description}
+                                    placeholderTextColor="#9CA3AF"
+                                    value={formData.description}
+                                    onChangeText={t => setFormData({ ...formData, description: t })}
+                                    blurOnSubmit={true}
+                                    returnKeyType="next"
+                                    onFocus={() => handleFocus('description')}
+                                    onSubmitEditing={() => {
+                                        handleFocus('location');
+                                        if (locationInputRef.current) {
+                                            locationInputRef.current.focus();
+                                        }
+                                    }}
+                                />
+                            </View>
                         </View>
                     </>
                 ) : null}
@@ -537,8 +541,8 @@ const ServiceForm = ({ onSubmit, isLoggedIn, onTriggerLogin, initialCategory, in
                                 alignItems: 'center',
                                 marginRight: 8,
                                 flexDirection: 'row',
-                                borderWidth: 1,
-                                borderColor: '#E5E7EB'
+                                borderWidth: 1.5,
+                                borderColor: '#9CA3AF'
                             }}
                             onPress={pickImage}
                         >
@@ -557,8 +561,8 @@ const ServiceForm = ({ onSubmit, isLoggedIn, onTriggerLogin, initialCategory, in
                                 alignItems: 'center',
                                 marginRight: 8,
                                 flexDirection: 'row',
-                                borderWidth: 1,
-                                borderColor: '#BFDBFE'
+                                borderWidth: 1.5,
+                                borderColor: '#9CA3AF'
                             }}
                             onPress={takePhoto}
                         >
@@ -576,8 +580,8 @@ const ServiceForm = ({ onSubmit, isLoggedIn, onTriggerLogin, initialCategory, in
                                 justifyContent: 'center',
                                 alignItems: 'center',
                                 flexDirection: 'row',
-                                borderWidth: 1,
-                                borderColor: '#FECACA'
+                                borderWidth: 1.5,
+                                borderColor: '#9CA3AF'
                             }}
                             onPress={() => {
                                 Alert.alert(
