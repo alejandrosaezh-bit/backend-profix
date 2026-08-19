@@ -42,6 +42,7 @@ const ServiceForm = ({ onSubmit, isLoggedIn, onTriggerLogin, initialCategory, in
     const [showCategoryGrid, setShowCategoryGrid] = useState(false);
     const [showSubcategoryGrid, setShowSubcategoryGrid] = useState(false);
     const [locationDetected, setLocationDetected] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const titleInputRef = useRef(null);
     const descriptionInputRef = useRef(null);
     const locationInputRef = useRef(null);
@@ -255,7 +256,7 @@ const ServiceForm = ({ onSubmit, isLoggedIn, onTriggerLogin, initialCategory, in
         }
     };
 
-    const handlePreSubmit = () => {
+    const handlePreSubmit = async () => {
         if (!formData.title || !formData.category || !formData.subcategory) {
             showAlert('Faltan datos', 'Por favor elige una categoría, la especialidad y ponle un título a tu necesidad.');
             return;
@@ -270,7 +271,12 @@ const ServiceForm = ({ onSubmit, isLoggedIn, onTriggerLogin, initialCategory, in
         if (!isLoggedIn) {
             onTriggerLogin({ pendingData: { ...formData, images } });
         } else {
-            onSubmit({ ...formData, images });
+            setIsSubmitting(true);
+            try {
+                await onSubmit({ ...formData, images });
+            } finally {
+                setIsSubmitting(false);
+            }
         }
     };
 
@@ -614,12 +620,19 @@ const ServiceForm = ({ onSubmit, isLoggedIn, onTriggerLogin, initialCategory, in
                 <TouchableOpacity
                     style={[
                         styles.searchButton,
-                        (!formData.title || !formData.category || !formData.subcategory || !formData.location || !FLAT_ZONES_SUGGESTIONS.includes(formData.location.trim())) && { backgroundColor: '#9CA3AF' }
+                        (!formData.title || !formData.category || !formData.subcategory || !formData.location || !FLAT_ZONES_SUGGESTIONS.includes(formData.location.trim()) || isSubmitting) && { backgroundColor: '#9CA3AF' }
                     ]}
                     onPress={handlePreSubmit}
+                    disabled={isSubmitting}
                 >
-                    <Text style={styles.searchButtonText}>{copy.buttonText}</Text>
-                    <ChevronRight color="white" size={20} />
+                    {isSubmitting ? (
+                        <ActivityIndicator color="white" />
+                    ) : (
+                        <>
+                            <Text style={styles.searchButtonText}>{copy.buttonText}</Text>
+                            <ChevronRight color="white" size={20} />
+                        </>
+                    )}
                 </TouchableOpacity>
             </View>
         </View>

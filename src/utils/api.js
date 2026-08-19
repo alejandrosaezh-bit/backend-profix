@@ -195,7 +195,8 @@ export const api = {
         const res = await fetchWithTimeout(`${API_URL}/jobs`, {
             method: 'POST',
             headers,
-            body: JSON.stringify(jobData)
+            body: JSON.stringify(jobData),
+            timeout: 240000
         });
         if (!res.ok) {
             const errorText = await res.text();
@@ -225,7 +226,8 @@ export const api = {
         const res = await fetchWithTimeout(`${API_URL}/jobs/${jobId}`, {
             method: 'PUT',
             headers,
-            body: JSON.stringify(jobData)
+            body: JSON.stringify(jobData),
+            timeout: 240000
         });
         if (!res.ok) throw new Error('Error updating job');
         return res.json();
