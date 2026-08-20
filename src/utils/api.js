@@ -682,9 +682,10 @@ export const api = {
     // --- ADMIN: CATEGORÍAS ---
     createCategory: async (data) => {
         try {
+            const headers = await getHeaders();
             const res = await fetchWithTimeout(`${API_URL}/admin/categories`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers,
                 body: JSON.stringify(data)
             });
             if (!res.ok) {
@@ -699,9 +700,10 @@ export const api = {
     },
     updateCategory: async (id, data) => {
         try {
+            const headers = await getHeaders();
             const res = await fetchWithTimeout(`${API_URL}/admin/categories/${id}`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
+                headers,
                 body: JSON.stringify(data)
             });
             if (!res.ok) throw new Error(`Error ${res.status}`);
@@ -713,8 +715,10 @@ export const api = {
     },
     deleteCategory: async (id) => {
         try {
+            const headers = await getHeaders();
             const res = await fetchWithTimeout(`${API_URL}/admin/categories/${id}`, {
-                method: 'DELETE'
+                method: 'DELETE',
+                headers
             });
             if (!res.ok) throw new Error(`Error ${res.status}`);
             return res.json();
@@ -726,9 +730,10 @@ export const api = {
 
     // --- ADMIN: ARTÍCULOS ---
     createArticle: async (data) => {
+        const headers = await getHeaders();
         const res = await fetchWithTimeout(`${API_URL}/admin/articles`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers,
             body: JSON.stringify(data)
         });
         return res.json();
@@ -736,28 +741,33 @@ export const api = {
 
     // --- ADMIN: NEGOCIOS ---
     createBusiness: async (data) => {
+        const headers = await getHeaders();
         const res = await fetchWithTimeout(`${API_URL}/admin/businesses`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers,
             body: JSON.stringify(data)
         });
         return res.json();
     },
     getBusinesses: async () => {
-        const res = await fetchWithTimeout(`${API_URL}/admin/businesses`);
+        const headers = await getHeaders();
+        const res = await fetchWithTimeout(`${API_URL}/admin/businesses`, { headers });
         return res.json();
     },
     updateBusiness: async (id, data) => {
+        const headers = await getHeaders();
         const res = await fetchWithTimeout(`${API_URL}/admin/businesses/${id}`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
+            headers,
             body: JSON.stringify(data)
         });
         return res.json();
     },
     deleteBusiness: async (id) => {
+        const headers = await getHeaders();
         const res = await fetchWithTimeout(`${API_URL}/admin/businesses/${id}`, {
-            method: 'DELETE'
+            method: 'DELETE',
+            headers
         });
         return res.json();
     },
