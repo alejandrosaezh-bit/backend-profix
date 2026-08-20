@@ -101,13 +101,14 @@ if (Platform.OS !== 'web') {
 
 const { checkCredentials, getUser, registerUser } = AuthLocal;
 
-import { ICON_MAP, IconAuto, IconBeauty, IconEvents, IconHogar, IconLegal, IconPets, IconSalud, IconTech } from './src/constants/icons';
+import { DynamicAppIcon, ICON_MAP, IconAuto, IconBeauty, IconEvents, IconHogar, IconLegal, IconPets, IconSalud, IconTech } from './src/constants/icons';
 
 const mapCategoryToDisplay = (cat) => ({
     id: cat._id,
     name: cat.name,
     fullName: cat.name,
-    icon: ICON_MAP[cat.icon] || ICON_MAP['default'],
+    iconName: cat.icon,
+    icon: (props) => <DynamicAppIcon name={cat.icon} {...props} />,
     color: cat.color || '#FFF7ED',
     iconColor: '#EA580C',
     subcategories: cat.subcategories || []

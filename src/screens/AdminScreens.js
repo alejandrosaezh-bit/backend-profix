@@ -3,163 +3,93 @@ import * as ImagePicker from 'expo-image-picker';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Modal, Platform, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { api } from '../utils/api';
+import { ICON_CATEGORIES, ALL_ICONS_FLAT, DynamicAppIcon, getIconData } from '../constants/icons';
 import { Image as ExpoImage } from 'expo-image';
 
-// Extensive Icon Library grouped by Category
-const ICON_CATEGORIES = {
-    'Hogar': [
-        { name: 'home', lib: Feather }, { name: 'hammer', lib: MaterialCommunityIcons }, { name: 'wrench', lib: MaterialCommunityIcons },
-        { name: 'format-paint', lib: MaterialCommunityIcons }, { name: 'broom', lib: MaterialCommunityIcons }, { name: 'flower', lib: MaterialCommunityIcons },
-        { name: 'truck-delivery', lib: MaterialCommunityIcons }, { name: 'lightbulb-on', lib: MaterialCommunityIcons }, { name: 'water', lib: MaterialCommunityIcons },
-        { name: 'door', lib: MaterialCommunityIcons }, { name: 'sofa', lib: MaterialCommunityIcons }, { name: 'bed', lib: MaterialCommunityIcons },
-        { name: 'air-conditioner', lib: MaterialCommunityIcons }, { name: 'radiator', lib: MaterialCommunityIcons }, { name: 'fire', lib: MaterialCommunityIcons },
-        { name: 'snowflake', lib: MaterialCommunityIcons }, { name: 'fan', lib: MaterialCommunityIcons }, { name: 'thermometer', lib: MaterialCommunityIcons },
-        { name: 'vacuum', lib: MaterialCommunityIcons }, { name: 'mop', lib: MaterialCommunityIcons }, { name: 'lamp', lib: MaterialCommunityIcons },
-        { name: 'fence', lib: MaterialCommunityIcons }, { name: 'key-variant', lib: MaterialCommunityIcons }, { name: 'microwave', lib: MaterialCommunityIcons },
-        { name: 'fridge', lib: MaterialCommunityIcons }, { name: 'washing-machine', lib: MaterialCommunityIcons }
-    ],
-    'Salud y Bienestar': [
-        { name: 'heart', lib: Feather }, { name: 'doctor', lib: MaterialCommunityIcons }, { name: 'hospital-box', lib: MaterialCommunityIcons },
-        { name: 'yoga', lib: MaterialCommunityIcons }, { name: 'dumbbell', lib: MaterialCommunityIcons }, { name: 'human-handsup', lib: MaterialCommunityIcons },
-        { name: 'tooth', lib: MaterialCommunityIcons }, { name: 'pill', lib: MaterialCommunityIcons }, { name: 'eye', lib: MaterialCommunityIcons },
-        { name: 'spa', lib: MaterialCommunityIcons }, { name: 'meditation', lib: MaterialCommunityIcons }, { name: 'bandage', lib: MaterialCommunityIcons },
-        { name: 'stethoscope', lib: MaterialCommunityIcons }, { name: 'bottle-tonic-plus', lib: MaterialCommunityIcons },
-        { name: 'weight-lifter', lib: MaterialCommunityIcons }, { name: 'emoticon-happy-outline', lib: MaterialCommunityIcons }
-    ],
-    'Profesionales': [
-        { name: 'briefcase', lib: Feather }, { name: 'calculator', lib: MaterialCommunityIcons }, { name: 'laptop', lib: MaterialCommunityIcons },
-        { name: 'palette', lib: MaterialCommunityIcons }, { name: 'code-braces', lib: MaterialCommunityIcons }, { name: 'compass-outline', lib: MaterialCommunityIcons },
-        { name: 'fountain-pen-tip', lib: MaterialCommunityIcons }, { name: 'translate', lib: MaterialCommunityIcons },
-        { name: 'account-check', lib: MaterialCommunityIcons }, { name: 'file-document-edit', lib: MaterialCommunityIcons },
-        { name: 'microphone', lib: MaterialCommunityIcons }, { name: 'headset', lib: MaterialCommunityIcons },
-        { name: 'typewriter', lib: MaterialCommunityIcons }, { name: 'video-account', lib: MaterialCommunityIcons }
-    ],
-    'Mascotas': [
-        { name: 'paw', lib: FontAwesome5 }, { name: 'dog', lib: MaterialCommunityIcons }, { name: 'cat', lib: MaterialCommunityIcons },
-        { name: 'bone', lib: MaterialCommunityIcons }, { name: 'fish', lib: MaterialCommunityIcons }, { name: 'bird', lib: MaterialCommunityIcons },
-        { name: 'rabbit', lib: MaterialCommunityIcons }, { name: 'shredder', lib: MaterialCommunityIcons }, { name: 'scooter', lib: MaterialCommunityIcons }
-    ],
-    'Educación': [
-        { name: 'school', lib: MaterialCommunityIcons }, { name: 'book-open-variant', lib: MaterialCommunityIcons }, { name: 'certificate', lib: MaterialCommunityIcons },
-        { name: 'brain', lib: MaterialCommunityIcons }, { name: 'lightbulb', lib: MaterialCommunityIcons }, { name: 'pencil', lib: MaterialCommunityIcons },
-        { name: 'microscope', lib: MaterialCommunityIcons }, { name: 'earth', lib: MaterialCommunityIcons }, { name: 'flask', lib: MaterialCommunityIcons },
-        { name: 'abacus', lib: MaterialCommunityIcons }, { name: 'atom', lib: MaterialCommunityIcons }
-    ],
-    'Eventos': [
-        { name: 'calendar', lib: Feather }, { name: 'party-popper', lib: MaterialCommunityIcons }, { name: 'music', lib: Feather },
-        { name: 'camera', lib: Feather }, { name: 'silverware-fork-knife', lib: MaterialCommunityIcons }, { name: 'cake-variant', lib: MaterialCommunityIcons },
-        { name: 'glass-wine', lib: MaterialCommunityIcons }, { name: 'theater', lib: MaterialCommunityIcons },
-        { name: 'balloon', lib: MaterialCommunityIcons }, { name: 'fireworks', lib: MaterialCommunityIcons }, { name: 'microphone-variant', lib: MaterialCommunityIcons },
-        { name: 'ticket', lib: MaterialCommunityIcons }, { name: 'map-marker-star', lib: MaterialCommunityIcons }
-    ],
-    'Tecnología': [
-        { name: 'monitor', lib: Feather }, { name: 'cellphone', lib: MaterialCommunityIcons }, { name: 'shield-lock', lib: MaterialCommunityIcons },
-        { name: 'network', lib: MaterialCommunityIcons }, { name: 'router-wireless', lib: MaterialCommunityIcons }, { name: 'database', lib: MaterialCommunityIcons },
-        { name: 'printer', lib: MaterialCommunityIcons }, { name: 'robot', lib: MaterialCommunityIcons },
-        { name: 'chip', lib: MaterialCommunityIcons }, { name: 'keyboard', lib: MaterialCommunityIcons }, { name: 'mouse', lib: MaterialCommunityIcons },
-        { name: 'gamepad-variant', lib: MaterialCommunityIcons }, { name: 'code-tags', lib: MaterialCommunityIcons }
-    ],
-    'Compras': [
-        { name: 'shopping-bag', lib: Feather }, { name: 'tshirt-crew', lib: MaterialCommunityIcons }, { name: 'hanger', lib: MaterialCommunityIcons },
-        { name: 'shoe-heel', lib: MaterialCommunityIcons }, { name: 'tag', lib: Feather }, { name: 'gift', lib: Feather },
-        { name: 'diamond-stone', lib: MaterialCommunityIcons }, { name: 'watch', lib: MaterialCommunityIcons },
-        { name: 'cart', lib: MaterialCommunityIcons }, { name: 'store', lib: MaterialCommunityIcons }, { name: 'credit-card-outline', lib: MaterialCommunityIcons }
-    ],
-    'Inmobiliaria': [
-        { name: 'home-city', lib: MaterialCommunityIcons }, { name: 'key', lib: MaterialCommunityIcons }, { name: 'file-document-outline', lib: MaterialCommunityIcons },
-        { name: 'percent', lib: MaterialCommunityIcons }, { name: 'sign-real-estate', lib: MaterialCommunityIcons }, { name: 'building', lib: FontAwesome5 },
-        { name: 'office-building', lib: MaterialCommunityIcons }, { name: 'warehouse', lib: MaterialCommunityIcons }, { name: 'home-modern', lib: MaterialCommunityIcons }
-    ],
-    'Automoción': [
-        { name: 'car', lib: FontAwesome5 }, { name: 'car-wrench', lib: MaterialCommunityIcons }, { name: 'gas-station', lib: MaterialCommunityIcons },
-        { name: 'shield-car', lib: MaterialCommunityIcons }, { name: 'steering', lib: MaterialCommunityIcons }, { name: 'bike', lib: MaterialCommunityIcons },
-        { name: 'truck', lib: Feather }, { name: 'bus', lib: FontAwesome5 },
-        { name: 'tools', lib: MaterialCommunityIcons }, { name: 'oil', lib: MaterialCommunityIcons }, { name: 'tire', lib: MaterialCommunityIcons }
-    ],
-    'Finanzas': [
-        { name: 'bank', lib: MaterialCommunityIcons }, { name: 'cash', lib: MaterialCommunityIcons }, { name: 'finance', lib: MaterialCommunityIcons },
-        { name: 'chart-line', lib: MaterialCommunityIcons }, { name: 'credit-card', lib: Feather }, { name: 'wallet', lib: MaterialCommunityIcons },
-        { name: 'hand-coin', lib: MaterialCommunityIcons }, { name: 'piggy-bank', lib: MaterialCommunityIcons }, { name: 'safe', lib: MaterialCommunityIcons }
-    ],
-    'Viajes': [
-        { name: 'airplane', lib: MaterialCommunityIcons }, { name: 'map-pin', lib: Feather }, { name: 'beach', lib: MaterialCommunityIcons },
-        { name: 'hotel', lib: MaterialCommunityIcons }, { name: 'compass', lib: Feather }, { name: 'train', lib: MaterialCommunityIcons },
-        { name: 'passport', lib: MaterialCommunityIcons }, { name: 'suitcase', lib: MaterialCommunityIcons }, { name: 'camera-retake', lib: MaterialCommunityIcons }
-    ],
-    'Legal': [
-        { name: 'gavel', lib: MaterialCommunityIcons }, { name: 'scale-balance', lib: MaterialCommunityIcons }, { name: 'file-sign', lib: MaterialCommunityIcons },
-        { name: 'police-badge', lib: MaterialCommunityIcons }, { name: 'copyright', lib: MaterialCommunityIcons },
-        { name: 'book-lock', lib: MaterialCommunityIcons }, { name: 'file-certificate', lib: MaterialCommunityIcons }, { name: 'account-tie', lib: MaterialCommunityIcons }
-    ],
-    'Marketing': [
-        { name: 'bullhorn', lib: MaterialCommunityIcons }, { name: 'facebook', lib: MaterialCommunityIcons }, { name: 'instagram', lib: MaterialCommunityIcons },
-        { name: 'google-ads', lib: MaterialCommunityIcons }, { name: 'target', lib: Feather }, { name: 'rocket', lib: MaterialCommunityIcons },
-        { name: 'chart-bubble', lib: MaterialCommunityIcons }, { name: 'email-newsletter', lib: MaterialCommunityIcons }, { name: 'graph-up', lib: MaterialCommunityIcons }
-    ],
-    'Construcción': [
-        { name: 'hard-hat', lib: MaterialCommunityIcons }, { name: 'excavator', lib: MaterialCommunityIcons }, { name: 'floor-plan', lib: MaterialCommunityIcons },
-        { name: 'wall', lib: MaterialCommunityIcons }, { name: 'tape-measure', lib: MaterialCommunityIcons }, { name: 'ladder', lib: MaterialCommunityIcons },
-        { name: 'blueprint', lib: MaterialCommunityIcons }, { name: 'shovel', lib: MaterialCommunityIcons }, { name: 'crane', lib: MaterialCommunityIcons }
-    ]
-};
 
-// Flatten for backward compatibility if needed, or helper
-const ALL_ICONS_FLAT = Object.values(ICON_CATEGORIES).flat();
 
 const IconPickerModal = ({ visible, onClose, onSelect }) => {
     const [searchTerm, setSearchTerm] = useState('');
 
     return (
-        <Modal visible={visible} transparent={true} animationType="slide" onRequestClose={onClose}>
-            <View style={styles.categoryGridModalOverlay}>
-                <View style={[styles.categoryGridModalContent, { height: '100%', borderTopLeftRadius: 0, borderTopRightRadius: 0 }]}>
-                    <View style={styles.categoryGridHeader}>
-                        <View style={{ flex: 1 }}>
-                            <Text style={styles.categoryGridTitle}>Seleccionar Icono</Text>
-                            <Text style={styles.categoryGridSubtitle}>Personaliza tu categoría o especialidad</Text>
-                        </View>
-                        <TouchableOpacity onPress={onClose} style={styles.categoryGridCloseButton}>
-                            <Feather name="x" size={24} color="#EF4444" />
-                        </TouchableOpacity>
+        <Modal visible={visible} transparent={false} animationType="slide" onRequestClose={onClose}>
+            <View style={{ flex: 1, backgroundColor: '#FFFFFF', paddingTop: Platform.OS === 'android' ? 35 : 50 }}>
+                {/* Header */}
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingBottom: 15, borderBottomWidth: 1, borderBottomColor: '#E5E7EB' }}>
+                    <View style={{ flex: 1 }}>
+                        <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#1E293B' }}>Seleccionar Ícono</Text>
+                        <Text style={{ fontSize: 13, color: '#64748B', marginTop: 2 }}>Elige un ícono de la biblioteca</Text>
                     </View>
+                    <TouchableOpacity onPress={onClose} style={{ padding: 8, backgroundColor: '#FEE2E2', borderRadius: 20 }}>
+                        <Feather name="x" size={22} color="#EF4444" />
+                    </TouchableOpacity>
+                </View>
 
-                    <TextInput
-                        style={{ backgroundColor: '#F3F4F6', padding: 15, borderRadius: 12, marginBottom: 20, fontSize: 16, borderWidth: 1, borderColor: '#E5E7EB' }}
-                        placeholder="Buscar icono por nombre..."
-                        value={searchTerm}
-                        onChangeText={setSearchTerm}
-                    />
+                {/* Search Bar */}
+                <View style={{ paddingHorizontal: 20, paddingTop: 15, paddingBottom: 10 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#F1F5F9', borderRadius: 12, paddingHorizontal: 12, borderWidth: 1, borderColor: '#CBD5E1' }}>
+                        <Feather name="search" size={18} color="#64748B" style={{ marginRight: 8 }} />
+                        <TextInput
+                            style={{ flex: 1, paddingVertical: 12, fontSize: 15, color: '#1E293B' }}
+                            placeholder="Buscar ícono por nombre..."
+                            placeholderTextColor="#94A3B8"
+                            value={searchTerm}
+                            onChangeText={setSearchTerm}
+                            autoCapitalize="none"
+                            autoCorrect={false}
+                        />
+                        {searchTerm.length > 0 && (
+                            <TouchableOpacity onPress={() => setSearchTerm('')} style={{ padding: 4 }}>
+                                <Feather name="x-circle" size={16} color="#94A3B8" />
+                            </TouchableOpacity>
+                        )}
+                    </View>
+                </View>
 
-                    <ScrollView showsVerticalScrollIndicator={false}>
-                        {Object.entries(ICON_CATEGORIES).map(([category, icons]) => {
-                            const filteredIcons = icons.filter(i => i.name.toLowerCase().includes(searchTerm.toLowerCase()));
-                            if (filteredIcons.length === 0) return null;
+                {/* Icons Grid */}
+                <ScrollView style={{ flex: 1, paddingHorizontal: 20 }} showsVerticalScrollIndicator={false}>
+                    {Object.entries(ICON_CATEGORIES).map(([category, icons]) => {
+                        const filteredIcons = icons.filter(i => i.name.toLowerCase().includes(searchTerm.toLowerCase()));
+                        if (filteredIcons.length === 0) return null;
 
-                            return (
-                                <View key={category} style={{ marginBottom: 24 }}>
-                                    <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#1F2937', marginBottom: 12, borderLeftWidth: 4, borderLeftColor: '#2563EB', paddingLeft: 10 }}>
+                        return (
+                            <View key={category} style={{ marginBottom: 24, marginTop: 10 }}>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+                                    <View style={{ width: 4, height: 18, backgroundColor: '#EA580C', borderRadius: 2, marginRight: 8 }} />
+                                    <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#1E293B' }}>
                                         {category}
                                     </Text>
-                                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
-                                        {filteredIcons.map((icon, idx) => (
+                                    <Text style={{ fontSize: 12, color: '#94A3B8', marginLeft: 8 }}>({filteredIcons.length})</Text>
+                                </View>
+                                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+                                    {filteredIcons.map((icon, idx) => {
+                                        const IconLib = icon.lib;
+                                        return (
                                             <TouchableOpacity
                                                 key={idx}
                                                 style={{
-                                                    width: 50, height: 50, alignItems: 'center', justifyContent: 'center',
-                                                    backgroundColor: '#F9FAFB', borderRadius: 12, borderWidth: 1.5, borderColor: '#E5E7EB'
+                                                    width: 52,
+                                                    height: 52,
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    backgroundColor: '#F8FAFC',
+                                                    borderRadius: 12,
+                                                    borderWidth: 1.5,
+                                                    borderColor: '#E2E8F0'
                                                 }}
+                                                activeOpacity={0.7}
                                                 onPress={() => { onSelect(icon.name, icon.lib); onClose(); }}
                                             >
-                                                <icon.lib name={icon.name} size={26} color="#4B5563" />
+                                                <IconLib name={icon.name} size={24} color="#334155" />
                                             </TouchableOpacity>
-                                        ))}
-                                    </View>
+                                        );
+                                    })}
                                 </View>
-                            );
-                        })}
-                        <View style={{ height: 100 }} />
-                    </ScrollView>
-                </View>
+                            </View>
+                        );
+                    })}
+                    <View style={{ height: 60 }} />
+                </ScrollView>
             </View>
         </Modal>
     );
@@ -815,12 +745,7 @@ const CategoriesManager = () => {
                 <Text style={styles.label}>Icono:</Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 15 }}>
                     <View style={{ width: 50, height: 50, borderRadius: 10, backgroundColor: color, alignItems: 'center', justifyContent: 'center', marginRight: 15 }}>
-                        {(() => {
-                            // Find icon lib in huge list or fallback
-                            const found = ALL_ICONS_FLAT.find(i => i.name === icon);
-                            const Lib = found ? found.lib : Feather;
-                            return <Lib name={icon} size={28} color="#374151" />;
-                        })()}
+                        <DynamicAppIcon name={icon} size={28} color="#374151" />
                     </View>
                     <TouchableOpacity
                         style={{ backgroundColor: '#DBEAFE', paddingHorizontal: 15, paddingVertical: 10, borderRadius: 8 }}
@@ -835,13 +760,11 @@ const CategoriesManager = () => {
                 {/* Subcategories Section */}
                 <Text style={[styles.sectionTitle, { fontSize: 16, marginTop: 15 }]}>Subcategorías ({subcats.length})</Text>
                 {subcats.map((sub, idx) => {
-                    const iconInfo = AVAILABLE_ICONS.find(i => i.name === sub.icon);
-                    const SubIcon = iconInfo ? iconInfo.lib : Feather;
                     return (
                         <View key={idx} style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#F8FAFC', padding: 10, borderRadius: 8, marginBottom: 5 }}>
                             <View style={{ flexDirection: 'row', alignItems: 'center', marginRight: 10 }}>
                                 <Feather name="corner-down-right" size={16} color="#CBD5E1" style={{ marginRight: 5 }} />
-                                {sub.icon && <SubIcon name={sub.icon} size={20} color="#3B82F6" />}
+                                <DynamicAppIcon name={sub.icon} size={20} color="#3B82F6" />
                             </View>
                             <View style={{ flex: 1 }}>
                                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -900,11 +823,7 @@ const CategoriesManager = () => {
                             <Text style={styles.label}>Icono</Text>
                             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 15 }}>
                                 <View style={{ width: 40, height: 40, borderRadius: 8, backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center', marginRight: 10 }}>
-                                    {(() => {
-                                        const found = ALL_ICONS_FLAT.find(i => i.name === subForm.icon);
-                                        const Lib = found ? found.lib : Feather;
-                                        return <Lib name={subForm.icon} size={24} color="#374151" />;
-                                    })()}
+                                    <DynamicAppIcon name={subForm.icon} size={24} color="#374151" />
                                 </View>
                                 <TouchableOpacity
                                     style={{ backgroundColor: '#DBEAFE', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8 }}

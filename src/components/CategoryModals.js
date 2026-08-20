@@ -1,5 +1,5 @@
 import { Modal, ScrollView, Text, TouchableOpacity, View } from 'react-native';
-import { CAT_ICONS, Layers, X } from '../constants/icons';
+import { DynamicAppIcon, X } from '../constants/icons';
 import styles from '../styles/globalStyles';
 
 export const CategoryGridModal = ({ visible, onClose, onSelect, categories }) => {
@@ -17,29 +17,34 @@ export const CategoryGridModal = ({ visible, onClose, onSelect, categories }) =>
                         </TouchableOpacity>
                     </View>
                     <ScrollView contentContainerStyle={styles.categoryGridScroll}>
-                        {categories.map((cat) => (
-                            <TouchableOpacity
-                                key={cat.id}
-                                style={styles.categoryGridItem}
-                                onPress={() => {
-                                    onSelect(cat.name);
-                                    onClose();
-                                }}
-                            >
-                                <View style={[styles.categoryGridIconWrapper, { backgroundColor: cat.color || '#F3F4F6' }]}>
-                                    <cat.icon size={28} color={cat.iconColor || '#EA580C'} />
-                                </View>
-                                <Text style={styles.categoryGridLabel} numberOfLines={1}>{cat.name}</Text>
-                            </TouchableOpacity>
-                        ))}
+                        {categories.map((cat) => {
+                            const iconName = typeof cat.icon === 'string' ? cat.icon : cat.iconName;
+                            return (
+                                <TouchableOpacity
+                                    key={cat.id || cat._id || cat.name}
+                                    style={styles.categoryGridItem}
+                                    onPress={() => {
+                                        onSelect(cat.name);
+                                        onClose();
+                                    }}
+                                >
+                                    <View style={[styles.categoryGridIconWrapper, { backgroundColor: cat.color || '#F3F4F6' }]}>
+                                        {typeof cat.icon === 'function' ? (
+                                            <cat.icon size={28} color={cat.iconColor || '#EA580C'} />
+                                        ) : (
+                                            <DynamicAppIcon name={iconName} size={28} color={cat.iconColor || '#EA580C'} />
+                                        )}
+                                    </View>
+                                    <Text style={styles.categoryGridLabel} numberOfLines={1}>{cat.name}</Text>
+                                </TouchableOpacity>
+                            );
+                        })}
                     </ScrollView>
                 </View>
             </View>
         </Modal>
     );
 };
-
-// CAT_ICONS removed, imported from icons.js\n
 
 export const SubcategoryGridModal = ({ visible, onClose, onSelect, subcategories, categoryName, color, iconColor }) => {
     return (
@@ -58,17 +63,8 @@ export const SubcategoryGridModal = ({ visible, onClose, onSelect, subcategories
                     <ScrollView contentContainerStyle={styles.categoryGridScroll}>
                         {subcategories.map((sub, index) => {
                             const subName = typeof sub === 'object' ? sub.name : sub;
-
-                            // Dynamic Icon Logic
-                            let IconComponent = Layers;
-                            let activeIconColor = iconColor || "#2563EB";
-                            let iconName = "layers";
-
-                            if (typeof sub === 'object' && sub.icon && CAT_ICONS[sub.icon]) {
-                                const iconData = CAT_ICONS[sub.icon];
-                                IconComponent = iconData.lib;
-                                iconName = iconData.name;
-                            }
+                            const subIcon = typeof sub === 'object' ? sub.icon : null;
+                            const activeIconColor = iconColor || "#EA580C";
 
                             return (
                                 <TouchableOpacity
@@ -80,7 +76,7 @@ export const SubcategoryGridModal = ({ visible, onClose, onSelect, subcategories
                                     }}
                                 >
                                     <View style={[styles.categoryGridIconWrapper, { backgroundColor: color || '#EFF6FF' }]}>
-                                        <IconComponent name={iconName} size={28} color={activeIconColor} />
+                                        <DynamicAppIcon name={subIcon} size={28} color={activeIconColor} />
                                     </View>
                                     <Text style={styles.categoryGridLabel} numberOfLines={2}>{subName}</Text>
                                 </TouchableOpacity>

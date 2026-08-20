@@ -2,7 +2,7 @@ import { Feather, FontAwesome5, MaterialCommunityIcons } from '@expo/vector-icon
 import { useEffect, useState } from 'react';
 import { Image, Linking, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { api } from '../utils/api';
-import { CAT_ICONS } from '../constants/icons';
+import { DynamicAppIcon } from '../constants/icons';
 import { Image as ExpoImage } from 'expo-image';
 
 export default function CategoryDetailScreen({ category, subcategories, onBack, onSelectSubcategory }) {
@@ -41,24 +41,13 @@ export default function CategoryDetailScreen({ category, subcategories, onBack, 
                     {subcategories.map((sub, index) => {
                         const subName = typeof sub === 'object' ? sub.name : sub;
                         
-                        // Dynamic Icon Logic
-                        let IconComponent = Feather;
-                        let iconName = "layers";
-                        
-                        if (typeof sub === 'object' && sub.icon && CAT_ICONS[sub.icon]) {
-                            const iconData = CAT_ICONS[sub.icon];
-                            IconComponent = iconData.lib;
-                            iconName = iconData.name;
-                        } else if (category && category.icon && CAT_ICONS[category.icon]) {
-                            const iconData = CAT_ICONS[category.icon];
-                            IconComponent = iconData.lib;
-                            iconName = iconData.name;
-                        }
-                        
+                        const subIcon = typeof sub === 'object' ? sub.icon : null;
+                        const iconToUse = subIcon || (typeof category.icon === 'string' ? category.icon : category.iconName);
+
                         return (
                             <TouchableOpacity key={index} style={styles.subcatCard} onPress={() => onSelectSubcategory(subName)}>
                                 <View style={[styles.iconCircle, { backgroundColor: category.color || '#FFF7ED', marginBottom: 6 }]}>
-                                    <IconComponent name={iconName} size={24} color={category.iconColor || '#EA580C'} />
+                                    <DynamicAppIcon name={iconToUse} size={24} color={category.iconColor || '#EA580C'} />
                                 </View>
                                 <Text style={[styles.subcatText, { textAlign: 'center' }]} numberOfLines={2}>{subName}</Text>
                             </TouchableOpacity>
