@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 // Configuración de API
 const PROD_URL = 'https://profix-backend-h56b.onrender.com/api';
-const LOCAL_IP = '192.168.1.172'; // IMPORTANTE: Verifica tu IP con `ipconfig` en Windows
+const LOCAL_IP = '192.168.68.56'; // IP local actual de tu Mac
 
 // Automatización de entorno: Detecta si estamos en modo de desarrollo (Expo Go/Dev Client) o en un build real (APK)
 const isDev = __DEV__;
