@@ -79,29 +79,29 @@ Object.keys(LOCATIONS_DATA).forEach(city => {
 // --- DATA PARA MENSAJERÍA DINÁMICA ---
 export const HOME_COPY_OPTIONS = [
     {
-        title: "Encuentra el experto que necesitas ahora",
-        subtitle: "Conecta al instante con profesionales en tu zona: mecánicos, fontaneros, médicos y más.",
-        buttonText: "Ver expertos disponibles"
-    },
-    {
         title: "Soluciona tu problema o urgencia",
         subtitle: "Publica tu necesidad y recibe propuestas rápidas de especialistas calificados cerca de ti.",
-        buttonText: "Solicitar servicio"
+        buttonText: "Publicar Solicitud"
+    },
+    {
+        title: "Conecta con profesionales en tu zona",
+        subtitle: "Describe lo que necesitas y notificaremos de inmediato a los expertos disponibles cerca de tu ubicación.",
+        buttonText: "Activar Búsqueda"
+    },
+    {
+        title: "Recibe presupuestos para tu proyecto",
+        subtitle: "Explícanos tu requerimiento y compara las mejores ofertas de profesionales verificados.",
+        buttonText: "Solicitar Presupuestos"
     },
     {
         title: "Cualquier servicio, en un solo lugar",
-        subtitle: "Desde reparaciones urgentes hasta cuidados personales. Elige al profesional que mejor se adapte a ti.",
-        buttonText: "Buscar profesional"
+        subtitle: "Olvídate de buscar por horas. Envía tu solicitud y los especialistas vendrán a ti.",
+        buttonText: "Procesar Solicitud"
     },
     {
-        title: "¿Qué servicio buscas hoy?",
-        subtitle: "Olvídate de buscar por horas. Dinos qué necesitas y los expertos vendrán a ti.",
-        buttonText: "Encontrar ayuda"
-    },
-    {
-        title: "Tu red de profesionales cercanos",
-        subtitle: "Acceso directo a expertos locales listos para trabajar en tu proyecto o urgencia.",
-        buttonText: "Ver quién está cerca"
+        title: "¿Qué trabajo necesitas resolver hoy?",
+        subtitle: "Completa los datos del servicio para conectar al instante con el profesional ideal.",
+        buttonText: "Conectar con Profesionales"
     }
 ];
 
