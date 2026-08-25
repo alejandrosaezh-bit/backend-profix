@@ -766,21 +766,31 @@ const CategoriesManager = () => {
                                 <Feather name="corner-down-right" size={16} color="#CBD5E1" style={{ marginRight: 5 }} />
                                 <DynamicAppIcon name={sub.icon} size={20} color="#3B82F6" />
                             </View>
-                            <View style={{ flex: 1 }}>
+                            <View style={{ flex: 1, paddingRight: 8 }}>
                                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                    <Text style={{ fontWeight: 'bold', color: '#334155' }}>{sub.name}</Text>
+                                    <Text style={{ fontWeight: 'bold', color: '#334155', fontSize: 14 }}>{sub.name}</Text>
                                     {sub.isUrgent && (
                                         <View style={{ backgroundColor: '#FEE2E2', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, marginLeft: 8 }}>
                                             <Text style={{ color: '#EF4444', fontSize: 8, fontWeight: 'bold' }}>URGENTE</Text>
                                         </View>
                                     )}
                                 </View>
-                                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
-                                    <Text style={{ fontSize: 10, color: '#64748B', marginRight: 8 }}>
-                                        <Feather name="image" size={10} /> {sub.icon || 'None'}
-                                    </Text>
-                                    <Text style={{ fontSize: 10, color: '#64748B' }}>
-                                        <Feather name="type" size={10} /> {sub.titlePlaceholder || 'Default Title'}
+                                <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#F1F5F9', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                                        <Feather name="image" size={10} color="#64748B" style={{ marginRight: 4 }} />
+                                        <Text style={{ fontSize: 10, color: '#475569' }}>{sub.icon || 'Por defecto'}</Text>
+                                    </View>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: sub.titlePlaceholder ? '#F0FDF4' : '#FEF2F2', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, flexShrink: 1 }}>
+                                        <Feather name="type" size={10} color={sub.titlePlaceholder ? '#16A34A' : '#EF4444'} style={{ marginRight: 4 }} />
+                                        <Text style={{ fontSize: 10, color: sub.titlePlaceholder ? '#15803D' : '#DC2626' }} numberOfLines={1}>
+                                            {sub.titlePlaceholder ? `Tít: ${sub.titlePlaceholder}` : '⚠️ Sin ejemplo título'}
+                                        </Text>
+                                    </View>
+                                </View>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4, backgroundColor: sub.descriptionPlaceholder ? '#F8FAFC' : '#FEF2F2', paddingHorizontal: 6, paddingVertical: 3, borderRadius: 4 }}>
+                                    <Feather name={sub.descriptionPlaceholder ? "align-left" : "alert-circle"} size={10} color={sub.descriptionPlaceholder ? '#64748B' : '#EF4444'} style={{ marginRight: 4 }} />
+                                    <Text style={{ fontSize: 10, color: sub.descriptionPlaceholder ? '#475569' : '#DC2626', flex: 1 }} numberOfLines={1}>
+                                        {sub.descriptionPlaceholder ? `Desc: ${sub.descriptionPlaceholder}` : '⚠️ Sin ejemplo descripción'}
                                     </Text>
                                 </View>
                             </View>
