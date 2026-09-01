@@ -1,5 +1,6 @@
 import { Feather } from '@expo/vector-icons';
-import { Video, ResizeMode } from 'expo-av';
+import { Video, ResizeMode, VideoFullscreenUpdate } from 'expo-av';
+import * as ScreenOrientation from 'expo-screen-orientation';
 import { Dimensions, Image, Text, TouchableOpacity, View } from 'react-native';
 
 import { BLOG_POSTS } from '../constants/data';
