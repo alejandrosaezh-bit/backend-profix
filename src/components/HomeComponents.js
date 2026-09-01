@@ -1,4 +1,5 @@
 import { Feather } from '@expo/vector-icons';
+import { Video, ResizeMode } from 'expo-av';
 import { Dimensions, Image, Text, TouchableOpacity, View } from 'react-native';
 
 import { BLOG_POSTS } from '../constants/data';
@@ -127,18 +128,24 @@ export const HomeSections = ({ onSelectCategory, onSelectPost, categories, artic
                     </View>
                 </View>
                 <View style={{ alignItems: 'center', paddingBottom: 25 }}>
-                    <View style={{ width: '90%', height: 180, borderRadius: 24, overflow: 'hidden', position: 'relative', marginTop: 10, elevation: 6, shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.25, shadowRadius: 8 }}>
-                        <Image
-                            source={{ uri: 'https://images.unsplash.com/photo-1581578731522-5b17b88bb7d5?auto=format&fit=crop&w=800&q=80' }}
+                    <View style={{ width: '90%', aspectRatio: 16/9, borderRadius: 24, overflow: 'hidden', position: 'relative', marginTop: 10, elevation: 6, shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.25, shadowRadius: 8 }}>
+                        <Video
+                            source={require('../../assets/videos/video_inicio_profesional_cercano.mp4')}
+                            rate={1.0}
+                            volume={1.0}
+                            isMuted={false}
+                            resizeMode={ResizeMode.CONTAIN}
+                            shouldPlay={false}
+                            useNativeControls={true}
                             style={{ width: '100%', height: '100%' }}
+                            onFullscreenUpdate={async ({ fullscreenUpdate }) => {
+                                if (fullscreenUpdate === VideoFullscreenUpdate.PLAYER_DID_PRESENT) {
+                                    await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE);
+                                } else if (fullscreenUpdate === VideoFullscreenUpdate.PLAYER_WILL_DISMISS) {
+                                    await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
+                                }
+                            }}
                         />
-                        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.2)' }}>
-                            <View style={{ backgroundColor: 'rgba(255, 255, 255, 0.25)', padding: 6, borderRadius: 20 }}>
-                                <View style={{ backgroundColor: '#EA580C', width: 64, height: 64, borderRadius: 32, justifyContent: 'center', alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 6, elevation: 5 }}>
-                                    <Feather name="play" size={30} color="white" style={{ marginLeft: 4 }} />
-                                </View>
-                            </View>
-                        </View>
                     </View>
                 </View>
             </View>
