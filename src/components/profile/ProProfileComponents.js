@@ -184,12 +184,27 @@ export const ProCategoryConfig = ({
 
             {/* Reviews */}
             <Text style={styles.infoLabel}>Reseñas Recientes</Text>
-            {catReviews.length > 0 ? catReviews.slice(0, 3).map((r, i) => (
-                <View key={i} style={styles.reviewCard}>
-                    <Text style={{ fontWeight: 'bold', fontSize: 13 }}>{r.reviewer?.name || 'Cliente'}</Text>
-                    <Text style={{ fontSize: 12, color: '#4B5563' }}>{r.comment}</Text>
-                </View>
-            )) : <Text style={{ color: '#9CA3AF', fontSize: 12 }}>No hay reseñas aún.</Text>}
+            {catReviews.length > 0 ? catReviews.slice(0, 3).map((r, i) => {
+                const reviewerName = r.reviewer?.name || 'Cliente';
+                const avatarUrl = r.reviewer?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(reviewerName)}&background=0284C7&color=fff&bold=true`;
+                return (
+                    <View key={i} style={[styles.reviewCard, { flexDirection: 'row', alignItems: 'center', padding: 12, borderRadius: 14, marginBottom: 8 }]}>
+                        <ExpoImage source={{ uri: avatarUrl }} style={{ width: 36, height: 36, borderRadius: 18, marginRight: 12, backgroundColor: '#E2E8F0' }} />
+                        <View style={{ flex: 1 }}>
+                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <Text style={{ fontWeight: 'bold', fontSize: 13, color: '#1E293B' }}>{reviewerName}</Text>
+                                {r.rating && (
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#FEF3C7', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                                        <Feather name="star" size={10} color="#D97706" style={{ marginRight: 2 }} />
+                                        <Text style={{ fontSize: 11, fontWeight: 'bold', color: '#B45309' }}>{Number(r.rating).toFixed(1)}</Text>
+                                    </View>
+                                )}
+                            </View>
+                            <Text style={{ fontSize: 12, color: '#4B5563', marginTop: 3 }}>{r.comment || 'Calificación de 5 estrellas'}</Text>
+                        </View>
+                    </View>
+                );
+            }) : <Text style={{ color: '#9CA3AF', fontSize: 12 }}>No hay reseñas aún.</Text>}
         </View>
     );
 };

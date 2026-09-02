@@ -247,15 +247,31 @@ export default function ProfessionalProfileView({
                 {combinedHistory.some(h => h.review) && (
                     <>
                         <Text style={{ color: 'white', fontSize: 16, fontWeight: 'bold', marginBottom: 12 }}>Testimonios</Text>
-                        {combinedHistory.filter(h => h.review).slice(0, 3).map((item, idx) => (
-                            <View key={idx} style={{ backgroundColor: '#1E293B', borderRadius: 15, padding: 15, marginBottom: 10 }}>
-                                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-                                    <ExpoImage source={{ uri: item.review?.reviewer?.avatar || 'https://ui-avatars.com/api/?name=C' }} style={{ width: 30, height: 30, borderRadius: 15, marginRight: 10 }} />
-                                    <Text style={{ color: 'white', fontSize: 13, fontWeight: 'bold' }}>{item.review?.reviewer?.name || 'Cliente'}</Text>
+                        {combinedHistory.filter(h => h.review).slice(0, 3).map((item, idx) => {
+                            const reviewerName = item.review?.reviewer?.name || 'Cliente';
+                            const avatarUrl = item.review?.reviewer?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(reviewerName)}&background=3B82F6&color=fff&bold=true`;
+                            return (
+                                <View key={idx} style={{ backgroundColor: '#1E293B', borderRadius: 15, padding: 15, marginBottom: 10 }}>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                            <ExpoImage source={{ uri: avatarUrl }} style={{ width: 32, height: 32, borderRadius: 16, marginRight: 10 }} />
+                                            <Text style={{ color: 'white', fontSize: 13, fontWeight: 'bold' }}>{reviewerName}</Text>
+                                        </View>
+                                        {item.review?.rating && (
+                                            <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#334155', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}>
+                                                <Feather name="star" size={10} color="#FBBF24" style={{ marginRight: 3 }} />
+                                                <Text style={{ color: '#FBBF24', fontSize: 11, fontWeight: 'bold' }}>{Number(item.review.rating).toFixed(1)}</Text>
+                                            </View>
+                                        )}
+                                    </View>
+                                    {item.review?.comment ? (
+                                        <Text style={{ color: '#CBD5E1', fontSize: 13, fontStyle: 'italic' }}>&quot;{item.review.comment}&quot;</Text>
+                                    ) : (
+                                        <Text style={{ color: '#94A3B8', fontSize: 12, fontStyle: 'italic' }}>Calificación de 5 estrellas</Text>
+                                    )}
                                 </View>
-                                <Text style={{ color: '#CBD5E1', fontSize: 13, fontStyle: 'italic' }}>&quot;{item.review?.comment}&quot;</Text>
-                            </View>
-                        ))}
+                            );
+                        })}
                     </>
                 )}
                 
@@ -549,16 +565,37 @@ export default function ProfessionalProfileView({
                 {/* TESTIMONIALS (SOCIAL) */}
                 {combinedHistory.some(h => h.review) && (
                     <View style={{ marginTop: 25, paddingHorizontal: 20 }}>
-                        <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#111827', marginBottom: 15 }}>Reseñas Destacadas</Text>
-                        {combinedHistory.filter(h => h.review).map((item, idx) => (
-                            <View key={idx} style={{ flexDirection: 'row', marginBottom: 15 }}>
-                                <ExpoImage source={{ uri: item.review?.reviewer?.avatar || 'https://ui-avatars.com/api/?name=C' }} style={{ width: 36, height: 36, borderRadius: 18, marginRight: 12 }} />
-                                <View style={{ flex: 1 }}>
-                                    <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#111827' }}>{item.review?.reviewer?.name || 'Cliente'} <Text style={{ fontWeight: 'normal', color: '#64748B' }}>para {item.title}</Text></Text>
-                                    <Text style={{ fontSize: 13, color: '#111827', marginTop: 4, lineHeight: 18 }}>{item.review?.comment}</Text>
+                        <Text style={{ fontSize: 15, fontWeight: 'bold', color: '#111827', marginBottom: 15 }}>Reseñas Destacadas</Text>
+                        {combinedHistory.filter(h => h.review).map((item, idx) => {
+                            const reviewerName = item.review?.reviewer?.name || 'Cliente';
+                            const avatarUrl = item.review?.reviewer?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(reviewerName)}&background=0284C7&color=fff&bold=true`;
+                            return (
+                                <View key={idx} style={{ flexDirection: 'row', marginBottom: 14, backgroundColor: '#F8FAFC', padding: 12, borderRadius: 14, borderWidth: 1, borderColor: '#F1F5F9' }}>
+                                    <ExpoImage 
+                                        source={{ uri: avatarUrl }} 
+                                        style={{ width: 42, height: 42, borderRadius: 21, marginRight: 12, backgroundColor: '#E2E8F0' }} 
+                                    />
+                                    <View style={{ flex: 1 }}>
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
+                                            <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#111827' }}>
+                                                {reviewerName} <Text style={{ fontWeight: 'normal', color: '#64748B', fontSize: 12 }}>• para {item.title}</Text>
+                                            </Text>
+                                            {item.review?.rating && (
+                                                <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#FEF3C7', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}>
+                                                    <Feather name="star" size={10} color="#D97706" style={{ marginRight: 3 }} />
+                                                    <Text style={{ fontSize: 11, fontWeight: 'bold', color: '#B45309' }}>{Number(item.review.rating).toFixed(1)}</Text>
+                                                </View>
+                                            )}
+                                        </View>
+                                        {item.review?.comment ? (
+                                            <Text style={{ fontSize: 13, color: '#334155', marginTop: 4, lineHeight: 18 }}>&quot;{item.review.comment}&quot;</Text>
+                                        ) : (
+                                            <Text style={{ fontSize: 12, color: '#94A3B8', fontStyle: 'italic', marginTop: 4 }}>Calificación de 5 estrellas sin comentario escrito.</Text>
+                                        )}
+                                    </View>
                                 </View>
-                            </View>
-                        ))}
+                            );
+                        })}
                     </View>
                 )}
                 
