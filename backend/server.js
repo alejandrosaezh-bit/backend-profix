@@ -13,6 +13,7 @@ const publicRoutes = require('./routes/public.routes');
 const chatRoutes = require('./routes/chat.routes');
 const messageRoutes = require('./routes/messages.routes');
 const subscriptionRoutes = require('./routes/subscription.routes');
+const integrationRoutes = require('./routes/integrations.routes');
 const { notFound, errorHandler } = require('./middleware/errorMiddleware');
 const { protect, admin } = require('./middleware/authMiddleware');
 
@@ -99,6 +100,10 @@ app.use('/api/messages', messageRoutes);
 
 // Rutas de Suscripción / Pagos
 app.use('/api/subscriptions', subscriptionRoutes);
+
+// Rutas de Integraciones y Webhooks (IACONDO)
+app.use('/api/integrations', integrationRoutes);
+app.use('/api/webhooks', integrationRoutes);
 
 // Error Middleware
 app.use(notFound);

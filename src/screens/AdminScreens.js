@@ -139,6 +139,7 @@ export default function AdminScreens({ onBack, onLogout }) {
             case 'articles': return <ArticlesManager />;
             case 'businesses': return <BusinessesManager categories={categories} />;
             case 'messages': return <MessagesManager />;
+            case 'iacondo': return <IacondoManager />;
             default: return <Dashboard setActiveTab={setActiveTab} />;
         }
     };
@@ -187,10 +188,12 @@ export default function AdminScreens({ onBack, onLogout }) {
                 </View>
             ) : (
                 <View style={[styles.header, { justifyContent: 'space-between', paddingHorizontal: 20 }]}>
-                    <TouchableOpacity onPress={onBack} style={{ width: 30 }}>
+                    <TouchableOpacity onPress={activeTab !== 'dashboard' ? () => setActiveTab('dashboard') : onBack} style={{ width: 30 }}>
                         <Feather name="arrow-left" size={20} color="white" />
                     </TouchableOpacity>
-                    <Text style={styles.headerTitle}>Panel de Control</Text>
+                    <Text style={styles.headerTitle}>
+                        {activeTab === 'iacondo' ? 'Integración IACONDO' : 'Panel de Control'}
+                    </Text>
                     <TouchableOpacity onPress={onLogout}>
                         <Feather name="log-out" size={20} color="#EF4444" />
                     </TouchableOpacity>
@@ -267,6 +270,10 @@ const Dashboard = ({ setActiveTab }) => {
             <TouchableOpacity style={[styles.actionButton, { backgroundColor: '#7C3AED' }]} onPress={() => setActiveTab('messages')}>
                 <Feather name="message-square" size={20} color="white" />
                 <Text style={styles.actionText}>Mensajes Rotativos</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.actionButton, { backgroundColor: '#0284C7' }]} onPress={() => setActiveTab('iacondo')}>
+                <MaterialCommunityIcons name="home-city" size={20} color="white" />
+                <Text style={styles.actionText}>Integración IACONDO</Text>
             </TouchableOpacity>
         </ScrollView>
     );
@@ -1751,6 +1758,420 @@ const MessagesManager = () => {
                 </View>
             ))}
             <View style={{ height: 50 }} />
+        </ScrollView>
+    );
+};
+
+const IacondoManager = () => {
+    const [config, setConfig] = useState({
+        apiUrl: 'https://condopro-api.onrender.com/api/integrations/v1',
+        apiKey: '',
+        condoSubdomain: 'semeruco',
+        webhookUrl: 'https://profix-backend-h56b.onrender.com/api/webhooks/iacondo-status',
+        isActive: true,
+        hasApiKey: false
+    });
+    const [stats, setStats] = useState({ quotesSent: 0, quotesApproved: 0, quotesRejected: 0 });
+    const [history, setHistory] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [testing, setTesting] = useState(false);
+    const [sendingSample, setSendingSample] = useState(false);
+    const [saving, setSaving] = useState(false);
+    const [showApiKey, setShowApiKey] = useState(false);
+    const [statusBanner, setStatusBanner] = useState(null);
+
+    useEffect(() => {
+        loadData();
+    }, []);
+
+    const loadData = async () => {
+        setLoading(true);
+        try {
+            const [configRes, historyRes] = await Promise.all([
+                api.getIacondoConfig().catch(e => ({ success: false })),
+                api.getIacondoHistory().catch(e => ({ success: false }))
+            ]);
+
+            if (configRes && configRes.config) {
+                setConfig({
+                    apiUrl: configRes.config.apiUrl || 'https://condopro-api.onrender.com/api/integrations/v1',
+                    apiKey: configRes.config.apiKey || '',
+                    condoSubdomain: configRes.config.condoSubdomain || 'semeruco',
+                    webhookUrl: configRes.config.webhookUrl || 'https://profix-backend-h56b.onrender.com/api/webhooks/iacondo-status',
+                    isActive: configRes.config.isActive ?? true,
+                    hasApiKey: configRes.config.hasApiKey
+                });
+                if (configRes.config.stats) setStats(configRes.config.stats);
+            }
+
+            if (historyRes && historyRes.history) {
+                setHistory(historyRes.history);
+                if (historyRes.stats) setStats(historyRes.stats);
+            }
+        } catch (e) {
+            console.log("Error cargando configuración de IACONDO:", e);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleSave = async () => {
+        if (!config.apiUrl) {
+            return Alert.alert("Error", "La URL de la API de IACONDO es obligatoria");
+        }
+        if (!config.condoSubdomain) {
+            return Alert.alert("Error", "El subdominio del condominio es obligatorio (ej: semeruco)");
+        }
+
+        setSaving(true);
+        setStatusBanner(null);
+        try {
+            await api.updateIacondoConfig(config);
+            setStatusBanner({ type: 'success', text: 'Configuración guardada exitosamente en la base de datos' });
+            Alert.alert("Éxito", "Configuración de IACONDO guardada correctamente");
+            loadData();
+        } catch (e) {
+            setStatusBanner({ type: 'error', text: e.message || 'Error guardando configuración' });
+            Alert.alert("Error", e.message || "No se pudo guardar la configuración");
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handleTestConnection = async () => {
+        setTesting(true);
+        setStatusBanner(null);
+        try {
+            const res = await api.testIacondoConnection({
+                apiUrl: config.apiUrl,
+                apiKey: config.apiKey,
+                condoSubdomain: config.condoSubdomain,
+                webhookUrl: config.webhookUrl
+            });
+
+            if (res.success) {
+                setStatusBanner({ type: 'success', text: res.message || 'Conexión exitosa con IACONDO' });
+                Alert.alert("Conexión Exitosa", res.message || "Se conectó correctamente a la API de IACONDO con las credenciales registradas.");
+            } else {
+                setStatusBanner({ type: 'error', text: res.message || 'Fallo de autenticación o conexión' });
+                Alert.alert("Error de Conexión", res.message || "No se pudo autenticar con IACONDO.");
+            }
+        } catch (e) {
+            setStatusBanner({ type: 'error', text: e.message });
+            Alert.alert("Error", e.message || "Error al probar conexión");
+        } finally {
+            setTesting(false);
+        }
+    };
+
+    const handleSendSampleQuote = async () => {
+        setSendingSample(true);
+        setStatusBanner(null);
+        try {
+            const samplePayload = {
+                condoSubdomain: config.condoSubdomain || 'semeruco',
+                sourceApp: 'ProfesionalCercano',
+                serviceCategory: 'Plomería / Bombas de Agua',
+                jobTitle: 'Reparación de Bomba Principal Hidroneumático',
+                jobDescription: 'Sustitución de sello mecánico y rodamientos de motor de 5HP',
+                urgency: 'ALTA',
+                professional: {
+                    name: 'HidroServicios La Castellana C.A.',
+                    legalId: 'J-31456789-0',
+                    phone: '0414-9876543',
+                    email: 'contacto@hidroservicios.com',
+                    rating: 4.9
+                },
+                quote: {
+                    quoteNumber: `PC-${Date.now().toString().slice(-6)}`,
+                    amount: 350.00,
+                    currency: 'USD',
+                    laborCost: 200.00,
+                    materialsCost: 150.00,
+                    pdfUrl: 'https://storage.profesionalcercano.com/cotizaciones/PC-0891.pdf',
+                    photos: [
+                        'https://storage.profesionalcercano.com/evidencias/foto1.jpg'
+                    ],
+                    validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+                },
+                webhookUrl: config.webhookUrl
+            };
+
+            const res = await api.sendQuoteToIacondo(samplePayload);
+            setStatusBanner({ type: 'success', text: `Cotización ${res.quoteNumber || ''} exportada a IACONDO correctamente` });
+            Alert.alert("Cotización Exportada", `Se envió la cotización ${res.quoteNumber} a IACONDO mediante POST /maintenance-quotes.`);
+            loadData();
+        } catch (e) {
+            setStatusBanner({ type: 'error', text: e.message || 'Error al exportar cotización' });
+            Alert.alert("Error de Exportación", e.message || "No se pudo exportar la cotización de prueba");
+        } finally {
+            setSendingSample(false);
+        }
+    };
+
+    return (
+        <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+            {/* Header info */}
+            <View style={{ backgroundColor: '#0284C7', padding: 18, borderRadius: 14, marginBottom: 16 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+                    <MaterialCommunityIcons name="home-city" size={26} color="white" style={{ marginRight: 10 }} />
+                    <Text style={{ color: 'white', fontSize: 18, fontWeight: 'bold' }}>Integración IACONDO</Text>
+                </View>
+                <Text style={{ color: '#E0F2FE', fontSize: 13, lineHeight: 18 }}>
+                    Envía cotizaciones, presupuestos de reparaciones y fichas de profesionales directamente a la plataforma de gestión de condominios.
+                </Text>
+            </View>
+
+            {/* Status Banner */}
+            {statusBanner && (
+                <View style={{
+                    padding: 12,
+                    borderRadius: 10,
+                    marginBottom: 16,
+                    backgroundColor: statusBanner.type === 'success' ? '#DCFCE7' : '#FEE2E2',
+                    borderWidth: 1,
+                    borderColor: statusBanner.type === 'success' ? '#86EFAC' : '#FCA5A5',
+                    flexDirection: 'row',
+                    alignItems: 'center'
+                }}>
+                    <Feather
+                        name={statusBanner.type === 'success' ? 'check-circle' : 'alert-circle'}
+                        size={18}
+                        color={statusBanner.type === 'success' ? '#16A34A' : '#DC2626'}
+                        style={{ marginRight: 8 }}
+                    />
+                    <Text style={{
+                        flex: 1,
+                        color: statusBanner.type === 'success' ? '#166534' : '#991B1B',
+                        fontSize: 13,
+                        fontWeight: '500'
+                    }}>
+                        {statusBanner.text}
+                    </Text>
+                </View>
+            )}
+
+            {/* Stats Row */}
+            <View style={styles.statsRow}>
+                <View style={[styles.statCard, { backgroundColor: '#E0F2FE' }]}>
+                    <Text style={[styles.statNumber, { color: '#0369A1' }]}>{stats.quotesSent || 0}</Text>
+                    <Text style={styles.statLabel}>Cotizaciones Enviadas</Text>
+                </View>
+                <View style={[styles.statCard, { backgroundColor: '#DCFCE7' }]}>
+                    <Text style={[styles.statNumber, { color: '#15803D' }]}>{stats.quotesApproved || 0}</Text>
+                    <Text style={styles.statLabel}>Aprobadas</Text>
+                </View>
+                <View style={[styles.statCard, { backgroundColor: '#FEE2E2' }]}>
+                    <Text style={[styles.statNumber, { color: '#B91C1C' }]}>{stats.quotesRejected || 0}</Text>
+                    <Text style={styles.statLabel}>Rechazadas</Text>
+                </View>
+            </View>
+
+            {/* Parámetros de Configuración */}
+            <View style={{ backgroundColor: 'white', padding: 18, borderRadius: 14, marginBottom: 16, elevation: 1 }}>
+                <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#1E293B', marginBottom: 14 }}>
+                    Parámetros de Conexión
+                </Text>
+
+                {/* Subdominio */}
+                <Text style={styles.label}>Subdominio del Condominio (CONDO_SUBDOMAIN)</Text>
+                <TextInput
+                    style={[styles.input, { marginBottom: 12 }]}
+                    value={config.condoSubdomain}
+                    onChangeText={t => setConfig({ ...config, condoSubdomain: t })}
+                    placeholder="ej: semeruco"
+                    autoCapitalize="none"
+                />
+
+                {/* API Key */}
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Text style={styles.label}>API Key de IACONDO (x-api-key)</Text>
+                    <TouchableOpacity onPress={() => setShowApiKey(!showApiKey)}>
+                        <Text style={{ color: '#0284C7', fontSize: 12, fontWeight: 'bold' }}>
+                            {showApiKey ? 'Ocultar' : 'Ver Clave'}
+                        </Text>
+                    </TouchableOpacity>
+                </View>
+                <TextInput
+                    style={[styles.input, { marginBottom: 12 }]}
+                    value={config.apiKey}
+                    onChangeText={t => setConfig({ ...config, apiKey: t })}
+                    placeholder="Clave otorgada por el condominio..."
+                    secureTextEntry={!showApiKey}
+                    autoCapitalize="none"
+                />
+
+                {/* API URL */}
+                <Text style={styles.label}>URL Base de la API (IACONDO_API_URL)</Text>
+                <TextInput
+                    style={[styles.input, { marginBottom: 12 }]}
+                    value={config.apiUrl}
+                    onChangeText={t => setConfig({ ...config, apiUrl: t })}
+                    placeholder="https://condopro-api.onrender.com/api/integrations/v1"
+                    autoCapitalize="none"
+                />
+
+                {/* Webhook URL */}
+                <Text style={styles.label}>URL del Webhook de Retorno (webhookUrl)</Text>
+                <TextInput
+                    style={[styles.input, { marginBottom: 14 }]}
+                    value={config.webhookUrl}
+                    onChangeText={t => setConfig({ ...config, webhookUrl: t })}
+                    placeholder="https://.../api/webhooks/iacondo-status"
+                    autoCapitalize="none"
+                />
+
+                {/* Toggle Activo */}
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 4, marginBottom: 18 }}>
+                    <View>
+                        <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#1E293B' }}>Integración Activa</Text>
+                        <Text style={{ fontSize: 12, color: '#64748B' }}>Habilitar exportación de cotizaciones</Text>
+                    </View>
+                    <Switch
+                        value={config.isActive}
+                        onValueChange={v => setConfig({ ...config, isActive: v })}
+                        trackColor={{ false: '#D1D5DB', true: '#93C5FD' }}
+                        thumbColor={config.isActive ? '#0284C7' : '#9CA3AF'}
+                    />
+                </View>
+
+                {/* Botón Guardar */}
+                <TouchableOpacity
+                    onPress={handleSave}
+                    disabled={saving}
+                    style={[styles.saveButton, { backgroundColor: '#0284C7', marginBottom: 10 }]}
+                >
+                    {saving ? (
+                        <ActivityIndicator color="white" />
+                    ) : (
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            <Feather name="save" size={18} color="white" style={{ marginRight: 8 }} />
+                            <Text style={styles.saveButtonText}>Guardar Configuración</Text>
+                        </View>
+                    )}
+                </TouchableOpacity>
+
+                {/* Botones de Prueba */}
+                <View style={{ flexDirection: 'row', gap: 10 }}>
+                    <TouchableOpacity
+                        onPress={handleTestConnection}
+                        disabled={testing}
+                        style={{
+                            flex: 1,
+                            backgroundColor: '#10B981',
+                            padding: 12,
+                            borderRadius: 10,
+                            alignItems: 'center',
+                            flexDirection: 'row',
+                            justifyContent: 'center'
+                        }}
+                    >
+                        {testing ? (
+                            <ActivityIndicator color="white" size="small" />
+                        ) : (
+                            <>
+                                <Feather name="activity" size={16} color="white" style={{ marginRight: 6 }} />
+                                <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 13 }}>Probar Conexión</Text>
+                            </>
+                        )}
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        onPress={handleSendSampleQuote}
+                        disabled={sendingSample}
+                        style={{
+                            flex: 1,
+                            backgroundColor: '#6366F1',
+                            padding: 12,
+                            borderRadius: 10,
+                            alignItems: 'center',
+                            flexDirection: 'row',
+                            justifyContent: 'center'
+                        }}
+                    >
+                        {sendingSample ? (
+                            <ActivityIndicator color="white" size="small" />
+                        ) : (
+                            <>
+                                <Feather name="send" size={16} color="white" style={{ marginRight: 6 }} />
+                                <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 13 }}>Enviar Cotización</Text>
+                            </>
+                        )}
+                    </TouchableOpacity>
+                </View>
+            </View>
+
+            {/* Historial de Envíos */}
+            <View style={{ backgroundColor: 'white', padding: 18, borderRadius: 14, marginBottom: 30, elevation: 1 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                    <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#1E293B' }}>
+                        Historial de Sincronización
+                    </Text>
+                    <TouchableOpacity onPress={loadData}>
+                        <Feather name="refresh-cw" size={16} color="#0284C7" />
+                    </TouchableOpacity>
+                </View>
+
+                {loading ? (
+                    <ActivityIndicator size="small" color="#0284C7" style={{ marginVertical: 15 }} />
+                ) : history.length === 0 ? (
+                    <Text style={{ color: '#94A3B8', fontStyle: 'italic', textAlign: 'center', paddingVertical: 15 }}>
+                        No hay registros de sincronización aún.
+                    </Text>
+                ) : (
+                    history.slice(0, 10).map((item, index) => {
+                        const isSuccess = item.status === 'sent' || item.status === 'approved';
+                        const isApproved = item.status === 'approved';
+                        const isRejected = item.status === 'rejected';
+
+                        return (
+                            <View
+                                key={index}
+                                style={{
+                                    borderBottomWidth: index === history.length - 1 ? 0 : 1,
+                                    borderBottomColor: '#F1F5F9',
+                                    paddingVertical: 10
+                                }}
+                            >
+                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <Text style={{ fontWeight: 'bold', fontSize: 14, color: '#1E293B' }}>
+                                        {item.quoteNumber || 'Cotización'}
+                                    </Text>
+                                    <View style={{
+                                        paddingHorizontal: 8,
+                                        paddingVertical: 2,
+                                        borderRadius: 6,
+                                        backgroundColor: isApproved ? '#DCFCE7' : (isRejected ? '#FEE2E2' : (isSuccess ? '#E0F2FE' : '#FEF3C7'))
+                                    }}>
+                                        <Text style={{
+                                            fontSize: 10,
+                                            fontWeight: 'bold',
+                                            color: isApproved ? '#166534' : (isRejected ? '#991B1B' : (isSuccess ? '#0369A1' : '#92400E'))
+                                        }}>
+                                            {(item.status || 'SENT').toUpperCase()}
+                                        </Text>
+                                    </View>
+                                </View>
+
+                                <Text style={{ color: '#4B5563', fontSize: 12, marginTop: 2 }} numberOfLines={1}>
+                                    {item.jobTitle || 'Mantenimiento en condominio'}
+                                </Text>
+
+                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
+                                    <Text style={{ fontSize: 12, fontWeight: 'bold', color: '#0F172A' }}>
+                                        {item.amount ? `${item.currency || 'USD'} $${Number(item.amount).toFixed(2)}` : ''}
+                                    </Text>
+                                    <Text style={{ fontSize: 10, color: '#94A3B8' }}>
+                                        {item.sentAt ? new Date(item.sentAt).toLocaleDateString() : 'Reciente'}
+                                    </Text>
+                                </View>
+                            </View>
+                        );
+                    })
+                )}
+            </View>
+
+            <View style={{ height: 40 }} />
         </ScrollView>
     );
 };

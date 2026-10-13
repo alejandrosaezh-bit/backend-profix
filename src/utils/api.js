@@ -819,5 +819,75 @@ export const api = {
         });
         if (!res.ok) throw new Error('Error updating portfolio order');
         return res.json();
+    },
+
+    // --- INTEGRACIONES / IACONDO ---
+    getIacondoConfig: async () => {
+        const headers = await getHeaders();
+        const res = await fetchWithTimeout(`${API_URL}/integrations/iacondo/config`, { headers });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.message || 'Error al obtener configuración de IACONDO');
+        }
+        return res.json();
+    },
+
+    updateIacondoConfig: async (data) => {
+        const headers = await getHeaders();
+        const res = await fetchWithTimeout(`${API_URL}/integrations/iacondo/config`, {
+            method: 'PUT',
+            headers,
+            body: JSON.stringify(data)
+        });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.message || 'Error al guardar configuración de IACONDO');
+        }
+        return res.json();
+    },
+
+    testIacondoConnection: async (customConfig = {}) => {
+        const headers = await getHeaders();
+        const res = await fetchWithTimeout(`${API_URL}/integrations/iacondo/test-connection`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify(customConfig)
+        });
+        return res.json();
+    },
+
+    sendQuoteToIacondo: async (quoteData) => {
+        const headers = await getHeaders();
+        const res = await fetchWithTimeout(`${API_URL}/integrations/iacondo/send-quote`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify(quoteData)
+        });
+        const data = await res.json();
+        if (!res.ok) {
+            throw new Error(data.message || 'Error al exportar cotización a IACONDO');
+        }
+        return data;
+    },
+
+    exportJobOfferToIacondo: async (jobId, offerId, condoSubdomain, overrides = {}) => {
+        const headers = await getHeaders();
+        const res = await fetchWithTimeout(`${API_URL}/integrations/iacondo/export-job-offer`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ jobId, offerId, condoSubdomain, overrides })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+            throw new Error(data.message || 'Error al exportar oferta a IACONDO');
+        }
+        return data;
+    },
+
+    getIacondoHistory: async () => {
+        const headers = await getHeaders();
+        const res = await fetchWithTimeout(`${API_URL}/integrations/iacondo/history`, { headers });
+        if (!res.ok) throw new Error('Error al obtener historial de IACONDO');
+        return res.json();
     }
 };
