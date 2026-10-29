@@ -889,5 +889,35 @@ export const api = {
         const res = await fetchWithTimeout(`${API_URL}/integrations/iacondo/history`, { headers });
         if (!res.ok) throw new Error('Error al obtener historial de IACONDO');
         return res.json();
+    },
+
+    getIacondoCondos: async () => {
+        const headers = await getHeaders();
+        const res = await fetchWithTimeout(`${API_URL}/integrations/iacondo/condos`, { headers });
+        if (!res.ok) throw new Error('Error al obtener condominios de IACONDO');
+        return res.json();
+    },
+
+    pullIacondoCondos: async () => {
+        const headers = await getHeaders();
+        const res = await fetchWithTimeout(`${API_URL}/integrations/iacondo/condos/pull`, {
+            method: 'POST',
+            headers
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || 'Error al sincronizar condominios desde IACONDO');
+        return data;
+    },
+
+    syncIacondoCondos: async (condosPayload) => {
+        const headers = await getHeaders();
+        const res = await fetchWithTimeout(`${API_URL}/integrations/iacondo/condos/sync`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify(condosPayload)
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || 'Error al registrar condominios');
+        return data;
     }
 };

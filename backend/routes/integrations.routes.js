@@ -205,4 +205,93 @@ router.post(['/webhook/iacondo-status', '/iacondo-status'], async (req, res) => 
     }
 });
 
+/**
+ * @desc    Listar todos los condominios de IACONDO dados de alta como Clientes en Profesional Cercano
+ * @route   GET /api/integrations/iacondo/condos
+ * @access  Private (Admin o Pro)
+ */
+router.get('/iacondo/condos', protect, async (req, res) => {
+    try {
+        const condos = await IacondoIntegrationService.getSyncedCondoClients();
+        res.json({
+            success: true,
+            count: condos.length,
+            condos
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+/**
+ * @desc    Consultar la API de IACONDO y dar de alta automáticamente todos los condominios activos
+ * @route   POST /api/integrations/iacondo/condos/pull
+ * @access  Private (Admin)
+ */
+router.post('/iacondo/condos/pull', protect, admin, async (req, res) => {
+    try {
+        const result = await IacondoIntegrationService.pullActiveCondosFromIacondo();
+        res.json(result);
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+});
+
+/**
+ * @desc    Dar de alta o sincronizar uno o múltiples condominios activos como Clientes (Push desde IACONDO o Admin)
+ * @route   POST /api/integrations/iacondo/condos/sync
+ * @route   POST /api/webhooks/iacondo-condos
+ * @access  Webhook (x-api-key) o Admin (Bearer Token)
+ */
+router.post(['/iacondo/condos/sync', '/webhook/iacondo-condos', '/iacondo-condos'], async (req, res) => {
+    try {
+        // Validar autenticación: o viene x-api-key válida o viene token JWT
+        const config = await IacondoIntegrationService.getConfig();
+        const incomingApiKey = req.headers['x-api-key'];
+        const authHeader = req.headers.authorization;
+
+        let isAuthorized = false;
+        if (config.apiKey && incomingApiKey && incomingApiKey === config.apiKey) {
+            isAuthorized = true;
+        } else if (authHeader && authHeader.startsWith('Bearer ')) {
+            const jwt = require('jsonwebtoken');
+            try {
+                const token = authHeader.split(' ')[1];
+                jwt.verify(token, process.env.JWT_SECRET);
+                isAuthorized = true;
+            } catch (e) {
+                isAuthorized = false;
+            }
+        } else if (!config.apiKey) {
+            // Si aún no hay API key configurada, permitir sincronización inicial
+            isAuthorized = true;
+        }
+
+        if (!isAuthorized) {
+            return res.status(401).json({
+                success: false,
+                message: 'No autorizado. Proporcione un x-api-key válido o token de administrador.'
+            });
+        }
+
+        const payload = req.body.condos || req.body.condominiums || req.body.data || req.body;
+        const result = await IacondoIntegrationService.syncCondosBatch(payload);
+
+        res.status(200).json({
+            success: true,
+            message: `Sincronización completada: ${result.createdCount} nuevos condominios registrados como clientes, ${result.updatedCount} actualizados.`,
+            ...result
+        });
+    } catch (error) {
+        console.error('[IACONDO CONDO SYNC ERROR]:', error.message);
+        res.status(400).json({
+            success: false,
+            message: error.message
+        });
+    }
+});
+
 module.exports = router;

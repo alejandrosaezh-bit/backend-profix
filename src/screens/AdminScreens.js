@@ -578,12 +578,26 @@ const UsersManager = () => {
             {filteredUsers.map(u => (
                 <TouchableOpacity key={u._id} style={[styles.card, !u.isActive && { opacity: 0.6, backgroundColor: '#FEF2F2' }]} onPress={() => selectUser(u)}>
                     <View style={{ flex: 1 }}>
-                        <Text style={[styles.cardTitle, !u.isActive && { color: '#991B1B' }]}>
-                            {u.name}
-                            {!u.isActive && <Text style={{ fontSize: 10, color: 'red', fontWeight: 'bold' }}> [INACTIVO]</Text>}
-                            <Text style={{ fontSize: 12, color: '#666' }}> ({u.role === 'admin' ? 'Admin' : 'Usuario'})</Text>
-                        </Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
+                            <Text style={[styles.cardTitle, !u.isActive && { color: '#991B1B' }]}>
+                                {u.name}
+                                {!u.isActive && <Text style={{ fontSize: 10, color: 'red', fontWeight: 'bold' }}> [INACTIVO]</Text>}
+                                <Text style={{ fontSize: 12, color: '#666' }}> ({u.role === 'admin' ? 'Admin' : (u.clientType === 'condominio' ? 'Cliente Condominio' : 'Usuario')})</Text>
+                            </Text>
+                            {(u.clientType === 'condominio' || u.externalIntegration?.provider === 'iacondo') && (
+                                <View style={{ backgroundColor: '#E0F2FE', paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6, borderWidth: 1, borderColor: '#7DD3FC' }}>
+                                    <Text style={{ fontSize: 10, fontWeight: 'bold', color: '#0369A1' }}>
+                                        🏢 IACONDO {u.externalIntegration?.subdomain ? `• ${u.externalIntegration.subdomain}` : ''}
+                                    </Text>
+                                </View>
+                            )}
+                        </View>
                         <Text style={styles.cardSubtitle}>{u.email}</Text>
+                        {u.condoDetails?.zone ? (
+                            <Text style={{ fontSize: 11, color: '#0284C7', marginTop: 2 }}>
+                                📍 Zona: {u.condoDetails.zone}
+                            </Text>
+                        ) : null}
                         <Text style={{ fontSize: 10, color: u.isVerified ? 'green' : 'orange' }}>
                             {u.isVerified ? 'Verificado' : 'Pendiente Verificación'}
                         </Text>
@@ -1771,14 +1785,31 @@ const IacondoManager = () => {
         isActive: true,
         hasApiKey: false
     });
-    const [stats, setStats] = useState({ quotesSent: 0, quotesApproved: 0, quotesRejected: 0 });
+    const [stats, setStats] = useState({ quotesSent: 0, quotesApproved: 0, quotesRejected: 0, condosSynced: 0 });
     const [history, setHistory] = useState([]);
+    const [condos, setCondos] = useState([]);
     const [loading, setLoading] = useState(true);
     const [testing, setTesting] = useState(false);
     const [sendingSample, setSendingSample] = useState(false);
+    const [syncingCondos, setSyncingCondos] = useState(false);
     const [saving, setSaving] = useState(false);
     const [showApiKey, setShowApiKey] = useState(false);
     const [statusBanner, setStatusBanner] = useState(null);
+
+    // Formulario rápido para dar de alta / actualizar un condominio cliente
+    const [showCondoForm, setShowCondoForm] = useState(false);
+    const [savingCondo, setSavingCondo] = useState(false);
+    const [condoForm, setCondoForm] = useState({
+        name: '',
+        subdomain: '',
+        rif: '',
+        zone: '',
+        address: '',
+        phone: '',
+        email: '',
+        adminName: '',
+        unitsCount: ''
+    });
 
     useEffect(() => {
         loadData();
@@ -1787,9 +1818,10 @@ const IacondoManager = () => {
     const loadData = async () => {
         setLoading(true);
         try {
-            const [configRes, historyRes] = await Promise.all([
+            const [configRes, historyRes, condosRes] = await Promise.all([
                 api.getIacondoConfig().catch(e => ({ success: false })),
-                api.getIacondoHistory().catch(e => ({ success: false }))
+                api.getIacondoHistory().catch(e => ({ success: false })),
+                api.getIacondoCondos().catch(e => ({ success: false, condos: [] }))
             ]);
 
             if (configRes && configRes.config) {
@@ -1801,17 +1833,69 @@ const IacondoManager = () => {
                     isActive: configRes.config.isActive ?? true,
                     hasApiKey: configRes.config.hasApiKey
                 });
-                if (configRes.config.stats) setStats(configRes.config.stats);
+                if (configRes.config.stats) setStats(prev => ({ ...prev, ...configRes.config.stats }));
             }
 
             if (historyRes && historyRes.history) {
                 setHistory(historyRes.history);
-                if (historyRes.stats) setStats(historyRes.stats);
+                if (historyRes.stats) setStats(prev => ({ ...prev, ...historyRes.stats }));
+            }
+
+            if (condosRes && Array.isArray(condosRes.condos)) {
+                setCondos(condosRes.condos);
             }
         } catch (e) {
             console.log("Error cargando configuración de IACONDO:", e);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handlePullCondos = async () => {
+        setSyncingCondos(true);
+        setStatusBanner(null);
+        try {
+            const res = await api.pullIacondoCondos();
+            setStatusBanner({
+                type: 'success',
+                text: res.message || `Condominios sincronizados (${res.createdCount || 0} nuevos, ${res.updatedCount || 0} actualizados)`
+            });
+            Alert.alert("Sincronización Completada", res.message || "Todos los condominios activos han sido dados de alta como Clientes en Profesional Cercano.");
+            loadData();
+        } catch (e) {
+            setStatusBanner({ type: 'error', text: e.message || 'Error al sincronizar condominios' });
+            Alert.alert("Aviso de Sincronización", e.message || "No se pudo sincronizar la lista de condominios.");
+        } finally {
+            setSyncingCondos(false);
+        }
+    };
+
+    const handleRegisterCondo = async () => {
+        if (!condoForm.subdomain && !condoForm.name) {
+            return Alert.alert("Campos requeridos", "Ingresa al menos el Nombre o el Subdominio del condominio.");
+        }
+        setSavingCondo(true);
+        setStatusBanner(null);
+        try {
+            const res = await api.syncIacondoCondos({
+                condos: [{
+                    ...condoForm,
+                    unitsCount: condoForm.unitsCount ? Number(condoForm.unitsCount) : 0,
+                    isActive: true
+                }]
+            });
+            setStatusBanner({
+                type: 'success',
+                text: `Condominio dado de alta automáticamente como Cliente en Profesional Cercano.`
+            });
+            Alert.alert("Condominio Registrado", "El condominio ya está activo como Cliente en Profesional Cercano.");
+            setCondoForm({ name: '', subdomain: '', rif: '', zone: '', address: '', phone: '', email: '', adminName: '', unitsCount: '' });
+            setShowCondoForm(false);
+            loadData();
+        } catch (e) {
+            Alert.alert("Error", e.message || "No se pudo registrar el condominio");
+        } finally {
+            setSavingCondo(false);
         }
     };
 
@@ -1953,6 +2037,10 @@ const IacondoManager = () => {
 
             {/* Stats Row */}
             <View style={styles.statsRow}>
+                <View style={[styles.statCard, { backgroundColor: '#EDE9FE' }]}>
+                    <Text style={[styles.statNumber, { color: '#6D28D9' }]}>{condos.length || stats.condosSynced || 0}</Text>
+                    <Text style={styles.statLabel}>Condominios Clientes</Text>
+                </View>
                 <View style={[styles.statCard, { backgroundColor: '#E0F2FE' }]}>
                     <Text style={[styles.statNumber, { color: '#0369A1' }]}>{stats.quotesSent || 0}</Text>
                     <Text style={styles.statLabel}>Cotizaciones Enviadas</Text>
@@ -1961,10 +2049,230 @@ const IacondoManager = () => {
                     <Text style={[styles.statNumber, { color: '#15803D' }]}>{stats.quotesApproved || 0}</Text>
                     <Text style={styles.statLabel}>Aprobadas</Text>
                 </View>
-                <View style={[styles.statCard, { backgroundColor: '#FEE2E2' }]}>
-                    <Text style={[styles.statNumber, { color: '#B91C1C' }]}>{stats.quotesRejected || 0}</Text>
-                    <Text style={styles.statLabel}>Rechazadas</Text>
+            </View>
+
+            {/* Condominios Activos dados de Alta como Clientes */}
+            <View style={{ backgroundColor: 'white', padding: 18, borderRadius: 14, marginBottom: 16, elevation: 1, borderWidth: 1, borderColor: '#E0F2FE' }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                    <View style={{ flex: 1 }}>
+                        <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#1E293B' }}>
+                            🏢 Condominios Clientes (IACONDO)
+                        </Text>
+                        <Text style={{ fontSize: 12, color: '#64748B', marginTop: 2 }}>
+                            Dados de alta automáticamente como Clientes verificados
+                        </Text>
+                    </View>
                 </View>
+
+                <View style={{ flexDirection: 'row', gap: 10, marginTop: 8, marginBottom: 14 }}>
+                    <TouchableOpacity
+                        onPress={handlePullCondos}
+                        disabled={syncingCondos}
+                        style={{
+                            flex: 1,
+                            backgroundColor: '#0284C7',
+                            paddingVertical: 11,
+                            paddingHorizontal: 12,
+                            borderRadius: 10,
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                        }}
+                    >
+                        {syncingCondos ? (
+                            <ActivityIndicator color="white" size="small" />
+                        ) : (
+                            <>
+                                <Feather name="refresh-cw" size={15} color="white" style={{ marginRight: 6 }} />
+                                <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 12 }}>
+                                    Sincronizar Activos
+                                </Text>
+                            </>
+                        )}
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        onPress={() => setShowCondoForm(!showCondoForm)}
+                        style={{
+                            backgroundColor: showCondoForm ? '#F1F5F9' : '#EFF6FF',
+                            paddingVertical: 11,
+                            paddingHorizontal: 14,
+                            borderRadius: 10,
+                            borderWidth: 1,
+                            borderColor: '#BFDBFE',
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                        }}
+                    >
+                        <Feather name={showCondoForm ? "x" : "plus-circle"} size={15} color="#0284C7" style={{ marginRight: 6 }} />
+                        <Text style={{ color: '#0284C7', fontWeight: 'bold', fontSize: 12 }}>
+                            {showCondoForm ? 'Cerrar' : 'Dar de Alta'}
+                        </Text>
+                    </TouchableOpacity>
+                </View>
+
+                {/* Formulario para alta directa de un Condominio */}
+                {showCondoForm && (
+                    <View style={{ backgroundColor: '#F8FAFC', padding: 14, borderRadius: 12, marginBottom: 14, borderWidth: 1, borderColor: '#E2E8F0' }}>
+                        <Text style={{ fontWeight: 'bold', fontSize: 14, color: '#0F172A', marginBottom: 10 }}>
+                            Nuevo / Actualizar Condominio Cliente
+                        </Text>
+
+                        <Text style={styles.label}>Nombre del Conjunto / Residencia</Text>
+                        <TextInput
+                            style={[styles.input, { marginBottom: 10 }]}
+                            placeholder="Ej: Residencias Semeruco"
+                            value={condoForm.name}
+                            onChangeText={t => setCondoForm({ ...condoForm, name: t })}
+                        />
+
+                        <View style={{ flexDirection: 'row', gap: 10 }}>
+                            <View style={{ flex: 1 }}>
+                                <Text style={styles.label}>Subdominio IACONDO</Text>
+                                <TextInput
+                                    style={[styles.input, { marginBottom: 10 }]}
+                                    placeholder="ej: semeruco"
+                                    autoCapitalize="none"
+                                    value={condoForm.subdomain}
+                                    onChangeText={t => setCondoForm({ ...condoForm, subdomain: t })}
+                                />
+                            </View>
+                            <View style={{ flex: 1 }}>
+                                <Text style={styles.label}>RIF del Condominio</Text>
+                                <TextInput
+                                    style={[styles.input, { marginBottom: 10 }]}
+                                    placeholder="J-12345678-9"
+                                    autoCapitalize="characters"
+                                    value={condoForm.rif}
+                                    onChangeText={t => setCondoForm({ ...condoForm, rif: t })}
+                                />
+                            </View>
+                        </View>
+
+                        <Text style={styles.label}>Zona / Urbanización (Zona de actuación inicial para profesionales)</Text>
+                        <TextInput
+                            style={[styles.input, { marginBottom: 10 }]}
+                            placeholder="Ej: El Cafetal, Baruta, Caracas"
+                            value={condoForm.zone}
+                            onChangeText={t => setCondoForm({ ...condoForm, zone: t })}
+                        />
+
+                        <Text style={styles.label}>Dirección Completa</Text>
+                        <TextInput
+                            style={[styles.input, { marginBottom: 10 }]}
+                            placeholder="Av. Principal, Calle B..."
+                            value={condoForm.address}
+                            onChangeText={t => setCondoForm({ ...condoForm, address: t })}
+                        />
+
+                        <View style={{ flexDirection: 'row', gap: 10 }}>
+                            <View style={{ flex: 1 }}>
+                                <Text style={styles.label}>Teléfono Contacto</Text>
+                                <TextInput
+                                    style={[styles.input, { marginBottom: 10 }]}
+                                    placeholder="0414-1234567"
+                                    value={condoForm.phone}
+                                    onChangeText={t => setCondoForm({ ...condoForm, phone: t })}
+                                />
+                            </View>
+                            <View style={{ flex: 1 }}>
+                                <Text style={styles.label}>Email Junta/Admin</Text>
+                                <TextInput
+                                    style={[styles.input, { marginBottom: 10 }]}
+                                    placeholder="junta@condominio.com"
+                                    autoCapitalize="none"
+                                    value={condoForm.email}
+                                    onChangeText={t => setCondoForm({ ...condoForm, email: t })}
+                                />
+                            </View>
+                        </View>
+
+                        <TouchableOpacity
+                            onPress={handleRegisterCondo}
+                            disabled={savingCondo}
+                            style={[styles.saveButton, { backgroundColor: '#16A34A', paddingVertical: 12 }]}
+                        >
+                            {savingCondo ? (
+                                <ActivityIndicator color="white" size="small" />
+                            ) : (
+                                <Text style={styles.saveButtonText}>Registrar Condominio como Cliente</Text>
+                            )}
+                        </TouchableOpacity>
+                    </View>
+                )}
+
+                {/* Listado de Condominios Dados de Alta */}
+                {loading ? (
+                    <ActivityIndicator size="small" color="#0284C7" style={{ marginVertical: 15 }} />
+                ) : condos.length === 0 ? (
+                    <View style={{ paddingVertical: 16, alignItems: 'center', backgroundColor: '#F8FAFC', borderRadius: 10 }}>
+                        <Text style={{ color: '#64748B', fontSize: 13, textAlign: 'center' }}>
+                            Aún no hay condominios sincronizados. Pulsa &quot;Sincronizar Activos&quot; para darlos de alta automáticamente.
+                        </Text>
+                    </View>
+                ) : (
+                    condos.map((c, idx) => (
+                        <View
+                            key={c._id || idx}
+                            style={{
+                                padding: 12,
+                                borderRadius: 10,
+                                backgroundColor: '#F8FAFC',
+                                marginBottom: 8,
+                                borderWidth: 1,
+                                borderColor: '#E2E8F0'
+                            }}
+                        >
+                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <Text style={{ fontWeight: 'bold', fontSize: 14, color: '#0F172A', flex: 1 }}>
+                                    🏢 {c.name}
+                                </Text>
+                                <View style={{
+                                    backgroundColor: c.isActive !== false ? '#DCFCE7' : '#FEE2E2',
+                                    paddingHorizontal: 8,
+                                    paddingVertical: 2,
+                                    borderRadius: 6
+                                }}>
+                                    <Text style={{
+                                        fontSize: 10,
+                                        fontWeight: 'bold',
+                                        color: c.isActive !== false ? '#166534' : '#991B1B'
+                                    }}>
+                                        {c.isActive !== false ? 'CLIENTE ACTIVO' : 'INACTIVO'}
+                                    </Text>
+                                </View>
+                            </View>
+
+                            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 6 }}>
+                                {c.externalIntegration?.subdomain ? (
+                                    <View style={{ backgroundColor: '#E0F2FE', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 }}>
+                                        <Text style={{ fontSize: 11, fontWeight: 'bold', color: '#0369A1' }}>
+                                            Subdominio: {c.externalIntegration.subdomain}
+                                        </Text>
+                                    </View>
+                                ) : null}
+                                {(c.condoDetails?.rif || c.cedula) ? (
+                                    <View style={{ backgroundColor: '#F1F5F9', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 }}>
+                                        <Text style={{ fontSize: 11, color: '#334155', fontWeight: '600' }}>
+                                            RIF: {c.condoDetails?.rif || c.cedula}
+                                        </Text>
+                                    </View>
+                                ) : null}
+                            </View>
+
+                            {(c.condoDetails?.zone || c.condoDetails?.address) ? (
+                                <Text style={{ fontSize: 12, color: '#0284C7', marginTop: 6, fontWeight: '500' }}>
+                                    📍 Zona de actuación: {c.condoDetails?.zone || c.condoDetails?.address}
+                                </Text>
+                            ) : null}
+
+                            <Text style={{ fontSize: 11, color: '#64748B', marginTop: 4 }}>
+                                ✉️ {c.email} {c.phone ? ` • 📞 ${c.phone}` : ''}
+                            </Text>
+                        </View>
+                    ))
+                )}
             </View>
 
             {/* Parámetros de Configuración */}

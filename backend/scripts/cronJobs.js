@@ -1,8 +1,9 @@
 const cron = require('node-cron');
 const User = require('../models/User');
+const IacondoIntegrationService = require('../services/IacondoIntegrationService');
 
 function initCronJobs() {
-    console.log('[CRON] Iniciando schedulers de Gamificación...');
+    console.log('[CRON] Iniciando schedulers de Gamificación e Integración IACONDO...');
 
     // Correrá a las 00:00 del 1 de Enero, 1 de Abril, 1 de Julio, 1 de Octubre.
     cron.schedule('0 0 1 1,4,7,10 *', async () => {
@@ -30,8 +31,37 @@ function initCronJobs() {
             console.error('[CRON] Error al ejecutar el corte trimestral:', error);
         }
     }, {
-        timezone: "America/Bogota" // Ajusta según la zona horaria del servidor
+        timezone: "America/Caracas"
     });
+
+    // Sincronización automática periódica de Condominios Activos de IACONDO (cada 6 horas)
+    cron.schedule('0 */6 * * *', async () => {
+        try {
+            const config = await IacondoIntegrationService.getConfig();
+            if (config.isActive) {
+                console.log('[CRON IACONDO] Sincronizando condominios activos como clientes...');
+                const res = await IacondoIntegrationService.pullActiveCondosFromIacondo(config);
+                console.log(`[CRON IACONDO] ${res.message}`);
+            }
+        } catch (error) {
+            console.warn('[CRON IACONDO] Aviso en sincronización automática:', error.message);
+        }
+    });
+
+    // Asegurar alta inicial del condominio configurado unos segundos después de arrancar el servidor
+    setTimeout(async () => {
+        try {
+            const config = await IacondoIntegrationService.getConfig();
+            if (config.isActive && config.condoSubdomain) {
+                await IacondoIntegrationService.syncCondosBatch([{
+                    subdomain: config.condoSubdomain,
+                    isActive: true
+                }]);
+            }
+        } catch (err) {
+            // Silencioso en caso de que la BD aún esté conectando
+        }
+    }, 8000);
 }
 
 module.exports = initCronJobs;

@@ -62,6 +62,18 @@ class IacondoIntegrationService {
             { upsert: true, new: true, setDefaultsOnInsert: true }
         );
 
+        // Asegurar que el condominio por defecto quede dado de alta como Cliente
+        if (configDoc.condoSubdomain) {
+            try {
+                await this.syncCondosBatch([{
+                    subdomain: configDoc.condoSubdomain,
+                    isActive: true
+                }]);
+            } catch (e) {
+                console.warn('[IACONDO] No se pudo auto-registrar el condominio al guardar config:', e.message);
+            }
+        }
+
         return configDoc;
     }
 
@@ -574,6 +586,372 @@ class IacondoIntegrationService {
         } catch (err) {
             console.warn('[IACONDO] Error guardando registro de sincronización:', err.message);
         }
+    }
+
+    /**
+     * Normaliza un subdominio o genera uno limpio a partir del nombre del condominio
+     */
+    static normalizeSubdomain(rawSubdomain, fallbackName = '') {
+        const source = (rawSubdomain || fallbackName || '').toString().trim().toLowerCase();
+        return source
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/[^a-z0-9-_]/g, '-')
+            .replace(/-+/g, '-')
+            .replace(/^-|-$/g, '');
+    }
+
+    /**
+     * Da de alta o actualiza automáticamente un Condominio de IACONDO
+     * como Cliente verificado dentro de Profesional Cercano.
+     */
+    static async upsertCondoAsClient(condoData) {
+        if (!condoData || typeof condoData !== 'object') {
+            throw new Error('Datos del condominio inválidos');
+        }
+
+        const rawName = condoData.name || condoData.condoName || condoData.nombre || condoData.razonSocial || '';
+        const subdomain = this.normalizeSubdomain(
+            condoData.subdomain || condoData.condoSubdomain || condoData.slug,
+            rawName
+        );
+
+        if (!subdomain && !rawName) {
+            throw new Error('El condominio debe incluir al menos "subdomain" o "name"');
+        }
+
+        const displayCondoName = rawName
+            ? (rawName.toLowerCase().includes('condominio') || rawName.toLowerCase().includes('residencia') || rawName.toLowerCase().includes('conjunto')
+                ? rawName.trim()
+                : `Condominio ${rawName.trim()}`)
+            : `Condominio ${subdomain.charAt(0).toUpperCase() + subdomain.slice(1)}`;
+
+        const externalId = (condoData.id || condoData._id || condoData.externalId || subdomain).toString();
+        const rif = (condoData.rif || condoData.legalId || condoData.taxId || condoData.cedula || '').toString().trim().toUpperCase();
+        const rawEmail = (condoData.email || condoData.adminEmail || condoData.correo || '').toString().trim().toLowerCase();
+        const fallbackEmail = `condo.${subdomain || Date.now()}@iacondo.profesionalcercano.com`;
+        const emailToUse = rawEmail || fallbackEmail;
+
+        const phone = (condoData.phone || condoData.adminPhone || condoData.telefono || '').toString().trim();
+        const address = (condoData.address || condoData.direccion || condoData.location || '').toString().trim();
+        const zone = (condoData.zone || condoData.zona || condoData.urbanizacion || condoData.sector || address || '').toString().trim();
+        const city = (condoData.city || condoData.ciudad || 'Caracas').toString().trim();
+        const state = (condoData.state || condoData.estado || 'Miranda / DC').toString().trim();
+        const adminName = (condoData.adminName || condoData.contactName || condoData.administrador || 'Junta de Condominio').toString().trim();
+        const unitsCount = Number(condoData.unitsCount || condoData.totalUnits || condoData.unidades || 0);
+
+        let isActiveInSource = true;
+        if (condoData.isActive !== undefined) {
+            isActiveInSource = Boolean(condoData.isActive);
+        } else if (condoData.active !== undefined) {
+            isActiveInSource = Boolean(condoData.active);
+        } else if (typeof condoData.status === 'string') {
+            const st = condoData.status.toUpperCase();
+            isActiveInSource = st === 'ACTIVE' || st === 'ACTIVO' || st === 'ENABLED';
+        }
+
+        let coordinates = undefined;
+        if (condoData.coordinates && condoData.coordinates.lat !== undefined && condoData.coordinates.lng !== undefined) {
+            coordinates = {
+                lat: Number(condoData.coordinates.lat),
+                lng: Number(condoData.coordinates.lng)
+            };
+        } else if (condoData.lat !== undefined && condoData.lng !== undefined) {
+            coordinates = {
+                lat: Number(condoData.lat),
+                lng: Number(condoData.lng)
+            };
+        }
+
+        const avatarUrl = condoData.logo || condoData.avatar ||
+            `https://ui-avatars.com/api/?name=${encodeURIComponent(displayCondoName)}&background=0284C7&color=fff&bold=true`;
+
+        // 1. Buscar si el condominio ya existe en Profesional Cercano
+        const searchConditions = [];
+        if (subdomain) searchConditions.push({ 'externalIntegration.subdomain': subdomain });
+        if (externalId) searchConditions.push({ 'externalIntegration.externalId': externalId, 'externalIntegration.provider': 'iacondo' });
+        if (rawEmail) searchConditions.push({ email: rawEmail });
+
+        let existingUser = null;
+        if (searchConditions.length > 0) {
+            existingUser = await User.findOne({ $or: searchConditions });
+        }
+
+        const condoDetailsPayload = {
+            condoName: displayCondoName,
+            rif: rif || existingUser?.condoDetails?.rif || '',
+            address: address || existingUser?.condoDetails?.address || '',
+            zone: zone || existingUser?.condoDetails?.zone || '',
+            city: city || existingUser?.condoDetails?.city || '',
+            state: state || existingUser?.condoDetails?.state || '',
+            coordinates: coordinates || existingUser?.condoDetails?.coordinates,
+            adminName: adminName || existingUser?.condoDetails?.adminName || '',
+            adminEmail: rawEmail || existingUser?.condoDetails?.adminEmail || '',
+            adminPhone: phone || existingUser?.condoDetails?.adminPhone || '',
+            unitsCount: unitsCount || existingUser?.condoDetails?.unitsCount || 0
+        };
+
+        const externalIntegrationPayload = {
+            provider: 'iacondo',
+            externalId,
+            subdomain,
+            syncedAt: new Date(),
+            isActiveInSource
+        };
+
+        if (existingUser) {
+            existingUser.name = displayCondoName;
+            if (phone) existingUser.phone = phone;
+            existingUser.clientType = 'condominio';
+            existingUser.isActive = isActiveInSource;
+            existingUser.isVerified = true;
+            if (!existingUser.avatar || existingUser.avatar.includes('ui-avatars.com')) {
+                existingUser.avatar = avatarUrl;
+            }
+            existingUser.externalIntegration = externalIntegrationPayload;
+            existingUser.condoDetails = condoDetailsPayload;
+
+            // Si tiene RIF y no choca con otra cédula
+            if (rif && !existingUser.cedula) {
+                const cedulaTaken = await User.findOne({ cedula: rif, _id: { $ne: existingUser._id } });
+                if (!cedulaTaken) existingUser.cedula = rif;
+            }
+
+            await existingUser.save();
+            return { user: existingUser, action: 'updated' };
+        } else {
+            // Verificar que el email no esté ocupado por otro usuario distinto
+            let finalEmail = emailToUse;
+            const emailConflict = await User.findOne({ email: finalEmail });
+            if (emailConflict) {
+                finalEmail = fallbackEmail;
+            }
+
+            // Verificar que el RIF no choque con cedula existente
+            let finalCedula = undefined;
+            if (rif) {
+                const cedulaConflict = await User.findOne({ cedula: rif });
+                if (!cedulaConflict) {
+                    finalCedula = rif;
+                }
+            }
+
+            const newUser = await User.create({
+                name: displayCondoName,
+                email: finalEmail,
+                cedula: finalCedula,
+                role: 'client',
+                clientType: 'condominio',
+                phone: phone || '',
+                avatar: avatarUrl,
+                isActive: isActiveInSource,
+                isVerified: true,
+                verificationDetails: {
+                    status: 'verified',
+                    verifiedAt: new Date()
+                },
+                externalIntegration: externalIntegrationPayload,
+                condoDetails: condoDetailsPayload
+            });
+
+            return { user: newUser, action: 'created' };
+        }
+    }
+
+    /**
+     * Procesa un lote de condominios activos y los da de alta/actualiza como Clientes
+     */
+    static async syncCondosBatch(condosInput = []) {
+        const condosArray = Array.isArray(condosInput) ? condosInput : [condosInput];
+
+        // Filtrar solo condominios activos si viene el campo explícito en falso y se requiere solo activos
+        let createdCount = 0;
+        let updatedCount = 0;
+        let skippedCount = 0;
+        const errors = [];
+        const syncedCondos = [];
+
+        for (const item of condosArray) {
+            try {
+                // Si el condominio viene marcado explícitamente como inactivo en un alta inicial, igual podemos sincronizar su estado o dar de alta los activos
+                const isExplicitlyInactive = item.isActive === false || item.active === false ||
+                    (typeof item.status === 'string' && ['INACTIVE', 'INACTIVO', 'SUSPENDED', 'DELETED'].includes(item.status.toUpperCase()));
+
+                if (isExplicitlyInactive && item.skipInactive !== false) {
+                    // Si ya existía en Profesional Cercano, actualizamos su estado a inactivo
+                    const sub = this.normalizeSubdomain(item.subdomain || item.condoSubdomain, item.name);
+                    const existing = sub ? await User.findOne({ 'externalIntegration.subdomain': sub }) : null;
+                    if (existing) {
+                        existing.isActive = false;
+                        existing.externalIntegration.isActiveInSource = false;
+                        existing.externalIntegration.syncedAt = new Date();
+                        await existing.save();
+                        updatedCount++;
+                    } else {
+                        skippedCount++;
+                    }
+                    continue;
+                }
+
+                const { user, action } = await this.upsertCondoAsClient(item);
+                if (action === 'created') createdCount++;
+                if (action === 'updated') updatedCount++;
+
+                syncedCondos.push({
+                    _id: user._id,
+                    name: user.name,
+                    email: user.email,
+                    phone: user.phone,
+                    subdomain: user.externalIntegration?.subdomain,
+                    zone: user.condoDetails?.zone,
+                    address: user.condoDetails?.address,
+                    rif: user.condoDetails?.rif || user.cedula,
+                    unitsCount: user.condoDetails?.unitsCount,
+                    isActive: user.isActive,
+                    action
+                });
+            } catch (err) {
+                errors.push({
+                    condo: item?.subdomain || item?.name || 'Desconocido',
+                    error: err.message
+                });
+            }
+        }
+
+        // Contar total de condominios clientes activos en la BD
+        const totalCondosInDb = await User.countDocuments({ clientType: 'condominio', isActive: true });
+
+        await IntegrationConfig.findOneAndUpdate(
+            { provider: 'iacondo' },
+            {
+                $set: {
+                    'stats.condosSynced': totalCondosInDb,
+                    lastCondoSyncAt: new Date(),
+                    lastSyncAt: new Date(),
+                    lastSyncStatus: errors.length === 0 ? 'success' : 'error',
+                    lastSyncMessage: `Sincronización de condominios: ${createdCount} nuevos, ${updatedCount} actualizados (${totalCondosInDb} activos en total)`
+                }
+            },
+            { upsert: true }
+        );
+
+        return {
+            success: true,
+            totalProcessed: condosArray.length,
+            createdCount,
+            updatedCount,
+            skippedCount,
+            totalActiveCondosInDb: totalCondosInDb,
+            errors,
+            condos: syncedCondos
+        };
+    }
+
+    /**
+     * Consulta la API de IACONDO para traer todos los condominios activos
+     * y darlos de alta automáticamente como Clientes en Profesional Cercano.
+     */
+    static async pullActiveCondosFromIacondo(customConfig = null) {
+        const config = customConfig || await this.getConfig();
+
+        if (!config.apiUrl) {
+            throw new Error('No se ha configurado IACONDO_API_URL');
+        }
+
+        const candidateEndpoints = [
+            `${config.apiUrl}/condos?status=active`,
+            `${config.apiUrl}/active-condos`,
+            `${config.apiUrl}/condominiums?active=true`
+        ];
+
+        let fetchedCondos = null;
+        let usedEndpoint = null;
+        let lastError = null;
+
+        if (config.apiKey) {
+            for (const endpoint of candidateEndpoints) {
+                try {
+                    console.log(`[IACONDO] Consultando condominios activos en: ${endpoint}`);
+                    const response = await axios.get(endpoint, {
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'x-api-key': config.apiKey
+                        },
+                        timeout: 12000
+                    });
+
+                    const body = response.data;
+                    if (Array.isArray(body)) {
+                        fetchedCondos = body;
+                    } else if (Array.isArray(body?.condos)) {
+                        fetchedCondos = body.condos;
+                    } else if (Array.isArray(body?.condominiums)) {
+                        fetchedCondos = body.condominiums;
+                    } else if (Array.isArray(body?.data)) {
+                        fetchedCondos = body.data;
+                    } else if (body && typeof body === 'object' && (body.subdomain || body.name)) {
+                        fetchedCondos = [body];
+                    }
+
+                    if (fetchedCondos) {
+                        usedEndpoint = endpoint;
+                        break;
+                    }
+                } catch (err) {
+                    lastError = err;
+                }
+            }
+        }
+
+        // Si la API remota aún no expone el GET o no devolvió lista, aseguramos al menos el condominio configurado en CONDO_SUBDOMAIN
+        if (!fetchedCondos || fetchedCondos.length === 0) {
+            if (config.condoSubdomain) {
+                const defaultCondoResult = await this.syncCondosBatch([
+                    {
+                        subdomain: config.condoSubdomain,
+                        name: `Condominio ${config.condoSubdomain.charAt(0).toUpperCase() + config.condoSubdomain.slice(1)}`,
+                        isActive: true
+                    }
+                ]);
+
+                return {
+                    ...defaultCondoResult,
+                    source: 'config_subdomain_fallback',
+                    message: lastError
+                        ? `Se aseguró el alta del condominio configurado (${config.condoSubdomain}). Nota API remota: ${lastError.response?.status || lastError.message}`
+                        : `Condominio configurado (${config.condoSubdomain}) dado de alta como cliente activo.`
+                };
+            }
+
+            throw new Error(
+                lastError
+                    ? `No se pudo obtener el listado remoto desde IACONDO (${lastError.response?.status || lastError.message})`
+                    : 'IACONDO no devolvió condominios activos'
+            );
+        }
+
+        const batchResult = await this.syncCondosBatch(fetchedCondos);
+        return {
+            ...batchResult,
+            source: usedEndpoint,
+            message: `Se sincronizaron ${batchResult.totalProcessed} condominios activos desde IACONDO (${batchResult.createdCount} nuevos, ${batchResult.updatedCount} actualizados).`
+        };
+    }
+
+    /**
+     * Obtiene la lista de todos los Condominios dados de alta como Clientes en Profesional Cercano
+     */
+    static async getSyncedCondoClients() {
+        const condos = await User.find({
+            $or: [
+                { clientType: 'condominio' },
+                { 'externalIntegration.provider': 'iacondo' }
+            ]
+        })
+            .select('name email phone cedula avatar isActive isVerified clientType externalIntegration condoDetails createdAt')
+            .sort({ createdAt: -1 });
+
+        return condos;
     }
 }
 

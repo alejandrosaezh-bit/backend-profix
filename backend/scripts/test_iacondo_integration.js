@@ -68,6 +68,11 @@ async function runTests() {
         condoSubdomain: 'semeruco'
     };
     console.log('Simulando payload de webhook entrante:', mockWebhook);
+
+    console.log('\n--- TEST 5: Normalización de Subdominio de Condominios ---');
+    const sub1 = IacondoIntegrationService.normalizeSubdomain('Semeruco', 'Residencias Semeruco');
+    const sub2 = IacondoIntegrationService.normalizeSubdomain('', 'Conjunto Residencial Los Naranjos');
+    console.log('Subdominio 1:', sub1, '| Subdominio 2:', sub2);
     
     console.log('\n✅ Todos los tests unitarios pasaron correctamente!');
 }

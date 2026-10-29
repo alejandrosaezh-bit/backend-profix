@@ -88,6 +88,36 @@ const userSchema = mongoose.Schema({
     rating: { type: Number, default: 0 },
     reviewsCount: { type: Number, default: 0 },
 
+    // Tipo de Cliente e Integración Externa (Ej. Condominios de IACONDO)
+    clientType: {
+        type: String,
+        enum: ['particular', 'condominio', 'empresa'],
+        default: 'particular'
+    },
+    externalIntegration: {
+        provider: { type: String }, // ej: 'iacondo'
+        externalId: { type: String }, // ID original en IACONDO
+        subdomain: { type: String, trim: true, lowercase: true }, // ej: 'semeruco'
+        syncedAt: { type: Date },
+        isActiveInSource: { type: Boolean, default: true }
+    },
+    condoDetails: {
+        condoName: { type: String },
+        rif: { type: String },
+        address: { type: String },
+        zone: { type: String }, // Urbanización / Sector (usado como zona de actuación inicial)
+        city: { type: String },
+        state: { type: String },
+        coordinates: {
+            lat: { type: Number },
+            lng: { type: Number }
+        },
+        adminName: { type: String },
+        adminEmail: { type: String },
+        adminPhone: { type: String },
+        unitsCount: { type: Number }
+    },
+
     // Preferencias de Notificaciones
     notificationPreferences: {
         // CLIENT PREFERENCES
@@ -110,5 +140,7 @@ const userSchema = mongoose.Schema({
 userSchema.index({ role: 1 });
 userSchema.index({ rating: -1 });
 userSchema.index({ isActive: 1 });
+userSchema.index({ 'externalIntegration.subdomain': 1 });
+userSchema.index({ clientType: 1 });
 
 module.exports = mongoose.model('User', userSchema);

@@ -46,7 +46,12 @@ const integrationConfigSchema = new mongoose.Schema({
     stats: {
         quotesSent: { type: Number, default: 0 },
         quotesApproved: { type: Number, default: 0 },
-        quotesRejected: { type: Number, default: 0 }
+        quotesRejected: { type: Number, default: 0 },
+        condosSynced: { type: Number, default: 0 },
+        proReferralsReceived: { type: Number, default: 0 }
+    },
+    lastCondoSyncAt: {
+        type: Date
     },
     history: [{
         quoteNumber: String,
