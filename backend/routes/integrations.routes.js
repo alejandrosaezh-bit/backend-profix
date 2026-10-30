@@ -294,4 +294,28 @@ router.post(['/iacondo/condos/sync', '/webhook/iacondo-condos', '/iacondo-condos
     }
 });
 
+/**
+ * @desc    Recibir una Solicitud de Reparación o Mejora desde CUALQUIER Condominio en IACONDO
+ *          Auto-registra el condominio como Cliente si no existía y publica el Job en Profesional Cercano.
+ * @route   POST /api/integrations/iacondo/service-requests
+ * @route   POST /api/webhooks/iacondo-service-request
+ * @access  Webhook (x-api-key) o Admin/Client
+ */
+router.post(['/iacondo/service-requests', '/webhook/iacondo-service-request', '/iacondo-service-request'], async (req, res) => {
+    try {
+        const result = await IacondoIntegrationService.createServiceRequestFromIacondo(req.body);
+        res.status(201).json({
+            success: true,
+            message: `Solicitud creada exitosamente para ${result.condoClient.name} (subdominio: ${result.condoClient.subdomain})`,
+            ...result
+        });
+    } catch (error) {
+        console.error('[IACONDO SERVICE REQUEST ERROR]:', error.message);
+        res.status(400).json({
+            success: false,
+            message: error.message
+        });
+    }
+});
+
 module.exports = router;

@@ -97,7 +97,8 @@ const userSchema = mongoose.Schema({
     externalIntegration: {
         provider: { type: String }, // ej: 'iacondo'
         externalId: { type: String }, // ID original en IACONDO
-        subdomain: { type: String, trim: true, lowercase: true }, // ej: 'semeruco'
+        subdomain: { type: String, trim: true, lowercase: true }, // ej: 'semeruco', 'los-naranjos', etc.
+        apiKey: { type: String, trim: true }, // API Key específica del condominio (opcional, si no usa la global de IACONDO)
         syncedAt: { type: Date },
         isActiveInSource: { type: Boolean, default: true }
     },

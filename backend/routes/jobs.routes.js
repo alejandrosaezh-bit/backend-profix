@@ -464,7 +464,30 @@ router.post('/:id/offers', protect, async (req, res) => {
             });
         }
 
-        // 2. Socket Event (Global or Room)
+        // 2. Auto-Exportación Multi-Condominio a IACONDO (para cualquier condominio activo)
+        const targetSubdomain = job.externalReference?.condoSubdomain || clientUser?.externalIntegration?.subdomain;
+        if (targetSubdomain || clientUser?.clientType === "condominio") {
+            const IacondoIntegrationService = require("../services/IacondoIntegrationService");
+            const createdOffer = job.offers[job.offers.length - 1];
+            IacondoIntegrationService.buildPayloadFromJobAndOffer(job._id, createdOffer?._id, {
+                condoSubdomain: targetSubdomain
+            })
+                .then(quotePayload => IacondoIntegrationService.sendQuoteToIacondo(quotePayload))
+                .then(async (resExport) => {
+                    if (createdOffer && resExport?.quoteNumber) {
+                        createdOffer.quoteNumber = resExport.quoteNumber;
+                        createdOffer.exportedToIacondo = true;
+                        createdOffer.iacondoExportedAt = new Date();
+                        await job.save();
+                    }
+                    console.log(`[IACONDO AUTO-EXPORT] Presupuesto enviado automáticamente al condominio: ${targetSubdomain}`);
+                })
+                .catch(err => {
+                    console.warn(`[IACONDO AUTO-EXPORT] Aviso al exportar al condominio ${targetSubdomain}:`, err.message);
+                });
+        }
+
+        // 3. Socket Event (Global or Room)
         const io = req.app.get('socketio');
         if (io) {
             // Notify the client specifically

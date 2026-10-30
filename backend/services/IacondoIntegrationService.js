@@ -190,11 +190,7 @@ class IacondoIntegrationService {
     static async sendQuoteToIacondo(quoteData, customConfig = null) {
         const config = customConfig || await this.getConfig();
 
-        if (!config.apiKey) {
-            throw new Error('No se ha configurado la API Key de IACONDO (IACONDO_API_KEY). Por favor configúrala en el panel.');
-        }
-
-        // Formatear y asegurar contrato
+        // Formatear y asegurar contrato (resuelve el subdominio dinámico del condominio destino)
         const payload = this.formatQuotePayload(quoteData, config);
 
         // Validar contrato
@@ -206,10 +202,38 @@ class IacondoIntegrationService {
             throw err;
         }
 
+        // Resolución Multi-Condominio: buscar si el condominio destino tiene API Key propia o usar la global de IACONDO
+        let targetCondoUser = null;
+        if (payload.condoSubdomain) {
+            try {
+                const normalizedSub = this.normalizeSubdomain(payload.condoSubdomain);
+                targetCondoUser = await User.findOne({ 'externalIntegration.subdomain': normalizedSub });
+                // Si es un condominio nuevo que aún no estaba registrado como cliente, lo damos de alta automáticamente
+                if (!targetCondoUser) {
+                    const upserted = await this.upsertCondoAsClient({
+                        subdomain: normalizedSub,
+                        name: quoteData.condoName || `Condominio ${normalizedSub}`,
+                        isActive: true
+                    });
+                    targetCondoUser = upserted.user;
+                }
+            } catch (e) {
+                console.warn('[IACONDO] Aviso verificando condominio destino:', e.message);
+            }
+        }
+
+        const effectiveApiKey = quoteData.apiKey ||
+            targetCondoUser?.externalIntegration?.apiKey ||
+            config.apiKey;
+
+        if (!effectiveApiKey) {
+            throw new Error('No se ha configurado la API Key de IACONDO (IACONDO_API_KEY). Por favor configúrala en el panel.');
+        }
+
         const endpoint = `${config.apiUrl}/maintenance-quotes`;
 
         console.log(`[IACONDO] Enviando cotización ${payload.quote.quoteNumber} a: ${endpoint}`);
-        console.log(`[IACONDO] Subdominio: ${payload.condoSubdomain} | Monto: ${payload.quote.amount} ${payload.quote.currency}`);
+        console.log(`[IACONDO] Condominio Destino (Multi-Tenant): ${payload.condoSubdomain} | Monto: ${payload.quote.amount} ${payload.quote.currency}`);
 
         let response = null;
         let errorDetail = null;
@@ -218,7 +242,7 @@ class IacondoIntegrationService {
             response = await axios.post(endpoint, payload, {
                 headers: {
                     'Content-Type': 'application/json',
-                    'x-api-key': config.apiKey
+                    'x-api-key': effectiveApiKey
                 },
                 timeout: 15000 // 15 segundos timeout
             });
@@ -298,7 +322,7 @@ class IacondoIntegrationService {
         const job = await Job.findById(jobId)
             .populate('category')
             .populate('offers.proId')
-            .populate('client', 'name email phone');
+            .populate('client', 'name email phone clientType externalIntegration condoDetails');
 
         if (!job) {
             throw new Error(`Trabajo con ID ${jobId} no encontrado`);
@@ -318,10 +342,6 @@ class IacondoIntegrationService {
             ? `${job.category.name}${job.subcategory ? ' - ' + job.subcategory : ''}`
             : (job.subcategory || 'Mantenimiento General');
 
-        const urgencyMap = {
-            true: 'EMERGENCIA',
-            false: 'NORMAL'
-        };
         const defaultUrgency = job.isUrgent ? 'EMERGENCIA' : 'NORMAL';
 
         // Calcular desglose de costos si la oferta tiene items
@@ -337,7 +357,8 @@ class IacondoIntegrationService {
 
         const dateCode = new Date().getFullYear();
         const shortJobId = job._id.toString().slice(-4).toUpperCase();
-        const quoteNumber = overrides.quoteNumber || `PC-${dateCode}-${shortJobId}`;
+        const shortOfferId = offer?._id ? offer._id.toString().slice(-3).toUpperCase() : '001';
+        const quoteNumber = overrides.quoteNumber || offer?.quoteNumber || `PC-${dateCode}-${shortJobId}-${shortOfferId}`;
 
         // Determinar imágenes del trabajo para adjuntar en photos
         const photos = [];
@@ -348,8 +369,13 @@ class IacondoIntegrationService {
             photos.push(...job.workPhotos.filter(img => typeof img === 'string' && img.startsWith('http')));
         }
 
+        // Resolución Multi-Condominio: toma el subdominio del condominio dueño de la solicitud
+        const dynamicSubdomain = overrides.condoSubdomain ||
+            job.externalReference?.condoSubdomain ||
+            job.client?.externalIntegration?.subdomain;
+
         const rawPayload = {
-            condoSubdomain: overrides.condoSubdomain,
+            condoSubdomain: dynamicSubdomain,
             sourceApp: 'ProfesionalCercano',
             serviceCategory: overrides.serviceCategory || serviceCategory,
             jobTitle: overrides.jobTitle || job.title,
@@ -376,6 +402,116 @@ class IacondoIntegrationService {
         };
 
         return rawPayload;
+    }
+
+    /**
+     * Recibe una solicitud de Reparación o Mejora desde CUALQUIER condominio en IACONDO,
+     * asegura el alta automática de ese condominio como Cliente y crea la Solicitud (Job)
+     * en Profesional Cercano vinculada a ese condominio específico.
+     */
+    static async createServiceRequestFromIacondo(requestData) {
+        if (!requestData || typeof requestData !== 'object') {
+            throw new Error('Datos de solicitud inválidos');
+        }
+
+        const rawSubdomain = requestData.condoSubdomain || requestData.subdomain || requestData.condo?.subdomain;
+        const rawCondoName = requestData.condoName || requestData.condo?.name || requestData.condo?.condoName;
+
+        if (!rawSubdomain && !rawCondoName) {
+            throw new Error('Debe especificar "condoSubdomain" o los datos del condominio solicitante');
+        }
+
+        // 1. Dar de alta o actualizar automáticamente el condominio solicitante como Cliente
+        const condoInput = {
+            ...(requestData.condo || {}),
+            subdomain: rawSubdomain,
+            name: rawCondoName || requestData.condo?.name,
+            zone: requestData.zone || requestData.condo?.zone || requestData.location,
+            address: requestData.address || requestData.condo?.address || requestData.location,
+            phone: requestData.condoPhone || requestData.condo?.phone,
+            email: requestData.condoEmail || requestData.condo?.email,
+            rif: requestData.condoRif || requestData.condo?.rif,
+            isActive: true
+        };
+
+        const { user: condoClient, action: condoAction } = await this.upsertCondoAsClient(condoInput);
+        const resolvedSubdomain = condoClient.externalIntegration?.subdomain;
+
+        // 2. Resolver Categoría y Subcategoría en Profesional Cercano
+        const Category = require('../models/Category');
+        const requestedCat = (requestData.category || requestData.serviceCategory || 'Hogar').toString().trim();
+        const requestedSubcat = (requestData.subcategory || requestData.serviceCategory || 'Mantenimiento General').toString().trim();
+
+        let categoryDoc = await Category.findOne({
+            $or: [
+                { name: { $regex: requestedCat, $options: 'i' } },
+                { 'subcategories.name': { $regex: requestedSubcat, $options: 'i' } }
+            ]
+        });
+
+        if (!categoryDoc) {
+            categoryDoc = await Category.findOne({ name: { $regex: 'Hogar', $options: 'i' } }) || await Category.findOne();
+        }
+
+        if (!categoryDoc) {
+            throw new Error('No existen categorías configuradas en Profesional Cercano');
+        }
+
+        const urgencyUpper = (requestData.urgency || 'NORMAL').toString().toUpperCase();
+        const isUrgent = urgencyUpper === 'EMERGENCIA' || urgencyUpper === 'ALTA' || Boolean(requestData.isUrgent);
+
+        const jobLocation = requestData.location ||
+            condoClient.condoDetails?.zone ||
+            condoClient.condoDetails?.address ||
+            condoClient.name;
+
+        const jobTitle = (requestData.jobTitle || requestData.title || `Reparación en ${condoClient.name}`).trim();
+        const jobDescription = (requestData.jobDescription || requestData.description || jobTitle).trim();
+
+        // 3. Crear el Trabajo (Job) a nombre del Condominio Cliente
+        const newJob = await Job.create({
+            client: condoClient._id,
+            title: jobTitle,
+            description: jobDescription,
+            category: categoryDoc._id,
+            subcategory: requestedSubcat,
+            location: jobLocation,
+            isUrgent,
+            exactLocation: condoClient.condoDetails?.coordinates?.lat ? {
+                lat: condoClient.condoDetails.coordinates.lat,
+                lng: condoClient.condoDetails.coordinates.lng,
+                address: condoClient.condoDetails?.address || jobLocation
+            } : undefined,
+            budget: requestData.budget ? Number(requestData.budget) : undefined,
+            images: Array.isArray(requestData.images || requestData.photos) ? (requestData.images || requestData.photos) : [],
+            externalReference: {
+                provider: 'iacondo',
+                condoSubdomain: resolvedSubdomain,
+                externalRequestId: requestData.externalRequestId || requestData.requestId || requestData.id || '',
+                syncedAt: new Date()
+            },
+            projectHistory: [{
+                eventType: 'job_created',
+                actor: condoClient._id,
+                actorRole: 'client',
+                timestamp: new Date(),
+                title: `Solicitud creada desde IACONDO (${condoClient.name})`,
+                description: `El condominio ${condoClient.name} (subdominio: ${resolvedSubdomain}) ha publicado una solicitud de servicio.`,
+                isPrivate: false
+            }]
+        });
+
+        return {
+            success: true,
+            condoClient: {
+                _id: condoClient._id,
+                name: condoClient.name,
+                subdomain: resolvedSubdomain,
+                zone: condoClient.condoDetails?.zone,
+                action: condoAction
+            },
+            job: newJob
+        };
     }
 
     /**

@@ -1948,15 +1948,20 @@ const IacondoManager = () => {
         }
     };
 
-    const handleSendSampleQuote = async () => {
+    const handleSendSampleQuote = async (targetSubdomain = null, targetCondoName = null) => {
+        const effectiveSubdomain = (typeof targetSubdomain === 'string' && targetSubdomain)
+            ? targetSubdomain
+            : (config.condoSubdomain || 'semeruco');
+
         setSendingSample(true);
         setStatusBanner(null);
         try {
             const samplePayload = {
-                condoSubdomain: config.condoSubdomain || 'semeruco',
+                condoSubdomain: effectiveSubdomain,
+                condoName: targetCondoName || undefined,
                 sourceApp: 'ProfesionalCercano',
                 serviceCategory: 'Plomería / Bombas de Agua',
-                jobTitle: 'Reparación de Bomba Principal Hidroneumático',
+                jobTitle: `Reparación de Bomba Principal (${effectiveSubdomain})`,
                 jobDescription: 'Sustitución de sello mecánico y rodamientos de motor de 5HP',
                 urgency: 'ALTA',
                 professional: {
@@ -1982,8 +1987,8 @@ const IacondoManager = () => {
             };
 
             const res = await api.sendQuoteToIacondo(samplePayload);
-            setStatusBanner({ type: 'success', text: `Cotización ${res.quoteNumber || ''} exportada a IACONDO correctamente` });
-            Alert.alert("Cotización Exportada", `Se envió la cotización ${res.quoteNumber} a IACONDO mediante POST /maintenance-quotes.`);
+            setStatusBanner({ type: 'success', text: `Cotización ${res.quoteNumber || ''} enviada al condominio "${effectiveSubdomain}" correctamente` });
+            Alert.alert("Cotización Exportada", `Se envió la cotización ${res.quoteNumber} al condominio "${effectiveSubdomain}" mediante POST /maintenance-quotes.`);
             loadData();
         } catch (e) {
             setStatusBanner({ type: 'error', text: e.message || 'Error al exportar cotización' });
@@ -2270,19 +2275,46 @@ const IacondoManager = () => {
                             <Text style={{ fontSize: 11, color: '#64748B', marginTop: 4 }}>
                                 ✉️ {c.email} {c.phone ? ` • 📞 ${c.phone}` : ''}
                             </Text>
+
+                            {c.externalIntegration?.subdomain ? (
+                                <TouchableOpacity
+                                    onPress={() => handleSendSampleQuote(c.externalIntegration.subdomain, c.name)}
+                                    disabled={sendingSample}
+                                    style={{
+                                        marginTop: 8,
+                                        alignSelf: 'flex-start',
+                                        backgroundColor: '#EFF6FF',
+                                        paddingHorizontal: 10,
+                                        paddingVertical: 5,
+                                        borderRadius: 6,
+                                        borderWidth: 1,
+                                        borderColor: '#BFDBFE',
+                                        flexDirection: 'row',
+                                        alignItems: 'center'
+                                    }}
+                                >
+                                    <Feather name="send" size={11} color="#0284C7" style={{ marginRight: 5 }} />
+                                    <Text style={{ fontSize: 11, fontWeight: 'bold', color: '#0284C7' }}>
+                                        Probar envío a {c.externalIntegration.subdomain}
+                                    </Text>
+                                </TouchableOpacity>
+                            ) : null}
                         </View>
                     ))
                 )}
             </View>
 
-            {/* Parámetros de Configuración */}
+            {/* Parámetros de Configuración Global Multi-Condominio */}
             <View style={{ backgroundColor: 'white', padding: 18, borderRadius: 14, marginBottom: 16, elevation: 1 }}>
-                <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#1E293B', marginBottom: 14 }}>
-                    Parámetros de Conexión
+                <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#1E293B', marginBottom: 4 }}>
+                    Parámetros de Conexión Global (Multi-Condominio)
+                </Text>
+                <Text style={{ fontSize: 12, color: '#64748B', marginBottom: 14 }}>
+                    Cada condominio registrado usa su propio subdominio dinámicamente al solicitar o recibir presupuestos.
                 </Text>
 
-                {/* Subdominio */}
-                <Text style={styles.label}>Subdominio del Condominio (CONDO_SUBDOMAIN)</Text>
+                {/* Subdominio por defecto */}
+                <Text style={styles.label}>Subdominio Principal / Por Defecto (para pruebas rápidas)</Text>
                 <TextInput
                     style={[styles.input, { marginBottom: 12 }]}
                     value={config.condoSubdomain}

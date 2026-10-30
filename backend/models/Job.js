@@ -36,6 +36,13 @@ const jobSchema = mongoose.Schema({
         lng: Number,
         address: String
     },
+    // Referencia dinámica Multi-Condominio (IACONDO)
+    externalReference: {
+        provider: { type: String }, // ej: 'iacondo'
+        condoSubdomain: { type: String, trim: true, lowercase: true }, // Subdominio del condominio al que pertenece el trabajo
+        externalRequestId: { type: String }, // ID de la solicitud en IACONDO
+        syncedAt: { type: Date }
+    },
     status: {
         type: String,
         enum: ['active', 'in_progress', 'completed', 'canceled', 'archived', 'rated'],
@@ -65,6 +72,9 @@ const jobSchema = mongoose.Schema({
         observations: String,
         addTax: { type: Boolean, default: false },
         taxRate: Number,
+        quoteNumber: String, // Número de cotización (ej. PC-2026-0891)
+        exportedToIacondo: { type: Boolean, default: false },
+        iacondoExportedAt: Date,
         status: { type: String, enum: ['pending', 'accepted', 'rejected'], default: 'pending' },
         rejectionReason: String,
         seenByClient: { type: Boolean, default: false },
@@ -143,5 +153,6 @@ jobSchema.index({ category: 1 });
 jobSchema.index({ status: 1 });
 jobSchema.index({ createdAt: -1 }); // Vital para ordenamiento
 jobSchema.index({ "offers.proId": 1 }); // Vital para buscar trabajos donde el pro ofertó
+jobSchema.index({ "externalReference.condoSubdomain": 1 });
 
 module.exports = mongoose.model('Job', jobSchema);
