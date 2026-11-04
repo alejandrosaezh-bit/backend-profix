@@ -113,19 +113,19 @@ export default function AdminScreens({ onBack, onLogout }) {
     const loadData = async () => {
         try {
             const [catsData, jobsData] = await Promise.all([
-                api.getCategories(),
-                api.adminGetJobs()
+                api.getCategories().catch(() => []),
+                api.adminGetJobs().catch(() => [])
             ]);
-            setCategories(catsData);
-            setJobs(jobsData);
+            setCategories(Array.isArray(catsData) ? catsData : []);
+            setJobs(Array.isArray(jobsData) ? jobsData : []);
         } catch (e) {
             console.log("Error loading admin data", e);
         }
     };
 
     // Derived Categories for Filter (Only those with active jobs)
-    const activeJobCategories = categories.filter(c =>
-        jobs.some(j => {
+    const activeJobCategories = (Array.isArray(categories) ? categories : []).filter(c =>
+        (Array.isArray(jobs) ? jobs : []).some(j => {
             const jCat = j.category?.name || j.category;
             return jCat === c.name;
         })
@@ -234,9 +234,10 @@ const Dashboard = ({ setActiveTab }) => {
     const loadStats = async () => {
         try {
             const users = await api.getUsers();
-            const pending = users.filter(u => u.role === 'professional' && !u.isVerified).length;
+            const safeUsers = Array.isArray(users) ? users : [];
+            const pending = safeUsers.filter(u => u.role === 'professional' && !u.isVerified).length;
             setStats({
-                totalUsers: users.length,
+                totalUsers: safeUsers.length,
                 pending: pending
             });
         } catch (e) {
@@ -285,6 +286,7 @@ const UsersManager = () => {
     const [selectedUser, setSelectedUser] = useState(null); // Para ver detalles
     const [isEditing, setIsEditing] = useState(false);
     const [showInactive, setShowInactive] = useState(false); // New Filter State
+    const [roleFilter, setRoleFilter] = useState('all'); // 'all' | 'clients' | 'condos' | 'admins'
 
     // Edit Form State
     const [editData, setEditData] = useState({});
@@ -298,19 +300,24 @@ const UsersManager = () => {
     const loadUsers = async () => {
         try {
             const data = await api.getUsers();
-            setUsers(data);
+            setUsers(Array.isArray(data) ? data : []);
         } catch (e) {
             console.error(e);
-            Alert.alert("Error", "No se pudieron cargar los usuarios");
+            setUsers([]);
+            Alert.alert("Error", e.message || "No se pudieron cargar los usuarios");
         } finally {
             setLoading(false);
         }
     };
 
     // Filter Logic
-    const filteredUsers = users.filter(u => {
-        if (showInactive) return true; // Show everything
-        return u.isActive !== false; // Hide inactive unless toggled
+    const safeUsers = Array.isArray(users) ? users : [];
+    const filteredUsers = safeUsers.filter(u => {
+        if (!showInactive && u.isActive === false) return false;
+        if (roleFilter === 'condos') return u.clientType === 'condominio' || u.externalIntegration?.provider === 'iacondo';
+        if (roleFilter === 'clients') return u.role !== 'admin';
+        if (roleFilter === 'admins') return u.role === 'admin';
+        return true;
     });
 
     const handleVerify = async (id) => {
@@ -327,14 +334,33 @@ const UsersManager = () => {
         try {
             // Cargar datos frescos
             const fullUser = await api.adminGetUser(user._id);
-            setSelectedUser(fullUser);
+            const effectiveCedula = fullUser.cedula || fullUser.condoDetails?.rif || '';
+            const effectivePhone = fullUser.phone || fullUser.condoDetails?.adminPhone || '';
+            const effectiveEmail = (fullUser.condoDetails?.adminEmail && String(fullUser.email || '').endsWith('@iacondo.profesionalcercano.com'))
+                ? fullUser.condoDetails.adminEmail
+                : (fullUser.email || fullUser.condoDetails?.adminEmail || '');
+
+            setSelectedUser({
+                ...fullUser,
+                cedula: effectiveCedula,
+                phone: effectivePhone,
+                email: effectiveEmail
+            });
             setEditData({
                 name: fullUser.name,
-                email: fullUser.email,
-                cedula: fullUser.cedula,
+                email: effectiveEmail,
+                cedula: effectiveCedula,
                 role: fullUser.role,
-                phone: fullUser.phone,
-                isVerified: fullUser.isVerified
+                phone: effectivePhone,
+                isVerified: fullUser.isVerified,
+                condoDetails: {
+                    rif: effectiveCedula,
+                    address: fullUser.condoDetails?.address || '',
+                    zone: fullUser.condoDetails?.zone || '',
+                    adminName: fullUser.condoDetails?.adminName || '',
+                    adminPhone: fullUser.condoDetails?.adminPhone || effectivePhone,
+                    adminEmail: fullUser.condoDetails?.adminEmail || effectiveEmail
+                }
             });
             setNewPassword('');
             setIsEditing(false);
@@ -345,7 +371,17 @@ const UsersManager = () => {
 
     const handleUpdateUser = async () => {
         try {
-            const payload = { ...editData };
+            const payload = {
+                ...editData,
+                condoDetails: editData.condoDetails
+                    ? {
+                        ...editData.condoDetails,
+                        rif: editData.cedula || editData.condoDetails.rif || '',
+                        adminEmail: editData.email || editData.condoDetails.adminEmail || '',
+                        adminPhone: editData.phone || editData.condoDetails.adminPhone || ''
+                    }
+                    : undefined
+            };
             if (newPassword) payload.password = newPassword;
 
             await api.adminUpdateUser(selectedUser._id, payload);
@@ -364,6 +400,11 @@ const UsersManager = () => {
 
     // Vista de Detalles / Edición
     if (selectedUser) {
+        const isCondoUser = selectedUser.clientType === 'condominio' || selectedUser.externalIntegration?.provider === 'iacondo';
+        const displayCedula = selectedUser.cedula || selectedUser.condoDetails?.rif || '';
+        const displayPhone = selectedUser.phone || selectedUser.condoDetails?.adminPhone || '';
+        const displayEmail = selectedUser.email || selectedUser.condoDetails?.adminEmail || '';
+
         return (
             <ScrollView>
                 <TouchableOpacity onPress={() => setSelectedUser(null)} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 20 }}>
@@ -375,7 +416,20 @@ const UsersManager = () => {
 
                     {/* HEADER: STATUS + EDIT */}
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-                        <Text style={styles.sectionTitle}>{isEditing ? 'Editar Usuario' : 'Detalles de Usuario'}</Text>
+                        <View style={{ flex: 1 }}>
+                            <Text style={styles.sectionTitle}>
+                                {isEditing
+                                    ? (isCondoUser ? 'Editar Condominio' : 'Editar Usuario')
+                                    : (isCondoUser ? 'Ficha del Condominio' : 'Detalles de Usuario')}
+                            </Text>
+                            {isCondoUser && (
+                                <View style={{ alignSelf: 'flex-start', backgroundColor: '#E0F2FE', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, marginTop: 4 }}>
+                                    <Text style={{ fontSize: 11, fontWeight: 'bold', color: '#0369A1' }}>
+                                        🏢 CLIENTE CONDOMINIO IACONDO {selectedUser.externalIntegration?.subdomain ? `• ${selectedUser.externalIntegration.subdomain}` : ''}
+                                    </Text>
+                                </View>
+                            )}
+                        </View>
                         <TouchableOpacity onPress={() => setIsEditing(!isEditing)} style={{ padding: 10 }}>
                             <Feather name={isEditing ? "x" : "edit-2"} size={20} color={isEditing ? "#EF4444" : "#2563EB"} />
                         </TouchableOpacity>
@@ -397,14 +451,14 @@ const UsersManager = () => {
                                 style={{ width: 100, height: 100, borderRadius: 50, backgroundColor: '#cbd5e1' }}
                             />
                         ) : (
-                            <View style={{ width: 100, height: 100, borderRadius: 50, backgroundColor: '#cbd5e1', alignItems: 'center', justifyContent: 'center' }}>
-                                <Feather name="user" size={40} color="#64748b" />
+                            <View style={{ width: 100, height: 100, borderRadius: 50, backgroundColor: isCondoUser ? '#E0F2FE' : '#cbd5e1', alignItems: 'center', justifyContent: 'center' }}>
+                                <Feather name={isCondoUser ? "home" : "user"} size={40} color={isCondoUser ? "#0284C7" : "#64748b"} />
                             </View>
                         )}
                     </View>
 
                     {/* FORMULARIO EDITABLE */}
-                    <Text style={styles.label}>Nombre</Text>
+                    <Text style={styles.label}>{isCondoUser ? 'Nombre del Condominio / Conjunto' : 'Nombre'}</Text>
                     <TextInput
                         style={[styles.input, !isEditing && { backgroundColor: '#F3F4F6' }]}
                         value={isEditing ? editData.name : selectedUser.name}
@@ -412,30 +466,62 @@ const UsersManager = () => {
                         onChangeText={t => setEditData({ ...editData, name: t })}
                     />
 
-                    <Text style={styles.label}>Email</Text>
+                    <Text style={styles.label}>{isCondoUser ? 'Correo Oficial del Condominio (Email)' : 'Email'}</Text>
                     <TextInput
                         style={[styles.input, !isEditing && { backgroundColor: '#F3F4F6' }]}
-                        value={isEditing ? editData.email : selectedUser.email}
+                        value={isEditing ? editData.email : displayEmail}
                         editable={isEditing}
                         onChangeText={t => setEditData({ ...editData, email: t })}
+                        placeholder="correo@condominio.com"
                     />
 
-                    <Text style={styles.label}>Cédula (RUT/DNI) - ADMIN</Text>
+                    <Text style={styles.label}>
+                        {isCondoUser ? 'RIF del Condominio (Identificación Fiscal)' : 'Cédula / RIF (RUT/DNI) - ADMIN'}
+                    </Text>
                     <TextInput
                         style={[styles.input, !isEditing && { backgroundColor: '#F3F4F6' }]}
-                        value={isEditing ? editData.cedula : selectedUser.cedula}
+                        value={isEditing ? editData.cedula : displayCedula}
                         editable={isEditing}
                         onChangeText={t => setEditData({ ...editData, cedula: t })}
-                        placeholder="Sin Cédula"
+                        placeholder={isCondoUser ? "Ej: J-123456789" : "Sin Cédula / RIF"}
                     />
 
-                    <Text style={styles.label}>Teléfono</Text>
+                    <Text style={styles.label}>{isCondoUser ? 'Teléfono Oficial del Condominio' : 'Teléfono'}</Text>
                     <TextInput
                         style={[styles.input, !isEditing && { backgroundColor: '#F3F4F6' }]}
-                        value={isEditing ? editData.phone : selectedUser.phone}
+                        value={isEditing ? editData.phone : displayPhone}
                         editable={isEditing}
                         onChangeText={t => setEditData({ ...editData, phone: t })}
+                        placeholder="Ej: 04222537239"
                     />
+
+                    {isCondoUser && (
+                        <>
+                            <Text style={styles.label}>Dirección / Zona de Actuación</Text>
+                            <TextInput
+                                style={[styles.input, !isEditing && { backgroundColor: '#F3F4F6' }]}
+                                value={isEditing ? (editData.condoDetails?.address || editData.condoDetails?.zone || '') : (selectedUser.condoDetails?.address || selectedUser.condoDetails?.zone || '')}
+                                editable={isEditing}
+                                onChangeText={t => setEditData({
+                                    ...editData,
+                                    condoDetails: { ...(editData.condoDetails || {}), address: t, zone: t }
+                                })}
+                                placeholder="Dirección del conjunto residencial"
+                            />
+
+                            <Text style={styles.label}>Representante / Junta de Condominio</Text>
+                            <TextInput
+                                style={[styles.input, !isEditing && { backgroundColor: '#F3F4F6' }]}
+                                value={isEditing ? (editData.condoDetails?.adminName || '') : (selectedUser.condoDetails?.adminName || '')}
+                                editable={isEditing}
+                                onChangeText={t => setEditData({
+                                    ...editData,
+                                    condoDetails: { ...(editData.condoDetails || {}), adminName: t }
+                                })}
+                                placeholder="Nombre del representante o junta"
+                            />
+                        </>
+                    )}
 
                     <Text style={styles.label}>Rol</Text>
                     {isEditing ? (
@@ -559,7 +645,31 @@ const UsersManager = () => {
             <Text style={styles.sectionTitle}>Gestión de Usuarios</Text>
 
             {/* SEARCH & FILTERS */}
-            <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginBottom: 10 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
+                <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap' }}>
+                    {[
+                        { id: 'all', label: 'Todos' },
+                        { id: 'clients', label: 'Clientes' },
+                        { id: 'condos', label: '🏢 Condominios' },
+                        { id: 'admins', label: 'Admins' }
+                    ].map(tab => (
+                        <TouchableOpacity
+                            key={tab.id}
+                            onPress={() => setRoleFilter(tab.id)}
+                            style={{
+                                backgroundColor: roleFilter === tab.id ? '#2563EB' : '#E5E7EB',
+                                paddingHorizontal: 10,
+                                paddingVertical: 6,
+                                borderRadius: 16
+                            }}
+                        >
+                            <Text style={{ fontSize: 11, fontWeight: 'bold', color: roleFilter === tab.id ? 'white' : '#374151' }}>
+                                {tab.label}
+                            </Text>
+                        </TouchableOpacity>
+                    ))}
+                </View>
+
                 <TouchableOpacity
                     onPress={() => setShowInactive(!showInactive)}
                     style={{
@@ -575,36 +685,52 @@ const UsersManager = () => {
                 </TouchableOpacity>
             </View>
 
-            {filteredUsers.map(u => (
-                <TouchableOpacity key={u._id} style={[styles.card, !u.isActive && { opacity: 0.6, backgroundColor: '#FEF2F2' }]} onPress={() => selectUser(u)}>
-                    <View style={{ flex: 1 }}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
-                            <Text style={[styles.cardTitle, !u.isActive && { color: '#991B1B' }]}>
-                                {u.name}
-                                {!u.isActive && <Text style={{ fontSize: 10, color: 'red', fontWeight: 'bold' }}> [INACTIVO]</Text>}
-                                <Text style={{ fontSize: 12, color: '#666' }}> ({u.role === 'admin' ? 'Admin' : (u.clientType === 'condominio' ? 'Cliente Condominio' : 'Usuario')})</Text>
+            {filteredUsers.map(u => {
+                const isCondo = u.clientType === 'condominio' || u.externalIntegration?.provider === 'iacondo';
+                const cardRifOrCedula = u.cedula || u.condoDetails?.rif || '';
+                const cardPhone = u.phone || u.condoDetails?.adminPhone || '';
+                const cardEmail = (u.condoDetails?.adminEmail && String(u.email || '').endsWith('@iacondo.profesionalcercano.com'))
+                    ? u.condoDetails.adminEmail
+                    : (u.email || u.condoDetails?.adminEmail || '');
+
+                return (
+                    <TouchableOpacity key={u._id} style={[styles.card, !u.isActive && { opacity: 0.6, backgroundColor: '#FEF2F2' }]} onPress={() => selectUser(u)}>
+                        <View style={{ flex: 1 }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
+                                <Text style={[styles.cardTitle, !u.isActive && { color: '#991B1B' }]}>
+                                    {u.name}
+                                    {!u.isActive && <Text style={{ fontSize: 10, color: 'red', fontWeight: 'bold' }}> [INACTIVO]</Text>}
+                                    <Text style={{ fontSize: 12, color: '#666' }}> ({u.role === 'admin' ? 'Admin' : (isCondo ? 'Cliente Condominio' : 'Usuario')})</Text>
+                                </Text>
+                                {isCondo && (
+                                    <View style={{ backgroundColor: '#E0F2FE', paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6, borderWidth: 1, borderColor: '#7DD3FC' }}>
+                                        <Text style={{ fontSize: 10, fontWeight: 'bold', color: '#0369A1' }}>
+                                            🏢 IACONDO {u.externalIntegration?.subdomain ? `• ${u.externalIntegration.subdomain}` : ''}
+                                        </Text>
+                                    </View>
+                                )}
+                            </View>
+                            <Text style={styles.cardSubtitle}>
+                                {cardEmail}{cardPhone ? ` • 📞 ${cardPhone}` : ''}
                             </Text>
-                            {(u.clientType === 'condominio' || u.externalIntegration?.provider === 'iacondo') && (
-                                <View style={{ backgroundColor: '#E0F2FE', paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6, borderWidth: 1, borderColor: '#7DD3FC' }}>
-                                    <Text style={{ fontSize: 10, fontWeight: 'bold', color: '#0369A1' }}>
-                                        🏢 IACONDO {u.externalIntegration?.subdomain ? `• ${u.externalIntegration.subdomain}` : ''}
-                                    </Text>
-                                </View>
-                            )}
+                            {cardRifOrCedula ? (
+                                <Text style={{ fontSize: 11, color: '#334155', fontWeight: '600', marginTop: 2 }}>
+                                    🆔 {isCondo ? 'RIF' : 'Cédula'}: {cardRifOrCedula}
+                                </Text>
+                            ) : null}
+                            {(u.condoDetails?.zone || u.condoDetails?.address) ? (
+                                <Text style={{ fontSize: 11, color: '#0284C7', marginTop: 2 }}>
+                                    📍 Zona: {u.condoDetails.zone || u.condoDetails.address}
+                                </Text>
+                            ) : null}
+                            <Text style={{ fontSize: 10, color: u.isVerified ? 'green' : 'orange', marginTop: 2 }}>
+                                {u.isVerified ? 'Verificado' : 'Pendiente Verificación'}
+                            </Text>
                         </View>
-                        <Text style={styles.cardSubtitle}>{u.email}</Text>
-                        {u.condoDetails?.zone ? (
-                            <Text style={{ fontSize: 11, color: '#0284C7', marginTop: 2 }}>
-                                📍 Zona: {u.condoDetails.zone}
-                            </Text>
-                        ) : null}
-                        <Text style={{ fontSize: 10, color: u.isVerified ? 'green' : 'orange' }}>
-                            {u.isVerified ? 'Verificado' : 'Pendiente Verificación'}
-                        </Text>
-                    </View>
-                    <Feather name="chevron-right" size={24} color="#ccc" />
-                </TouchableOpacity>
-            ))}
+                        <Feather name="chevron-right" size={24} color="#ccc" />
+                    </TouchableOpacity>
+                );
+            })}
             {users.length === 0 && <Text style={{ textAlign: 'center', color: '#999', marginTop: 20 }}>No hay usuarios registrados.</Text>}
         </ScrollView>
     );

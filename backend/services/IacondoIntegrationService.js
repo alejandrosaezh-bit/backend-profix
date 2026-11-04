@@ -62,15 +62,16 @@ class IacondoIntegrationService {
             { upsert: true, new: true, setDefaultsOnInsert: true }
         );
 
-        // Asegurar que el condominio por defecto quede dado de alta como Cliente
+        // Asegurar que el condominio por defecto quede dado de alta como Cliente con sus datos reales desde IACONDO
         if (configDoc.condoSubdomain) {
             try {
-                await this.syncCondosBatch([{
-                    subdomain: configDoc.condoSubdomain,
-                    isActive: true
-                }]);
+                await this.pullActiveCondosFromIacondo({
+                    apiUrl: configDoc.apiUrl || 'https://condopro-api.onrender.com/api/integrations/v1',
+                    apiKey: configDoc.apiKey || '',
+                    condoSubdomain: configDoc.condoSubdomain
+                });
             } catch (e) {
-                console.warn('[IACONDO] No se pudo auto-registrar el condominio al guardar config:', e.message);
+                console.warn('[IACONDO] No se pudo auto-sincronizar el condominio al guardar config:', e.message);
             }
         }
 
@@ -763,17 +764,53 @@ class IacondoIntegrationService {
             : `Condominio ${subdomain.charAt(0).toUpperCase() + subdomain.slice(1)}`;
 
         const externalId = (condoData.id || condoData._id || condoData.externalId || subdomain).toString();
-        const rif = (condoData.rif || condoData.legalId || condoData.taxId || condoData.cedula || '').toString().trim().toUpperCase();
-        const rawEmail = (condoData.email || condoData.adminEmail || condoData.correo || '').toString().trim().toLowerCase();
+        const sup = condoData.supportAgentSettings || {};
+
+        const rif = (
+            condoData.rif ||
+            condoData.legalId ||
+            condoData.adminRif ||
+            condoData.taxId ||
+            condoData.cedula ||
+            ''
+        ).toString().trim().toUpperCase();
+
+        const candidateEmail = (
+            condoData.contactEmail ||
+            condoData.email ||
+            condoData.adminEmail ||
+            condoData.emailSettings?.user ||
+            sup.boardMemberEmail ||
+            condoData.correo ||
+            ''
+        ).toString().trim().toLowerCase();
+
+        const isSyntheticEmail = (em) => !em || em.endsWith('@iacondo.profesionalcercano.com');
+        const rawEmail = isSyntheticEmail(candidateEmail) ? '' : candidateEmail;
         const fallbackEmail = `condo.${subdomain || Date.now()}@iacondo.profesionalcercano.com`;
         const emailToUse = rawEmail || fallbackEmail;
 
-        const phone = (condoData.phone || condoData.adminPhone || condoData.telefono || '').toString().trim();
+        const phone = (
+            condoData.contactPhone ||
+            condoData.phone ||
+            condoData.adminPhone ||
+            sup.boardMemberWhatsapp ||
+            condoData.garitaPhone ||
+            condoData.telefono ||
+            ''
+        ).toString().trim();
+
         const address = (condoData.address || condoData.direccion || condoData.location || '').toString().trim();
         const zone = (condoData.zone || condoData.zona || condoData.urbanizacion || condoData.sector || address || '').toString().trim();
         const city = (condoData.city || condoData.ciudad || 'Caracas').toString().trim();
         const state = (condoData.state || condoData.estado || 'Miranda / DC').toString().trim();
-        const adminName = (condoData.adminName || condoData.contactName || condoData.administrador || 'Junta de Condominio').toString().trim();
+        const adminName = (
+            condoData.adminName ||
+            sup.boardMemberName ||
+            condoData.contactName ||
+            condoData.administrador ||
+            'Junta de Condominio'
+        ).toString().trim();
         const unitsCount = Number(condoData.unitsCount || condoData.totalUnits || condoData.unidades || 0);
 
         let isActiveInSource = true;
@@ -799,45 +836,75 @@ class IacondoIntegrationService {
             };
         }
 
-        const avatarUrl = condoData.logo || condoData.avatar ||
+        const avatarUrl = condoData.logoUrl || condoData.logo || condoData.avatar ||
             `https://ui-avatars.com/api/?name=${encodeURIComponent(displayCondoName)}&background=0284C7&color=fff&bold=true`;
 
         // 1. Buscar si el condominio ya existe en Profesional Cercano
         const searchConditions = [];
         if (subdomain) searchConditions.push({ 'externalIntegration.subdomain': subdomain });
         if (externalId) searchConditions.push({ 'externalIntegration.externalId': externalId, 'externalIntegration.provider': 'iacondo' });
-        if (rawEmail) searchConditions.push({ email: rawEmail });
+        if (rawEmail) searchConditions.push({ email: rawEmail, clientType: 'condominio' });
 
         let existingUser = null;
         if (searchConditions.length > 0) {
             existingUser = await User.findOne({ $or: searchConditions });
         }
 
+        const resolvedRif = rif || existingUser?.condoDetails?.rif || existingUser?.cedula || '';
+        const resolvedAdminEmail = rawEmail || existingUser?.condoDetails?.adminEmail || (!isSyntheticEmail(existingUser?.email) ? existingUser?.email : '') || '';
+        const resolvedPhone = phone || existingUser?.phone || existingUser?.condoDetails?.adminPhone || '';
+
+        const resolvedCoordinates = coordinates || (
+            existingUser?.condoDetails?.coordinates &&
+            existingUser.condoDetails.coordinates.lat !== undefined &&
+            existingUser.condoDetails.coordinates.lng !== undefined
+                ? {
+                    lat: existingUser.condoDetails.coordinates.lat,
+                    lng: existingUser.condoDetails.coordinates.lng
+                }
+                : null
+        );
+
         const condoDetailsPayload = {
             condoName: displayCondoName,
-            rif: rif || existingUser?.condoDetails?.rif || '',
+            rif: resolvedRif,
             address: address || existingUser?.condoDetails?.address || '',
-            zone: zone || existingUser?.condoDetails?.zone || '',
-            city: city || existingUser?.condoDetails?.city || '',
-            state: state || existingUser?.condoDetails?.state || '',
-            coordinates: coordinates || existingUser?.condoDetails?.coordinates,
-            adminName: adminName || existingUser?.condoDetails?.adminName || '',
-            adminEmail: rawEmail || existingUser?.condoDetails?.adminEmail || '',
-            adminPhone: phone || existingUser?.condoDetails?.adminPhone || '',
+            zone: zone || existingUser?.condoDetails?.zone || address || '',
+            city: city || existingUser?.condoDetails?.city || 'Caracas',
+            state: state || existingUser?.condoDetails?.state || 'Miranda / DC',
+            adminName: (adminName && adminName !== 'Junta de Condominio') ? adminName : (existingUser?.condoDetails?.adminName || adminName || 'Junta de Condominio'),
+            adminEmail: resolvedAdminEmail,
+            adminPhone: resolvedPhone,
             unitsCount: unitsCount || existingUser?.condoDetails?.unitsCount || 0
         };
+
+        if (resolvedCoordinates) {
+            condoDetailsPayload.coordinates = resolvedCoordinates;
+        }
 
         const externalIntegrationPayload = {
             provider: 'iacondo',
             externalId,
             subdomain,
+            apiKey: condoData.apiKey || existingUser?.externalIntegration?.apiKey || undefined,
             syncedAt: new Date(),
             isActiveInSource
         };
 
         if (existingUser) {
-            existingUser.name = displayCondoName;
-            if (phone) existingUser.phone = phone;
+            if (rawName || !existingUser.name) {
+                existingUser.name = displayCondoName;
+            }
+            if (resolvedPhone) {
+                existingUser.phone = resolvedPhone;
+            }
+            // Actualizar correo si llegó un correo real del condominio y no choca con otro usuario
+            if (rawEmail && existingUser.email !== rawEmail) {
+                const emailTaken = await User.findOne({ email: rawEmail, _id: { $ne: existingUser._id } });
+                if (!emailTaken) {
+                    existingUser.email = rawEmail;
+                }
+            }
             existingUser.clientType = 'condominio';
             existingUser.isActive = isActiveInSource;
             existingUser.isVerified = true;
@@ -847,10 +914,12 @@ class IacondoIntegrationService {
             existingUser.externalIntegration = externalIntegrationPayload;
             existingUser.condoDetails = condoDetailsPayload;
 
-            // Si tiene RIF y no choca con otra cédula
-            if (rif && !existingUser.cedula) {
-                const cedulaTaken = await User.findOne({ cedula: rif, _id: { $ne: existingUser._id } });
-                if (!cedulaTaken) existingUser.cedula = rif;
+            // Guardar el RIF del condominio en el campo cedula (identificación legal) si no choca con otro usuario
+            if (resolvedRif && existingUser.cedula !== resolvedRif) {
+                const cedulaTaken = await User.findOne({ cedula: resolvedRif, _id: { $ne: existingUser._id } });
+                if (!cedulaTaken) {
+                    existingUser.cedula = resolvedRif;
+                }
             }
 
             await existingUser.save();
@@ -865,10 +934,10 @@ class IacondoIntegrationService {
 
             // Verificar que el RIF no choque con cedula existente
             let finalCedula = undefined;
-            if (rif) {
-                const cedulaConflict = await User.findOne({ cedula: rif });
+            if (resolvedRif) {
+                const cedulaConflict = await User.findOne({ cedula: resolvedRif });
                 if (!cedulaConflict) {
-                    finalCedula = rif;
+                    finalCedula = resolvedRif;
                 }
             }
 
@@ -878,7 +947,7 @@ class IacondoIntegrationService {
                 cedula: finalCedula,
                 role: 'client',
                 clientType: 'condominio',
-                phone: phone || '',
+                phone: resolvedPhone || '',
                 avatar: avatarUrl,
                 isActive: isActiveInSource,
                 isVerified: true,
@@ -994,6 +1063,8 @@ class IacondoIntegrationService {
             throw new Error('No se ha configurado IACONDO_API_URL');
         }
 
+        const baseHost = config.apiUrl.replace(/\/api\/integrations\/v1\/?$/i, '').replace(/\/+$/, '');
+
         const candidateEndpoints = [
             `${config.apiUrl}/condos?status=active`,
             `${config.apiUrl}/active-condos`,
@@ -1029,13 +1100,57 @@ class IacondoIntegrationService {
                         fetchedCondos = [body];
                     }
 
-                    if (fetchedCondos) {
+                    if (fetchedCondos && fetchedCondos.length > 0) {
                         usedEndpoint = endpoint;
                         break;
                     }
                 } catch (err) {
                     lastError = err;
                 }
+            }
+        }
+
+        // Respaldo: consultar lista pública e información detallada por subdominio desde IACONDO
+        if (!fetchedCondos || fetchedCondos.length === 0) {
+            try {
+                const publicListEndpoint = `${baseHost}/api/condo/public-list`;
+                const listResp = await axios.get(publicListEndpoint, { timeout: 10000 });
+                if (Array.isArray(listResp.data) && listResp.data.length > 0) {
+                    const detailedCondos = [];
+                    for (const item of listResp.data) {
+                        const sub = item.subdomain;
+                        if (sub) {
+                            try {
+                                const infoResp = await axios.get(`${baseHost}/api/condo/info/${sub}`, { timeout: 8000 });
+                                if (infoResp.data && typeof infoResp.data === 'object') {
+                                    detailedCondos.push({ ...item, ...infoResp.data, isActive: true });
+                                    continue;
+                                }
+                            } catch (e) {
+                                // ignore info error and push basic item
+                            }
+                        }
+                        detailedCondos.push({ ...item, isActive: true });
+                    }
+                    fetchedCondos = detailedCondos;
+                    usedEndpoint = publicListEndpoint;
+                }
+            } catch (err) {
+                lastError = lastError || err;
+            }
+        }
+
+        // Respaldo adicional: consultar directamente /api/condo/info/:subdomain para el subdominio configurado
+        if ((!fetchedCondos || fetchedCondos.length === 0) && config.condoSubdomain) {
+            try {
+                const infoEndpoint = `${baseHost}/api/condo/info/${config.condoSubdomain}`;
+                const infoResp = await axios.get(infoEndpoint, { timeout: 10000 });
+                if (infoResp.data && typeof infoResp.data === 'object') {
+                    fetchedCondos = [{ ...infoResp.data, subdomain: config.condoSubdomain, isActive: true }];
+                    usedEndpoint = infoEndpoint;
+                }
+            } catch (err) {
+                lastError = lastError || err;
             }
         }
 

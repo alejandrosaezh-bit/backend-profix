@@ -170,10 +170,32 @@ router.put('/users/:id', async (req, res) => {
         if (user) {
             user.name = req.body.name || user.name;
             user.email = req.body.email || user.email;
-            user.cedula = req.body.cedula || user.cedula;
+            user.cedula = req.body.cedula !== undefined ? req.body.cedula : user.cedula;
             user.role = req.body.role || user.role;
-            user.phone = req.body.phone || user.phone;
+            user.phone = req.body.phone !== undefined ? req.body.phone : user.phone;
             user.isVerified = req.body.isVerified !== undefined ? req.body.isVerified : user.isVerified;
+
+            if (user.clientType === 'condominio' || user.externalIntegration?.provider === 'iacondo' || req.body.condoDetails) {
+                if (!user.condoDetails) user.condoDetails = {};
+                if (req.body.cedula !== undefined) user.condoDetails.rif = req.body.cedula;
+                if (req.body.rif !== undefined) {
+                    user.condoDetails.rif = req.body.rif;
+                    user.cedula = req.body.rif;
+                }
+                if (req.body.email !== undefined) user.condoDetails.adminEmail = req.body.email;
+                if (req.body.phone !== undefined) user.condoDetails.adminPhone = req.body.phone;
+                if (req.body.condoDetails && typeof req.body.condoDetails === 'object') {
+                    if (req.body.condoDetails.rif !== undefined) {
+                        user.condoDetails.rif = req.body.condoDetails.rif;
+                        user.cedula = req.body.condoDetails.rif;
+                    }
+                    if (req.body.condoDetails.address !== undefined) user.condoDetails.address = req.body.condoDetails.address;
+                    if (req.body.condoDetails.zone !== undefined) user.condoDetails.zone = req.body.condoDetails.zone;
+                    if (req.body.condoDetails.adminName !== undefined) user.condoDetails.adminName = req.body.condoDetails.adminName;
+                    if (req.body.condoDetails.adminPhone !== undefined) user.condoDetails.adminPhone = req.body.condoDetails.adminPhone;
+                    if (req.body.condoDetails.adminEmail !== undefined) user.condoDetails.adminEmail = req.body.condoDetails.adminEmail;
+                }
+            }
 
             if (req.body.password) {
                 const bcrypt = require('bcryptjs'); // Importar localmente si no está arriba, o asegurar import global
