@@ -302,7 +302,10 @@ router.post(['/iacondo/condos/sync', '/webhook/iacondo-condos', '/iacondo-condos
 router.get('/iacondo/categories', async (req, res) => {
     try {
         const Category = require('../models/Category');
-        const categories = await Category.find({ isActive: true }).sort({ name: 1 }).lean();
+        const categories = await Category.find({ isActive: true })
+            .select('-subcategories.emergencyIcon')
+            .sort({ name: 1 })
+            .lean();
         res.json({
             success: true,
             count: categories.length,
