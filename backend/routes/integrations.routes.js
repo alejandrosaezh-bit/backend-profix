@@ -295,6 +295,25 @@ router.post(['/iacondo/condos/sync', '/webhook/iacondo-condos', '/iacondo-condos
 });
 
 /**
+ * @desc    Catálogo vivo de Categorías y Subcategorías activas para condominios en IACONDO
+ * @route   GET /api/integrations/iacondo/categories
+ * @access  Public / Integración
+ */
+router.get('/iacondo/categories', async (req, res) => {
+    try {
+        const Category = require('../models/Category');
+        const categories = await Category.find({ isActive: true }).sort({ name: 1 }).lean();
+        res.json({
+            success: true,
+            count: categories.length,
+            categories
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+/**
  * @desc    Recibir una Solicitud de Reparación o Mejora desde CUALQUIER Condominio en IACONDO
  *          Auto-registra el condominio como Cliente si no existía y publica el Job en Profesional Cercano.
  * @route   POST /api/integrations/iacondo/service-requests
@@ -303,10 +322,13 @@ router.post(['/iacondo/condos/sync', '/webhook/iacondo-condos', '/iacondo-condos
  */
 router.post(['/iacondo/service-requests', '/webhook/iacondo-service-request', '/iacondo-service-request'], async (req, res) => {
     try {
-        const result = await IacondoIntegrationService.createServiceRequestFromIacondo(req.body);
-        res.status(201).json({
+        const io = req.app.get('socketio');
+        const result = await IacondoIntegrationService.createServiceRequestFromIacondo(req.body, io);
+        res.status(result.isUpdate ? 200 : 201).json({
             success: true,
-            message: `Solicitud creada exitosamente para ${result.condoClient.name} (subdominio: ${result.condoClient.subdomain})`,
+            message: result.isUpdate
+                ? `Solicitud actualizada exitosamente en Profesional Cercano para ${result.condoClient.name}`
+                : `Solicitud publicada exitosamente para ${result.condoClient.name} (subdominio: ${result.condoClient.subdomain})`,
             ...result
         });
     } catch (error) {

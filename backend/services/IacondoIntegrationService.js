@@ -407,13 +407,18 @@ class IacondoIntegrationService {
 
     /**
      * Recibe una solicitud de Reparación o Mejora desde CUALQUIER condominio en IACONDO,
-     * asegura el alta automática de ese condominio como Cliente y crea la Solicitud (Job)
-     * en Profesional Cercano vinculada a ese condominio específico.
+     * asegura el alta automática de ese condominio como Cliente, sube fotos a Cloudinary,
+     * crea o actualiza la Solicitud (Job) en Profesional Cercano y notifica a los profesionales.
      */
-    static async createServiceRequestFromIacondo(requestData) {
+    static async createServiceRequestFromIacondo(requestData, io = null) {
         if (!requestData || typeof requestData !== 'object') {
             throw new Error('Datos de solicitud inválidos');
         }
+
+        const mongoose = require('mongoose');
+        const Category = require('../models/Category');
+        const NotificationService = require('./NotificationService');
+        const { uploadImage } = require('../utils/cloudinary');
 
         const rawSubdomain = requestData.condoSubdomain || requestData.subdomain || requestData.condo?.subdomain;
         const rawCondoName = requestData.condoName || requestData.condo?.name || requestData.condo?.condoName;
@@ -438,72 +443,213 @@ class IacondoIntegrationService {
         const { user: condoClient, action: condoAction } = await this.upsertCondoAsClient(condoInput);
         const resolvedSubdomain = condoClient.externalIntegration?.subdomain;
 
-        // 2. Resolver Categoría y Subcategoría en Profesional Cercano
-        const Category = require('../models/Category');
-        const requestedCat = (requestData.category || requestData.serviceCategory || 'Hogar').toString().trim();
-        const requestedSubcat = (requestData.subcategory || requestData.serviceCategory || 'Mantenimiento General').toString().trim();
+        // 2. Resolver Categoría y Subcategoría exacta en Profesional Cercano
+        const requestedCatId = (requestData.categoryId || '').toString().trim();
+        const requestedCat = (requestData.category || requestData.categoryName || requestData.serviceCategory || 'Hogar').toString().trim();
+        const requestedSubcatRaw = (requestData.subcategory || requestData.subcategoryName || requestData.serviceCategory || 'Mantenimiento General').toString().trim();
 
-        let categoryDoc = await Category.findOne({
-            $or: [
-                { name: { $regex: requestedCat, $options: 'i' } },
-                { 'subcategories.name': { $regex: requestedSubcat, $options: 'i' } }
-            ]
-        });
+        let categoryDoc = null;
+        if (requestedCatId && mongoose.Types.ObjectId.isValid(requestedCatId)) {
+            categoryDoc = await Category.findById(requestedCatId);
+        }
 
         if (!categoryDoc) {
-            categoryDoc = await Category.findOne({ name: { $regex: 'Hogar', $options: 'i' } }) || await Category.findOne();
+            const escapedCat = requestedCat.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const escapedSub = requestedSubcatRaw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            categoryDoc = await Category.findOne({
+                isActive: true,
+                $or: [
+                    { name: { $regex: `^${escapedCat}$`, $options: 'i' } },
+                    { 'subcategories.name': { $regex: `^${escapedSub}$`, $options: 'i' } },
+                    { name: { $regex: escapedCat, $options: 'i' } },
+                    { 'subcategories.name': { $regex: escapedSub, $options: 'i' } }
+                ]
+            });
+        }
+
+        if (!categoryDoc) {
+            categoryDoc = await Category.findOne({ isActive: true, name: { $regex: 'Hogar', $options: 'i' } }) || await Category.findOne({ isActive: true }) || await Category.findOne();
         }
 
         if (!categoryDoc) {
             throw new Error('No existen categorías configuradas en Profesional Cercano');
         }
 
+        let resolvedSubcategory = requestedSubcatRaw;
+        if (Array.isArray(categoryDoc.subcategories) && categoryDoc.subcategories.length > 0) {
+            const exactSub = categoryDoc.subcategories.find(
+                s => s.name && s.name.toLowerCase() === requestedSubcatRaw.toLowerCase()
+            );
+            if (exactSub) {
+                resolvedSubcategory = exactSub.name;
+            } else if (!requestedSubcatRaw || requestedSubcatRaw.toLowerCase() === categoryDoc.name.toLowerCase()) {
+                resolvedSubcategory = categoryDoc.subcategories[0].name;
+            }
+        }
+
         const urgencyUpper = (requestData.urgency || 'NORMAL').toString().toUpperCase();
         const isUrgent = urgencyUpper === 'EMERGENCIA' || urgencyUpper === 'ALTA' || Boolean(requestData.isUrgent);
 
         const jobLocation = requestData.location ||
-            condoClient.condoDetails?.zone ||
             condoClient.condoDetails?.address ||
+            condoClient.condoDetails?.zone ||
             condoClient.name;
 
         const jobTitle = (requestData.jobTitle || requestData.title || `Reparación en ${condoClient.name}`).trim();
         const jobDescription = (requestData.jobDescription || requestData.description || jobTitle).trim();
 
-        // 3. Crear el Trabajo (Job) a nombre del Condominio Cliente
-        const newJob = await Job.create({
-            client: condoClient._id,
-            title: jobTitle,
-            description: jobDescription,
-            category: categoryDoc._id,
-            subcategory: requestedSubcat,
-            location: jobLocation,
-            isUrgent,
-            exactLocation: condoClient.condoDetails?.coordinates?.lat ? {
-                lat: condoClient.condoDetails.coordinates.lat,
-                lng: condoClient.condoDetails.coordinates.lng,
-                address: condoClient.condoDetails?.address || jobLocation
-            } : undefined,
-            budget: requestData.budget ? Number(requestData.budget) : undefined,
-            images: Array.isArray(requestData.images || requestData.photos) ? (requestData.images || requestData.photos) : [],
-            externalReference: {
+        // 3. Procesar y subir fotos sincronizadas a Cloudinary (acepta URLs https:// y data:image base64)
+        const rawImages = Array.isArray(requestData.images || requestData.photos)
+            ? (requestData.images || requestData.photos)
+            : [];
+        const uploadedImages = [];
+
+        for (const img of rawImages.slice(0, 6)) {
+            if (!img || typeof img !== 'string') continue;
+            if (img.startsWith('data:image')) {
+                const cloudUrl = await uploadImage(img, 'iacondo_jobs');
+                if (cloudUrl) {
+                    uploadedImages.push(cloudUrl);
+                } else {
+                    uploadedImages.push(img);
+                }
+            } else if (img.startsWith('http://') || img.startsWith('https://')) {
+                uploadedImages.push(img);
+            }
+        }
+
+        const externalReqId = (requestData.externalRequestId || requestData.requestId || requestData.id || '').toString().trim();
+
+        // 4. Si ya existe un Job activo vinculado a esta solicitud de IACONDO, actualizarlo sin duplicar
+        let targetJob = null;
+        let isUpdate = false;
+        if (externalReqId) {
+            targetJob = await Job.findOne({
+                'externalReference.provider': 'iacondo',
+                'externalReference.condoSubdomain': resolvedSubdomain,
+                'externalReference.externalRequestId': externalReqId,
+                status: { $nin: ['canceled', 'archived'] }
+            });
+        }
+        if (!targetJob && requestData.externalJobId && mongoose.Types.ObjectId.isValid(requestData.externalJobId)) {
+            targetJob = await Job.findById(requestData.externalJobId);
+        }
+
+        if (targetJob) {
+            isUpdate = true;
+            targetJob.title = jobTitle;
+            targetJob.description = jobDescription;
+            targetJob.category = categoryDoc._id;
+            targetJob.subcategory = resolvedSubcategory;
+            targetJob.location = jobLocation;
+            targetJob.isUrgent = isUrgent;
+            if (requestData.budget !== undefined && requestData.budget !== '') {
+                targetJob.budget = Number(requestData.budget);
+            }
+            if (uploadedImages.length > 0 || Array.isArray(requestData.images)) {
+                targetJob.images = uploadedImages;
+            }
+            targetJob.externalReference = {
                 provider: 'iacondo',
                 condoSubdomain: resolvedSubdomain,
-                externalRequestId: requestData.externalRequestId || requestData.requestId || requestData.id || '',
+                externalRequestId: externalReqId || targetJob.externalReference?.externalRequestId || '',
                 syncedAt: new Date()
-            },
-            projectHistory: [{
-                eventType: 'job_created',
+            };
+            targetJob.projectHistory.push({
+                eventType: 'note_added',
                 actor: condoClient._id,
                 actorRole: 'client',
                 timestamp: new Date(),
-                title: `Solicitud creada desde IACONDO (${condoClient.name})`,
-                description: `El condominio ${condoClient.name} (subdominio: ${resolvedSubdomain}) ha publicado una solicitud de servicio.`,
+                title: `Solicitud actualizada desde IACONDO (${condoClient.name})`,
+                description: `Categoría: ${categoryDoc.name} > ${resolvedSubcategory}`,
                 isPrivate: false
-            }]
-        });
+            });
+            await targetJob.save();
+        } else {
+            // Crear nuevo Job a nombre del Condominio Cliente
+            targetJob = await Job.create({
+                client: condoClient._id,
+                title: jobTitle,
+                description: jobDescription,
+                category: categoryDoc._id,
+                subcategory: resolvedSubcategory,
+                location: jobLocation,
+                isUrgent,
+                exactLocation: condoClient.condoDetails?.coordinates?.lat !== undefined ? {
+                    lat: condoClient.condoDetails.coordinates.lat,
+                    lng: condoClient.condoDetails.coordinates.lng,
+                    address: condoClient.condoDetails?.address || jobLocation
+                } : undefined,
+                budget: requestData.budget ? Number(requestData.budget) : undefined,
+                images: uploadedImages,
+                externalReference: {
+                    provider: 'iacondo',
+                    condoSubdomain: resolvedSubdomain,
+                    externalRequestId: externalReqId,
+                    syncedAt: new Date()
+                },
+                projectHistory: [{
+                    eventType: 'job_created',
+                    actor: condoClient._id,
+                    actorRole: 'client',
+                    timestamp: new Date(),
+                    title: `Solicitud creada desde IACONDO (${condoClient.name})`,
+                    description: `El condominio ${condoClient.name} (${resolvedSubdomain}) solicita ${categoryDoc.name} > ${resolvedSubcategory}.`,
+                    isPrivate: false
+                }]
+            });
+
+            // 5. Notificar en segundo plano a todos los profesionales activos de esta categoría
+            (async () => {
+                try {
+                    const proQuery = {
+                        [`profiles.${categoryDoc.name}`]: { $exists: true },
+                        role: 'professional',
+                        isActive: true
+                    };
+                    if (isUrgent) {
+                        proQuery[`profiles.${categoryDoc.name}.acceptsUrgentJobs`] = true;
+                    }
+                    const pros = await User.find(proQuery).select('_id name');
+                    console.log(`[IACONDO -> PROFIX] Notificando a ${pros.length} profesionales de "${categoryDoc.name}" por solicitud de ${condoClient.name}`);
+
+                    for (const pro of pros) {
+                        const eventTitle = isUrgent
+                            ? `🚨 EMERGENCIA CONDOMINIO: ${condoClient.name}`
+                            : `🏢 Solicitud de Condominio: ${condoClient.name}`;
+                        const eventBody = `${resolvedSubcategory}: ${jobTitle} — Zona: ${jobLocation}`;
+
+                        await NotificationService.notifyUser({
+                            userId: pro._id,
+                            eventKey: 'prof_new_requests',
+                            title: eventTitle,
+                            body: eventBody,
+                            data: { jobId: targetJob._id, type: isUrgent ? 'urgent_job' : 'new_job', source: 'iacondo' },
+                            buttonText: 'Ver y Cotizar',
+                            buttonUrl: `profix://job/${targetJob._id}`
+                        }).catch(() => {});
+
+                        if (io) {
+                            io.to(`user_${pro._id}`).emit(isUrgent ? 'urgent_job_alert' : 'notification', {
+                                jobId: targetJob._id,
+                                type: isUrgent ? 'urgent_job' : 'new_job',
+                                title: eventTitle,
+                                body: eventBody,
+                                categoryName: categoryDoc.name,
+                                subcategory: resolvedSubcategory,
+                                location: jobLocation
+                            });
+                        }
+                    }
+                } catch (notifyErr) {
+                    console.warn('[IACONDO -> PROFIX] Aviso enviando notificaciones a profesionales:', notifyErr.message);
+                }
+            })();
+        }
 
         return {
             success: true,
+            isUpdate,
             condoClient: {
                 _id: condoClient._id,
                 name: condoClient.name,
@@ -511,7 +657,13 @@ class IacondoIntegrationService {
                 zone: condoClient.condoDetails?.zone,
                 action: condoAction
             },
-            job: newJob
+            category: {
+                _id: categoryDoc._id,
+                name: categoryDoc.name,
+                subcategory: resolvedSubcategory
+            },
+            uploadedImages,
+            job: targetJob
         };
     }
 
