@@ -490,10 +490,77 @@ class IacondoIntegrationService {
         const urgencyUpper = (requestData.urgency || 'NORMAL').toString().toUpperCase();
         const isUrgent = urgencyUpper === 'EMERGENCIA' || urgencyUpper === 'ALTA' || Boolean(requestData.isUrgent);
 
-        const jobLocation = requestData.location ||
-            condoClient.condoDetails?.address ||
+        // Normalizar la ubicación principal a "Municipio, Región" para que coincida con las zonas de cobertura de los profesionales
+        const PROFIX_ZONES_MAP = {
+            'Gran Caracas': ['Libertador', 'Chacao', 'Baruta', 'Sucre', 'El Hatillo'],
+            'La Guaira': ['Vargas'],
+            'Altos Mirandinos': ['Los Salias', 'Carrizal', 'Guaicaipuro'],
+            'Guarenas-Guatire': ['Plaza', 'Zamora'],
+            'Valencia': ['Valencia', 'Naguanagua', 'San Diego', 'Los Guayos', 'Libertador (Carabobo)'],
+            'Maracay': ['Girardot', 'Mario Briceño Iragorry', 'Santiago Mariño'],
+            'Barquisimeto': ['Iribarren', 'Palavecino'],
+            'Maracaibo': ['Maracaibo', 'San Francisco'],
+            'Puerto La Cruz': ['Sotillo', 'Simón Bolívar', 'Urbaneja', 'Guanta'],
+            'San Cristóbal': ['San Cristóbal', 'Cárdenas'],
+            'Margarita': ['Mariño', 'Maneiro', 'Arismendi', 'García'],
+            'Puerto Ordaz': ['Caroní']
+        };
+        const stripAcc = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+        const resolveStandardZone = (...candidates) => {
+            for (const cand of candidates) {
+                const text = stripAcc(cand);
+                if (!text) continue;
+                for (const [region, munis] of Object.entries(PROFIX_ZONES_MAP)) {
+                    for (const muni of munis) {
+                        const full = `${muni}, ${region}`;
+                        if (stripAcc(full) === text) return full;
+                    }
+                }
+                for (const [region, munis] of Object.entries(PROFIX_ZONES_MAP)) {
+                    for (const muni of munis) {
+                        const cleanMuni = stripAcc(muni.replace(/\s*\(.*?\)\s*/g, ''));
+                        if (cleanMuni.length >= 4 && text.includes(cleanMuni)) {
+                            return `${muni}, ${region}`;
+                        }
+                    }
+                }
+            }
+            return '';
+        };
+
+        const standardizedZone = resolveStandardZone(
+            requestData.zone,
+            requestData.condo?.serviceZone,
+            requestData.condo?.zone,
+            requestData.location,
+            condoClient.condoDetails?.zone,
+            requestData.address,
+            condoClient.condoDetails?.address
+        );
+
+        const jobLocation = standardizedZone ||
+            requestData.location ||
             condoClient.condoDetails?.zone ||
+            condoClient.condoDetails?.address ||
             condoClient.name;
+
+        const incomingCoords = (
+            requestData.exactLocation?.lat !== undefined && requestData.exactLocation?.lng !== undefined
+                ? { lat: Number(requestData.exactLocation.lat), lng: Number(requestData.exactLocation.lng) }
+                : (condoClient.condoDetails?.coordinates?.lat !== undefined
+                    ? { lat: Number(condoClient.condoDetails.coordinates.lat), lng: Number(condoClient.condoDetails.coordinates.lng) }
+                    : null)
+        );
+        const detailedRefAddress = requestData.exactLocation?.address ||
+            [condoClient.name, requestData.address || condoClient.condoDetails?.address, jobLocation]
+                .filter(Boolean)
+                .join(' — ');
+        const resolvedExactLocation = {
+            address: detailedRefAddress,
+            ...(incomingCoords && Number.isFinite(incomingCoords.lat) && Number.isFinite(incomingCoords.lng)
+                ? { lat: incomingCoords.lat, lng: incomingCoords.lng }
+                : {})
+        };
 
         const jobTitle = (requestData.jobTitle || requestData.title || `Reparación en ${condoClient.name}`).trim();
         const jobDescription = (requestData.jobDescription || requestData.description || jobTitle).trim();
@@ -542,6 +609,7 @@ class IacondoIntegrationService {
             targetJob.category = categoryDoc._id;
             targetJob.subcategory = resolvedSubcategory;
             targetJob.location = jobLocation;
+            targetJob.exactLocation = resolvedExactLocation;
             targetJob.isUrgent = isUrgent;
             if (requestData.budget !== undefined && requestData.budget !== '') {
                 targetJob.budget = Number(requestData.budget);
@@ -575,11 +643,7 @@ class IacondoIntegrationService {
                 subcategory: resolvedSubcategory,
                 location: jobLocation,
                 isUrgent,
-                exactLocation: condoClient.condoDetails?.coordinates?.lat !== undefined ? {
-                    lat: condoClient.condoDetails.coordinates.lat,
-                    lng: condoClient.condoDetails.coordinates.lng,
-                    address: condoClient.condoDetails?.address || jobLocation
-                } : undefined,
+                exactLocation: resolvedExactLocation,
                 budget: requestData.budget ? Number(requestData.budget) : undefined,
                 images: uploadedImages,
                 externalReference: {

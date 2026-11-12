@@ -261,7 +261,12 @@ function MainApp() {
             const profileZones = profile.zones || [];
             if (profileZones.length > 0) {
                 const jobLocNormalized = (jobLocation || '').trim().toLowerCase();
-                const hasZone = profileZones.some(z => z.trim().toLowerCase() === jobLocNormalized);
+                const hasZone = profileZones.some(z => {
+                    const zNorm = z.trim().toLowerCase();
+                    if (zNorm === jobLocNormalized) return true;
+                    const muniPart = zNorm.split(',')[0].replace(/\s*\(.*?\)\s*/g, '').trim();
+                    return muniPart.length >= 4 && jobLocNormalized.includes(muniPart);
+                });
                 if (!hasZone) return false;
             }
 
