@@ -191,7 +191,10 @@ router.get('/iacondo/history', protect, async (req, res) => {
  */
 router.post(['/webhook/iacondo-status', '/iacondo-status'], async (req, res) => {
     try {
-        const result = await IacondoIntegrationService.handleWebhookUpdate(req.body);
+        const result = await IacondoIntegrationService.handleWebhookUpdate({
+            ...req.body,
+            io: req.app.get('socketio')
+        });
         res.status(200).json({
             received: true,
             ...result
@@ -337,6 +340,129 @@ router.post(['/iacondo/service-requests', '/webhook/iacondo-service-request', '/
     } catch (error) {
         console.error('[IACONDO SERVICE REQUEST ERROR]:', error.message);
         res.status(400).json({
+            success: false,
+            message: error.message
+        });
+    }
+});
+
+/**
+ * @desc    FASE 2 & 3 — Hub en vivo de Presupuestos y Chats de una solicitud de Condominio
+ * @route   GET /api/integrations/iacondo/jobs/:jobId/hub
+ */
+router.get('/iacondo/jobs/:jobId/hub', async (req, res) => {
+    try {
+        const result = await IacondoIntegrationService.getCondoJobHub(req.params.jobId, {
+            condoSubdomain: req.query.condoSubdomain || req.headers['x-condo-subdomain'],
+            externalRequestId: req.query.externalRequestId || req.headers['x-external-request-id'],
+            apiKey: req.headers['x-api-key']
+        });
+        res.json(result);
+    } catch (error) {
+        res.status(error.status || 500).json({
+            success: false,
+            message: error.message
+        });
+    }
+});
+
+/**
+ * @desc    FASE 3 — Obtener o iniciar Chat entre el Condominio y un Profesional postulado
+ * @route   GET /api/integrations/iacondo/jobs/:jobId/chats/:proId
+ */
+router.get('/iacondo/jobs/:jobId/chats/:proId', async (req, res) => {
+    try {
+        const result = await IacondoIntegrationService.getOrOpenCondoJobChat(
+            req.params.jobId,
+            req.params.proId,
+            {
+                condoSubdomain: req.query.condoSubdomain || req.headers['x-condo-subdomain'],
+                externalRequestId: req.query.externalRequestId || req.headers['x-external-request-id'],
+                apiKey: req.headers['x-api-key']
+            }
+        );
+        res.json(result);
+    } catch (error) {
+        res.status(error.status || 500).json({
+            success: false,
+            message: error.message
+        });
+    }
+});
+
+/**
+ * @desc    FASE 3 — Enviar mensaje / imagen / Pase QR desde el Condominio al Profesional
+ * @route   POST /api/integrations/iacondo/jobs/:jobId/chats/:proId/messages
+ */
+router.post('/iacondo/jobs/:jobId/chats/:proId/messages', async (req, res) => {
+    try {
+        const io = req.app.get('socketio');
+        const result = await IacondoIntegrationService.sendCondoJobChatMessage(
+            req.params.jobId,
+            req.params.proId,
+            req.body,
+            {
+                condoSubdomain: req.body?.condoSubdomain || req.query.condoSubdomain || req.headers['x-condo-subdomain'],
+                externalRequestId: req.body?.externalRequestId || req.query.externalRequestId || req.headers['x-external-request-id'],
+                apiKey: req.headers['x-api-key']
+            },
+            io
+        );
+        res.status(201).json(result);
+    } catch (error) {
+        res.status(error.status || 500).json({
+            success: false,
+            message: error.message
+        });
+    }
+});
+
+/**
+ * @desc    FASE 2 — Adjudicar oferta ganadora desde IACONDO al Profesional en Profesional Cercano
+ * @route   POST /api/integrations/iacondo/jobs/:jobId/assign
+ */
+router.post('/iacondo/jobs/:jobId/assign', async (req, res) => {
+    try {
+        const io = req.app.get('socketio');
+        const result = await IacondoIntegrationService.assignCondoJobOffer(
+            req.params.jobId,
+            req.body,
+            {
+                condoSubdomain: req.body?.condoSubdomain || req.query.condoSubdomain || req.headers['x-condo-subdomain'],
+                externalRequestId: req.body?.externalRequestId || req.query.externalRequestId || req.headers['x-external-request-id'],
+                apiKey: req.headers['x-api-key']
+            },
+            io
+        );
+        res.json(result);
+    } catch (error) {
+        res.status(error.status || 500).json({
+            success: false,
+            message: error.message
+        });
+    }
+});
+
+/**
+ * @desc    FASE 2 — Cerrar como Solucionado y calificar con ⭐ al Profesional desde IACONDO
+ * @route   POST /api/integrations/iacondo/jobs/:jobId/complete-and-rate
+ */
+router.post('/iacondo/jobs/:jobId/complete-and-rate', async (req, res) => {
+    try {
+        const io = req.app.get('socketio');
+        const result = await IacondoIntegrationService.completeAndRateCondoJob(
+            req.params.jobId,
+            req.body,
+            {
+                condoSubdomain: req.body?.condoSubdomain || req.query.condoSubdomain || req.headers['x-condo-subdomain'],
+                externalRequestId: req.body?.externalRequestId || req.query.externalRequestId || req.headers['x-external-request-id'],
+                apiKey: req.headers['x-api-key']
+            },
+            io
+        );
+        res.json(result);
+    } catch (error) {
+        res.status(error.status || 500).json({
             success: false,
             message: error.message
         });

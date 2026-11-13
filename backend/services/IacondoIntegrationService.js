@@ -155,23 +155,44 @@ class IacondoIntegrationService {
         return {
             condoSubdomain: (inputData.condoSubdomain || config.condoSubdomain || 'semeruco').trim(),
             sourceApp: inputData.sourceApp || 'ProfesionalCercano',
+            externalRequestId: String(inputData.externalRequestId || '').trim(),
+            externalJobId: String(inputData.externalJobId || '').trim(),
+            offerId: String(inputData.offerId || inputData.quote?.offerId || '').trim(),
             serviceCategory: (inputData.serviceCategory || 'Servicios Generales').trim(),
             jobTitle: (inputData.jobTitle || 'Mantenimiento / Reparación').trim(),
             jobDescription: (inputData.jobDescription || 'Trabajo técnico solicitado a través de Profesional Cercano').trim(),
             urgency,
             professional: {
+                proId: String(inputData.professional?.proId || '').trim(),
                 name: (inputData.professional?.name || 'Profesional').trim(),
                 legalId: (inputData.professional?.legalId || 'Sin registrar').trim(),
                 phone: (inputData.professional?.phone || '').trim(),
                 email: (inputData.professional?.email || '').trim(),
-                rating: Number(inputData.professional?.rating || 5.0)
+                avatar: (inputData.professional?.avatar || '').trim(),
+                rating: Number(inputData.professional?.rating || 5.0),
+                reviewsCount: Number(inputData.professional?.reviewsCount || 0),
+                isVerified: Boolean(inputData.professional?.isVerified)
             },
             quote: {
                 quoteNumber: (inputData.quote?.quoteNumber || `PC-${Date.now().toString().slice(-6)}`).trim(),
+                offerId: String(inputData.offerId || inputData.quote?.offerId || '').trim(),
                 amount: Number(amount.toFixed(2)),
                 currency,
                 laborCost: Number(laborCost.toFixed(2)),
                 materialsCost: Number(materialsCost.toFixed(2)),
+                items: Array.isArray(inputData.quote?.items)
+                    ? inputData.quote.items.map(it => ({
+                        description: String(it?.description || '').trim(),
+                        price: Number(it?.price || 0)
+                    }))
+                    : [],
+                description: String(inputData.quote?.description || '').trim(),
+                warranty: String(inputData.quote?.warranty || '').trim(),
+                duration: String(inputData.quote?.duration || '').trim(),
+                startDate: String(inputData.quote?.startDate || '').trim(),
+                paymentTerms: String(inputData.quote?.paymentTerms || '').trim(),
+                conditions: String(inputData.quote?.conditions || '').trim(),
+                observations: String(inputData.quote?.observations || '').trim(),
                 pdfUrl: inputData.quote?.pdfUrl || '',
                 photos: Array.isArray(inputData.quote?.photos) ? inputData.quote.photos : [],
                 validUntil: inputData.quote?.validUntil || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
@@ -378,23 +399,39 @@ class IacondoIntegrationService {
         const rawPayload = {
             condoSubdomain: dynamicSubdomain,
             sourceApp: 'ProfesionalCercano',
+            externalRequestId: overrides.externalRequestId || job.externalReference?.externalRequestId || '',
+            externalJobId: String(job._id),
+            offerId: offer?._id ? String(offer._id) : '',
             serviceCategory: overrides.serviceCategory || serviceCategory,
             jobTitle: overrides.jobTitle || job.title,
             jobDescription: overrides.jobDescription || job.description,
             urgency: overrides.urgency || defaultUrgency,
             professional: {
+                proId: proUser._id ? String(proUser._id) : '',
                 name: overrides.proName || proUser.name || 'Profesional Certificado',
                 legalId: overrides.proLegalId || proUser.cedula || 'V-00000000',
                 phone: overrides.proPhone || proUser.phone || '',
                 email: overrides.proEmail || proUser.email || '',
-                rating: overrides.proRating !== undefined ? overrides.proRating : (proUser.rating || 5.0)
+                avatar: proUser.avatar || '',
+                rating: overrides.proRating !== undefined ? overrides.proRating : (proUser.rating || 5.0),
+                reviewsCount: Number(proUser.reviewsCount || 0),
+                isVerified: Boolean(proUser.isVerified || proUser.verificationDetails?.status === 'verified')
             },
             quote: {
                 quoteNumber,
+                offerId: offer?._id ? String(offer._id) : '',
                 amount: overrides.amount !== undefined ? overrides.amount : (offer?.amount || job.budget || 0),
                 currency: overrides.currency || (offer?.currency === 'Bs' || offer?.currency === 'VES' ? 'VES' : 'USD'),
                 laborCost: overrides.laborCost !== undefined ? overrides.laborCost : laborCost,
                 materialsCost: overrides.materialsCost !== undefined ? overrides.materialsCost : materialsCost,
+                items: Array.isArray(offer?.items) ? offer.items : [],
+                description: offer?.description || offer?.descriptionLine || '',
+                warranty: offer?.warranty || '',
+                duration: offer?.duration || '',
+                startDate: offer?.startDate || '',
+                paymentTerms: offer?.paymentTerms || '',
+                conditions: offer?.conditions || '',
+                observations: offer?.observations || '',
                 pdfUrl: overrides.pdfUrl || '',
                 photos: overrides.photos || photos.slice(0, 5),
                 validUntil: overrides.validUntil || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
@@ -881,31 +918,47 @@ class IacondoIntegrationService {
             console.error('[IACONDO WEBHOOK] Error actualizando estadísticas:', e.message);
         }
 
-        // Buscar si existe un trabajo con este número de cotización en su historial o notas
+        // Buscar si existe un trabajo con este número de cotización (en offers.quoteNumber, externalReference o notas)
         try {
-            const job = await Job.findOne({
-                $or: [
-                    { 'projectHistory.description': { $regex: quoteNumber, $options: 'i' } },
-                    { 'description': { $regex: quoteNumber, $options: 'i' } }
-                ]
-            });
+            const orConds = [
+                { 'offers.quoteNumber': quoteNumber },
+                { 'projectHistory.description': { $regex: quoteNumber, $options: 'i' } },
+                { 'description': { $regex: quoteNumber, $options: 'i' } }
+            ];
+            if (webhookData.externalRequestId) {
+                orConds.unshift({ 'externalReference.externalRequestId': String(webhookData.externalRequestId) });
+            }
+            if (webhookData.externalJobId && require('mongoose').Types.ObjectId.isValid(webhookData.externalJobId)) {
+                orConds.unshift({ _id: webhookData.externalJobId });
+            }
+
+            const job = await Job.findOne({ $or: orConds });
 
             if (job) {
-                job.projectHistory.push({
-                    eventType: isApproved ? 'offer_accepted' : 'note_added',
-                    actorRole: 'system',
-                    timestamp: new Date(),
-                    title: `IACONDO: Presupuesto ${status}`,
-                    description: `El condominio ${condoSubdomain || ''} ha marcado la cotización ${quoteNumber} como ${status}. ${notes ? `Notas: ${notes}` : ''}`,
-                    isPrivate: false
-                });
-
-                if (isApproved && job.status === 'active') {
-                    job.status = 'in_progress';
+                if (isApproved) {
+                    await this.assignCondoJobOffer(
+                        job._id,
+                        {
+                            quoteNumber,
+                            offerId: webhookData.offerId,
+                            proId: webhookData.proId,
+                            notes
+                        },
+                        { bypassStrictCheck: true },
+                        webhookData.io || null
+                    );
+                } else {
+                    job.projectHistory.push({
+                        eventType: 'note_added',
+                        actorRole: 'system',
+                        timestamp: new Date(),
+                        title: `IACONDO: Presupuesto ${status}`,
+                        description: `El condominio ${condoSubdomain || ''} ha marcado la cotización ${quoteNumber} como ${status}. ${notes ? `Notas: ${notes}` : ''}`,
+                        isPrivate: false
+                    });
+                    await job.save();
                 }
-
-                await job.save();
-                console.log(`[IACONDO WEBHOOK] Trabajo ${job._id} actualizado con el estado de IACONDO`);
+                console.log(`[IACONDO WEBHOOK] Trabajo ${job._id} actualizado con el estado de IACONDO (${status})`);
             }
         } catch (err) {
             console.error('[IACONDO WEBHOOK] Error vinculando con Job:', err.message);
@@ -1437,6 +1490,729 @@ class IacondoIntegrationService {
             .sort({ createdAt: -1 });
 
         return condos;
+    }
+
+    /**
+     * Verifica que un Job pertenezca legítimamente a un Condominio integrado con IACONDO.
+     */
+    static async verifyCondoJobAccess(jobId, authParams = {}) {
+        const mongoose = require('mongoose');
+        if (!jobId || !mongoose.Types.ObjectId.isValid(String(jobId))) {
+            const err = new Error('ID de solicitud inválido');
+            err.status = 400;
+            throw err;
+        }
+
+        const job = await Job.findById(jobId)
+            .populate('category', 'name icon')
+            .populate('client', 'name email phone avatar clientType externalIntegration condoDetails')
+            .populate('offers.proId', 'name email phone cedula avatar rating reviewsCount isVerified verificationDetails profiles');
+
+        if (!job) {
+            const err = new Error('Solicitud no encontrada en Profesional Cercano');
+            err.status = 404;
+            throw err;
+        }
+
+        if (authParams.bypassStrictCheck) {
+            return job;
+        }
+
+        const isCondoJob =
+            job.client?.clientType === 'condominio' ||
+            job.externalReference?.provider === 'iacondo' ||
+            Boolean(job.client?.externalIntegration?.subdomain);
+
+        if (!isCondoJob) {
+            const err = new Error('Esta solicitud no corresponde a un condominio integrado');
+            err.status = 403;
+            throw err;
+        }
+
+        const config = await this.getConfig();
+        const validApiKey = Boolean(
+            authParams.apiKey &&
+            (authParams.apiKey === config.apiKey || authParams.apiKey === job.client?.externalIntegration?.apiKey)
+        );
+
+        if (!validApiKey) {
+            const expectedSub = this.normalizeSubdomain(
+                job.externalReference?.condoSubdomain || job.client?.externalIntegration?.subdomain || ''
+            );
+            const providedSub = this.normalizeSubdomain(authParams.condoSubdomain || '');
+            if (expectedSub && providedSub && expectedSub !== providedSub) {
+                const err = new Error('El subdominio del condominio no coincide con el propietario de la solicitud');
+                err.status = 403;
+                throw err;
+            }
+
+            const expectedExtReq = String(job.externalReference?.externalRequestId || '').trim();
+            const providedExtReq = String(authParams.externalRequestId || '').trim();
+            if (expectedExtReq && (!providedExtReq || expectedExtReq !== providedExtReq)) {
+                const err = new Error('Credenciales de vinculación de solicitud inválidas');
+                err.status = 403;
+                throw err;
+            }
+        }
+
+        return job;
+    }
+
+    /**
+     * FASE 2 & 3 — HUB NATIVO:
+     * Devuelve el estado vivo de una solicitud de condominio en Profesional Cercano:
+     * todas las ofertas comparativas con reputación y desglose + todos los hilos de chat activos.
+     */
+    static async getCondoJobHub(jobId, authParams = {}) {
+        const Chat = require('../models/Chat');
+        const job = await this.verifyCondoJobAccess(jobId, authParams);
+        const condoClientIdStr = String(job.client._id);
+        const catName = job.category?.name || '';
+
+        const rawChats = await Chat.find({
+            job: job._id,
+            participants: job.client._id
+        })
+            .populate('participants', 'name email phone cedula avatar rating reviewsCount isVerified verificationDetails')
+            .sort({ lastMessageDate: -1 })
+            .lean();
+
+        const chatByProId = new Map();
+        const formattedChats = [];
+
+        for (const c of rawChats) {
+            const otherPro = (c.participants || []).find(p => String(p._id || p) !== condoClientIdStr);
+            if (!otherPro) continue;
+            const proIdStr = String(otherPro._id);
+            const unreadMap = c.unreadCounts || {};
+            const unreadCount = Number(unreadMap[condoClientIdStr] || 0);
+            const messagesArr = Array.isArray(c.messages) ? c.messages : [];
+            const lastMsgObj = messagesArr.length > 0 ? messagesArr[messagesArr.length - 1] : null;
+
+            const matchingOffer = (job.offers || []).find(
+                o => String(o.proId?._id || o.proId) === proIdStr
+            );
+
+            const chatSummary = {
+                chatId: String(c._id),
+                pro: {
+                    _id: proIdStr,
+                    name: otherPro.name || 'Profesional',
+                    avatar: otherPro.avatar || '',
+                    phone: otherPro.phone || '',
+                    email: otherPro.email || '',
+                    cedula: otherPro.cedula || '',
+                    rating: Number(otherPro.rating || 5.0),
+                    reviewsCount: Number(otherPro.reviewsCount || 0),
+                    isVerified: Boolean(otherPro.isVerified || otherPro.verificationDetails?.status === 'verified')
+                },
+                lastMessage: c.lastMessage || lastMsgObj?.content || (lastMsgObj?.media ? '📷 Imagen adjunta' : ''),
+                lastMessageDate: c.lastMessageDate || lastMsgObj?.createdAt || c.updatedAt,
+                unreadCount,
+                messagesCount: messagesArr.length,
+                hasOffer: Boolean(matchingOffer),
+                offerId: matchingOffer ? String(matchingOffer._id) : '',
+                offerAmount: matchingOffer ? Number(matchingOffer.amount || 0) : null,
+                offerCurrency: matchingOffer?.currency === 'Bs' || matchingOffer?.currency === 'VES' ? 'VES' : 'USD',
+                offerStatus: matchingOffer?.status || null
+            };
+
+            chatByProId.set(proIdStr, chatSummary);
+            formattedChats.push(chatSummary);
+        }
+
+        const dateCode = new Date(job.createdAt || Date.now()).getFullYear();
+        const shortJobId = String(job._id).slice(-4).toUpperCase();
+
+        const formattedOffers = (job.offers || []).map((offer, idx) => {
+            const proDoc = offer.proId && typeof offer.proId === 'object' ? offer.proId : {};
+            const proIdStr = String(proDoc._id || offer.proId || '');
+            const profilesObj = proDoc.profiles instanceof Map
+                ? Object.fromEntries(proDoc.profiles)
+                : (proDoc.profiles || {});
+            const catProfile = catName && profilesObj[catName] ? profilesObj[catName] : null;
+
+            const items = Array.isArray(offer.items)
+                ? offer.items.map(it => ({
+                    description: String(it?.description || '').trim(),
+                    price: Number(it?.price || 0)
+                }))
+                : [];
+            const sumItems = items.reduce((acc, it) => acc + (Number(it.price) || 0), 0);
+            const amount = Number(offer.amount || sumItems || 0);
+            const shortOfferId = offer._id ? String(offer._id).slice(-3).toUpperCase() : String(idx + 1).padStart(3, '0');
+            const quoteNumber = offer.quoteNumber || `PC-${dateCode}-${shortJobId}-${shortOfferId}`;
+            const linkedChat = chatByProId.get(proIdStr) || null;
+
+            return {
+                offerId: String(offer._id),
+                quoteNumber,
+                proId: proIdStr,
+                pro: {
+                    _id: proIdStr,
+                    name: proDoc.name || 'Profesional Verificado',
+                    avatar: proDoc.avatar || '',
+                    phone: proDoc.phone || '',
+                    email: proDoc.email || '',
+                    cedula: proDoc.cedula || '',
+                    rating: Number(proDoc.rating || 5.0),
+                    reviewsCount: Number(proDoc.reviewsCount || 0),
+                    isVerified: Boolean(proDoc.isVerified || proDoc.verificationDetails?.status === 'verified'),
+                    bio: catProfile?.bio || '',
+                    experience: catProfile?.experience || ''
+                },
+                amount,
+                currency: offer.currency === 'Bs' || offer.currency === 'VES' ? 'VES' : 'USD',
+                laborCost: sumItems > 0 ? sumItems : amount,
+                materialsCost: 0,
+                items,
+                description: offer.description || offer.descriptionLine || '',
+                duration: offer.duration || '',
+                startDate: offer.startDate || '',
+                paymentTerms: offer.paymentTerms || '',
+                warranty: offer.warranty || '',
+                conditions: offer.conditions || '',
+                observations: offer.observations || '',
+                addTax: Boolean(offer.addTax),
+                taxRate: Number(offer.taxRate || 0),
+                status: offer.status || 'pending',
+                createdAt: offer.createdAt,
+                chatId: linkedChat?.chatId || null,
+                unreadCount: linkedChat?.unreadCount || 0
+            };
+        });
+
+        const totalUnreadMessages = formattedChats.reduce((sum, c) => sum + (c.unreadCount || 0), 0);
+
+        return {
+            success: true,
+            job: {
+                _id: String(job._id),
+                title: job.title,
+                description: job.description,
+                status: job.status,
+                trackingStatus: job.trackingStatus,
+                categoryName: catName,
+                subcategory: job.subcategory || '',
+                location: job.location,
+                exactLocation: job.exactLocation,
+                isUrgent: Boolean(job.isUrgent),
+                images: job.images || [],
+                workPhotos: job.workPhotos || [],
+                professional: job.professional ? String(job.professional) : null,
+                hiredProId: job.hiredProId ? String(job.hiredProId) : (job.professional ? String(job.professional) : null),
+                clientRated: Boolean(job.clientRated),
+                rating: job.rating || null,
+                review: job.review || '',
+                createdAt: job.createdAt
+            },
+            condoClient: {
+                _id: condoClientIdStr,
+                name: job.client.name,
+                subdomain: job.externalReference?.condoSubdomain || job.client?.externalIntegration?.subdomain || ''
+            },
+            offers: formattedOffers,
+            chats: formattedChats,
+            stats: {
+                offersCount: formattedOffers.length,
+                chatsCount: formattedChats.length,
+                totalUnreadMessages
+            }
+        };
+    }
+
+    /**
+     * FASE 3 — CHAT EMBEBIDO:
+     * Obtiene o abre la conversación entre el Condominio y un Profesional específico para un Job,
+     * marcando como leídos los mensajes pendientes para el condominio.
+     */
+    static async getOrOpenCondoJobChat(jobId, proId, authParams = {}) {
+        const mongoose = require('mongoose');
+        const Chat = require('../models/Chat');
+
+        if (!proId || !mongoose.Types.ObjectId.isValid(String(proId))) {
+            const err = new Error('ID de profesional inválido');
+            err.status = 400;
+            throw err;
+        }
+
+        const job = await this.verifyCondoJobAccess(jobId, authParams);
+        const proUser = await User.findById(proId).select(
+            'name email phone cedula avatar rating reviewsCount isVerified verificationDetails'
+        );
+        if (!proUser) {
+            const err = new Error('Profesional no encontrado');
+            err.status = 404;
+            throw err;
+        }
+
+        let chat = await Chat.findOne({
+            job: job._id,
+            participants: { $all: [job.client._id, proUser._id] }
+        });
+
+        if (!chat) {
+            chat = await Chat.create({
+                job: job._id,
+                participants: [job.client._id, proUser._id],
+                messages: []
+            });
+            await Job.findByIdAndUpdate(job._id, { $addToSet: { conversations: chat._id } });
+        } else {
+            const condoIdStr = String(job.client._id);
+            let dirty = false;
+            if (!chat.unreadCounts) {
+                chat.unreadCounts = new Map();
+            }
+            if ((chat.unreadCounts.get(condoIdStr) || 0) > 0) {
+                chat.unreadCounts.set(condoIdStr, 0);
+                chat.markModified('unreadCounts');
+                dirty = true;
+            }
+            (chat.messages || []).forEach(m => {
+                if (String(m.sender) !== condoIdStr && !m.read) {
+                    m.read = true;
+                    dirty = true;
+                }
+            });
+            if (dirty) {
+                await chat.save();
+            }
+        }
+
+        const condoIdStr = String(job.client._id);
+        const messages = (chat.messages || []).map(m => {
+            const isCondoSender = String(m.sender) === condoIdStr;
+            return {
+                _id: String(m._id),
+                senderId: String(m.sender),
+                senderRole: isCondoSender ? 'condo' : 'pro',
+                senderName: isCondoSender ? job.client.name : proUser.name,
+                content: m.content || '',
+                media: m.media || null,
+                read: Boolean(m.read),
+                createdAt: m.createdAt
+            };
+        });
+
+        const offer = (job.offers || []).find(
+            o => String(o.proId?._id || o.proId) === String(proUser._id)
+        );
+
+        return {
+            success: true,
+            chatId: String(chat._id),
+            jobId: String(job._id),
+            condoName: job.client.name,
+            pro: {
+                _id: String(proUser._id),
+                name: proUser.name,
+                avatar: proUser.avatar || '',
+                phone: proUser.phone || '',
+                email: proUser.email || '',
+                cedula: proUser.cedula || '',
+                rating: Number(proUser.rating || 5.0),
+                reviewsCount: Number(proUser.reviewsCount || 0),
+                isVerified: Boolean(proUser.isVerified || proUser.verificationDetails?.status === 'verified')
+            },
+            offer: offer
+                ? {
+                    offerId: String(offer._id),
+                    amount: Number(offer.amount || 0),
+                    currency: offer.currency === 'Bs' || offer.currency === 'VES' ? 'VES' : 'USD',
+                    status: offer.status,
+                    warranty: offer.warranty || '',
+                    duration: offer.duration || ''
+                }
+                : null,
+            messages
+        };
+    }
+
+    /**
+     * FASE 3 — CHAT EMBEBIDO (ENVÍO DE MENSAJE / FOTO / PASE QR):
+     * Envía un mensaje en nombre del Condominio al Profesional, dispara Push + Email y emite Socket.io en vivo.
+     */
+    static async sendCondoJobChatMessage(jobId, proId, messageData = {}, authParams = {}, io = null) {
+        const mongoose = require('mongoose');
+        const Chat = require('../models/Chat');
+        const NotificationService = require('./NotificationService');
+        const { uploadImage } = require('../utils/cloudinary');
+
+        if (!proId || !mongoose.Types.ObjectId.isValid(String(proId))) {
+            const err = new Error('ID de profesional inválido');
+            err.status = 400;
+            throw err;
+        }
+
+        const rawContent = String(messageData.content || '').trim();
+        let resolvedMedia = messageData.media || null;
+
+        if (!rawContent && !resolvedMedia) {
+            const err = new Error('El mensaje no puede estar vacío');
+            err.status = 400;
+            throw err;
+        }
+
+        const job = await this.verifyCondoJobAccess(jobId, authParams);
+        const proUser = await User.findById(proId);
+        if (!proUser) {
+            const err = new Error('Profesional no encontrado');
+            err.status = 404;
+            throw err;
+        }
+
+        if (typeof resolvedMedia === 'string' && resolvedMedia.startsWith('data:image')) {
+            const uploadedUrl = await uploadImage(resolvedMedia, 'iacondo_chats').catch(() => null);
+            if (uploadedUrl) {
+                resolvedMedia = uploadedUrl;
+            }
+        }
+
+        let chat = await Chat.findOne({
+            job: job._id,
+            participants: { $all: [job.client._id, proUser._id] }
+        });
+
+        if (!chat) {
+            chat = await Chat.create({
+                job: job._id,
+                participants: [job.client._id, proUser._id],
+                messages: []
+            });
+            await Job.findByIdAndUpdate(job._id, { $addToSet: { conversations: chat._id } });
+        }
+
+        const newMsgPayload = {
+            sender: job.client._id,
+            content: rawContent,
+            media: resolvedMedia || undefined,
+            read: false,
+            createdAt: new Date()
+        };
+
+        const updatedChat = await Chat.findByIdAndUpdate(
+            chat._id,
+            {
+                $push: { messages: newMsgPayload },
+                $set: {
+                    lastMessage: rawContent || '📷 Imagen adjunta',
+                    lastMessageDate: new Date()
+                },
+                $inc: { [`unreadCounts.${proUser._id.toString()}`]: 1 }
+            },
+            { new: true, select: { messages: { $slice: -1 } }, lean: true }
+        );
+
+        const createdMsg = updatedChat?.messages?.[updatedChat.messages.length - 1] || newMsgPayload;
+
+        // Push + Socket en segundo plano para respuesta instantánea al portal de IA Condo
+        (async () => {
+            try {
+                await NotificationService.notifyUser({
+                    userId: proUser._id,
+                    eventKey: 'prof_new_messages',
+                    title: `💬 ${job.client.name}`,
+                    body: rawContent || '📷 Te han enviado una imagen desde la administración del condominio.',
+                    data: {
+                        chatId: String(chat._id),
+                        jobId: String(job._id),
+                        type: 'chat',
+                        senderId: String(job.client._id),
+                        senderName: job.client.name
+                    },
+                    buttonText: 'Ver y Responder',
+                    buttonUrl: `profix://chat/${chat._id}`
+                });
+
+                if (io) {
+                    io.to(String(chat._id)).emit('receive_message', {
+                        chatId: String(chat._id),
+                        message: {
+                            id: createdMsg._id,
+                            _id: createdMsg._id,
+                            text: rawContent,
+                            content: rawContent,
+                            sender: 'client',
+                            senderId: job.client._id,
+                            createdAt: createdMsg.createdAt,
+                            media: resolvedMedia
+                        }
+                    });
+
+                    io.to(`user_${proUser._id}`).emit('notification', {
+                        type: 'chat',
+                        targetRole: 'pro',
+                        chatId: String(chat._id),
+                        jobId: String(job._id),
+                        title: `💬 ${job.client.name}`,
+                        body: rawContent || '📷 Imagen adjunta'
+                    });
+                }
+            } catch (bgErr) {
+                console.warn('[IACONDO CHAT] Aviso notificando mensaje al profesional:', bgErr.message);
+            }
+        })();
+
+        return {
+            success: true,
+            chatId: String(chat._id),
+            message: {
+                _id: String(createdMsg._id || Date.now()),
+                senderId: String(job.client._id),
+                senderRole: 'condo',
+                senderName: job.client.name,
+                content: rawContent,
+                media: resolvedMedia || null,
+                read: false,
+                createdAt: createdMsg.createdAt || new Date()
+            }
+        };
+    }
+
+    /**
+     * FASE 2 — ADJUDICACIÓN AUTOMÁTICA DESDE IACONDO:
+     * Cuando la Junta o la Votación Vecinal aprueba un presupuesto en IACONDO,
+     * adjudica el Job en Profesional Cercano, notifica por Push al ganador y avisa en su chat.
+     */
+    static async assignCondoJobOffer(jobId, assignData = {}, authParams = {}, io = null) {
+        const Chat = require('../models/Chat');
+        const JobInteraction = require('../models/JobInteraction');
+        const NotificationService = require('./NotificationService');
+        const { GamificationService } = require('./GamificationService');
+
+        const job = await this.verifyCondoJobAccess(jobId, authParams);
+
+        const targetOfferId = String(assignData.offerId || '').trim();
+        const targetProIdInput = String(assignData.proId || '').trim();
+        const targetQuoteNum = String(assignData.quoteNumber || '').trim();
+
+        let winningOffer = null;
+        if (targetOfferId) {
+            winningOffer = (job.offers || []).find(o => String(o._id) === targetOfferId);
+        }
+        if (!winningOffer && targetProIdInput) {
+            winningOffer = (job.offers || []).find(o => String(o.proId?._id || o.proId) === targetProIdInput);
+        }
+        if (!winningOffer && targetQuoteNum) {
+            winningOffer = (job.offers || []).find(
+                o => o.quoteNumber && o.quoteNumber.toLowerCase() === targetQuoteNum.toLowerCase()
+            );
+        }
+
+        const resolvedProId = winningOffer
+            ? String(winningOffer.proId?._id || winningOffer.proId)
+            : targetProIdInput;
+
+        if (!resolvedProId) {
+            const err = new Error('No se encontró el proveedor u oferta a adjudicar en esta solicitud');
+            err.status = 400;
+            throw err;
+        }
+
+        (job.offers || []).forEach(offer => {
+            const oProId = String(offer.proId?._id || offer.proId);
+            if (oProId === resolvedProId) {
+                offer.status = 'accepted';
+            } else {
+                offer.status = 'rejected';
+                offer.rejectionReason = 'Presupuesto adjudicado a otra propuesta por el condominio.';
+            }
+        });
+
+        job.professional = resolvedProId;
+        job.hiredProId = resolvedProId;
+        job.status = 'in_progress';
+        job.trackingStatus = 'contracted';
+
+        job.projectHistory.push({
+            eventType: 'offer_accepted',
+            actor: job.client._id,
+            actorRole: 'client',
+            timestamp: new Date(),
+            title: `Presupuesto Aprobado por ${job.client.name}`,
+            description: assignData.notes
+                ? `Adjudicado desde IA Condo: ${assignData.notes}`
+                : `El condominio ${job.client.name} aprobó este presupuesto. Trabajo en ejecución.`,
+            isPrivate: false
+        });
+
+        await job.save();
+
+        try {
+            await GamificationService.addPoints(resolvedProId, 'QUOTE_WON', job._id);
+        } catch (_) {}
+
+        await JobInteraction.findOneAndUpdate(
+            { job: job._id, user: resolvedProId },
+            { status: 'won', hasUnread: true, updatedAt: Date.now() },
+            { upsert: true }
+        ).catch(() => {});
+
+        await JobInteraction.updateMany(
+            { job: job._id, user: { $ne: resolvedProId } },
+            { status: 'lost', hasUnread: true, updatedAt: Date.now() }
+        ).catch(() => {});
+
+        // Mensaje automático en el chat del profesional ganador
+        try {
+            let chat = await Chat.findOne({
+                job: job._id,
+                participants: { $all: [job.client._id, resolvedProId] }
+            });
+            if (!chat) {
+                chat = await Chat.create({
+                    job: job._id,
+                    participants: [job.client._id, resolvedProId],
+                    messages: []
+                });
+                await Job.findByIdAndUpdate(job._id, { $addToSet: { conversations: chat._id } });
+            }
+            const congratsMsg = `✅ ¡Hola! ${job.client.name} ha aprobado tu presupuesto para "${job.title}". Por favor coordina por esta vía la fecha de inicio e ingreso por garita.`;
+            await Chat.findByIdAndUpdate(chat._id, {
+                $push: {
+                    messages: {
+                        sender: job.client._id,
+                        content: congratsMsg,
+                        read: false,
+                        createdAt: new Date()
+                    }
+                },
+                $set: { lastMessage: congratsMsg, lastMessageDate: new Date() },
+                $inc: { [`unreadCounts.${resolvedProId}`]: 1 }
+            });
+        } catch (_) {}
+
+        // Notificación Push + Socket al ganador
+        (async () => {
+            try {
+                await NotificationService.notifyUser({
+                    userId: resolvedProId,
+                    eventKey: 'prof_quote_responses',
+                    title: `🎉 ¡Presupuesto Aprobado por ${job.client.name}!`,
+                    body: `Tu propuesta para "${job.title}" fue adjudicada. Revisa el chat para coordinar el inicio.`,
+                    data: { jobId: String(job._id), type: 'offer_accepted', source: 'iacondo' },
+                    buttonText: 'Abrir Solicitud',
+                    buttonUrl: `profix://job/${job._id}`
+                });
+
+                if (io) {
+                    io.to(`user_${resolvedProId}`).emit('notification', {
+                        type: 'offer_accepted',
+                        targetRole: 'pro',
+                        jobId: job._id,
+                        title: `🎉 ¡Ganaste el trabajo en ${job.client.name}!`,
+                        body: `Tu presupuesto para "${job.title}" ha sido aprobado.`
+                    });
+                    io.emit(`job_${job._id}_updated`, job);
+                }
+            } catch (_) {}
+        })();
+
+        return {
+            success: true,
+            jobId: String(job._id),
+            hiredProId: resolvedProId,
+            offerId: winningOffer ? String(winningOffer._id) : null,
+            status: job.status
+        };
+    }
+
+    /**
+     * CIERRE DEL CICLO Y CALIFICACIÓN ⭐ DESDE IACONDO:
+     * Marca el trabajo como culminado por el condominio y registra la valoración oficial al técnico.
+     */
+    static async completeAndRateCondoJob(jobId, rateData = {}, authParams = {}, io = null) {
+        const Review = require('../models/Review');
+        const NotificationService = require('./NotificationService');
+
+        const job = await this.verifyCondoJobAccess(jobId, authParams);
+        const proId = job.professional || job.hiredProId || rateData.proId || null;
+        const numericRating = Number(rateData.rating || 0);
+        const commentText = String(rateData.review || rateData.resolutionNotes || '').trim();
+
+        job.clientFinished = true;
+        job.closedAt = new Date();
+        job.trackingStatus = 'finished';
+        job.status = numericRating >= 1 && numericRating <= 5 ? 'rated' : 'completed';
+
+        if (numericRating >= 1 && numericRating <= 5) {
+            job.rating = numericRating;
+            job.review = commentText;
+            job.clientRated = true;
+        }
+
+        job.projectHistory.push({
+            eventType: 'job_finished',
+            actor: job.client._id,
+            actorRole: 'client',
+            timestamp: new Date(),
+            title: `Trabajo marcado como Solucionado en ${job.client.name}`,
+            description: commentText || 'Servicio culminado satisfactoriamente.',
+            isPrivate: false
+        });
+
+        await job.save();
+
+        if (proId && numericRating >= 1 && numericRating <= 5) {
+            try {
+                await Review.findOneAndUpdate(
+                    { job: job._id, reviewer: job.client._id, reviewee: proId },
+                    {
+                        $set: {
+                            reviewerRole: 'client',
+                            rating: numericRating,
+                            comment: commentText,
+                            answers: {
+                                deliveredOnTime: true,
+                                qualityAsExpected: numericRating >= 4,
+                                professionalism: numericRating >= 4
+                            }
+                        }
+                    },
+                    { upsert: true, new: true, setDefaultsOnInsert: true }
+                );
+
+                const allProReviews = await Review.find({ reviewee: proId, reviewerRole: 'client' }).lean();
+                if (allProReviews.length > 0) {
+                    const avg = allProReviews.reduce((s, r) => s + Number(r.rating || 0), 0) / allProReviews.length;
+                    await User.findByIdAndUpdate(proId, {
+                        rating: Number(avg.toFixed(2)),
+                        reviewsCount: allProReviews.length
+                    });
+                }
+
+                await NotificationService.notifyUser({
+                    userId: proId,
+                    eventKey: 'prof_quote_responses',
+                    title: `⭐ Nueva Calificación de ${job.client.name}`,
+                    body: `Te han otorgado ${numericRating}/5 estrellas por "${job.title}".${commentText ? ` "${commentText}"` : ''}`,
+                    data: { jobId: String(job._id), type: 'job_rated', source: 'iacondo' },
+                    buttonText: 'Ver Mi Perfil',
+                    buttonUrl: `profix://job/${job._id}`
+                }).catch(() => {});
+
+                if (io) {
+                    io.to(`user_${proId}`).emit('notification', {
+                        type: 'job_rated',
+                        targetRole: 'pro',
+                        jobId: job._id,
+                        title: `⭐ ${numericRating}/5 estrellas de ${job.client.name}`,
+                        body: commentText || `Trabajo "${job.title}" finalizado con éxito.`
+                    });
+                }
+            } catch (revErr) {
+                console.warn('[IACONDO RATE] Aviso guardando reseña del profesional:', revErr.message);
+            }
+        }
+
+        return {
+            success: true,
+            jobId: String(job._id),
+            status: job.status,
+            rating: job.rating || null,
+            clientRated: Boolean(job.clientRated)
+        };
     }
 }
 

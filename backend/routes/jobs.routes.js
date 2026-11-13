@@ -572,6 +572,29 @@ router.put('/:id/offers', protect, async (req, res) => {
             { upsert: true }
         );
 
+        // Auto-Re-Exportación a IACONDO cuando el profesional actualiza su oferta
+        try {
+            const clientUser = await User.findById(job.client).select('clientType externalIntegration');
+            const targetSubdomain = job.externalReference?.condoSubdomain || clientUser?.externalIntegration?.subdomain;
+            if (targetSubdomain || clientUser?.clientType === 'condominio') {
+                const IacondoIntegrationService = require('../services/IacondoIntegrationService');
+                const updatedOffer = job.offers[offerIndex];
+                IacondoIntegrationService.buildPayloadFromJobAndOffer(job._id, updatedOffer?._id, {
+                    condoSubdomain: targetSubdomain
+                })
+                    .then(quotePayload => IacondoIntegrationService.sendQuoteToIacondo(quotePayload))
+                    .then(async (resExport) => {
+                        if (updatedOffer && resExport?.quoteNumber) {
+                            updatedOffer.quoteNumber = resExport.quoteNumber;
+                            updatedOffer.exportedToIacondo = true;
+                            updatedOffer.iacondoExportedAt = new Date();
+                            await job.save();
+                        }
+                    })
+                    .catch(err => console.warn(`[IACONDO RE-EXPORT] Aviso actualizando oferta en ${targetSubdomain}:`, err.message));
+            }
+        } catch (_) {}
+
         res.json(job);
     } catch (error) {
         res.status(500).json({ message: error.message });
