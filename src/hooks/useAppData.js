@@ -294,15 +294,25 @@ export function useAppData({ isLoggedIn, isLoadingAuth, currentUser, userMode, v
                 if (socket) {
                     socket.emit('join_user_dates', currentUser._id);
 
-                    socket.off('notification');
-                    socket.on('notification', (data) => {
+                    let lastAlertKey = '';
+                    let lastAlertTime = 0;
+
+                    const handleSocketAlert = (data) => {
+                        const alertKey = `${data?.jobId || ''}_${data?.type || ''}_${data?.title || ''}`;
+                        const now = Date.now();
+                        if (alertKey && alertKey === lastAlertKey && now - lastAlertTime < 3000) {
+                            return;
+                        }
+                        lastAlertKey = alertKey;
+                        lastAlertTime = now;
+
                         console.log("Socket Notification:", data);
-                        if (Platform.OS !== 'web') {
+                        if (Platform.OS !== 'web' && !currentUser?.pushToken) {
                             Notifications.scheduleNotificationAsync({
                                 content: {
                                     title: data.title,
                                     body: data.body,
-                                    data: { jobId: data.jobId },
+                                    data: { jobId: data.jobId, type: data.type, targetRole: data.targetRole },
                                     sound: 'default'
                                 },
                                 trigger: null,
@@ -310,11 +320,21 @@ export function useAppData({ isLoggedIn, isLoadingAuth, currentUser, userMode, v
                         }
 
                         setCounts(prev => {
-                            const isClient = userMode === 'client';
-                            const type = isClient ? 'client' : 'pro';
+                            const isProEvent =
+                                data?.targetRole === 'pro' ||
+                                data?.type === 'new_job' ||
+                                data?.type === 'urgent_job';
+                            const type = isProEvent
+                                ? 'pro'
+                                : (data?.targetRole === 'client' ? 'client' : (userMode === 'client' ? 'client' : 'pro'));
                             return { ...prev, [type]: { ...prev[type], updates: prev[type].updates + 1 } };
                         });
-                    });
+                    };
+
+                    socket.off('notification');
+                    socket.off('urgent_job_alert');
+                    socket.on('notification', handleSocketAlert);
+                    socket.on('urgent_job_alert', handleSocketAlert);
                 }
             }
         };
@@ -332,7 +352,10 @@ export function useAppData({ isLoggedIn, isLoadingAuth, currentUser, userMode, v
         }
 
         return () => {
-            if (socket) socket.off('notification');
+            if (socket) {
+                socket.off('notification');
+                socket.off('urgent_job_alert');
+            }
             if (bgSubscription) bgSubscription.remove();
         };
     }, [isLoggedIn, currentUser, socket, userMode]);

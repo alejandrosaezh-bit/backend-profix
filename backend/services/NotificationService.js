@@ -4,45 +4,153 @@ const https = require('https');
 
 class NotificationService {
     /**
-     * Send Push Notification
+     * Send Push Notification via Expo Push API (UTF-8 safe)
      */
     static async sendPushNotification(pushToken, title, body, data = {}) {
-        if (!pushToken) return;
-        data.type = data.type || 'job_update';
+        if (!pushToken || typeof pushToken !== 'string') return null;
+
+        const payloadData = {
+            ...data,
+            type: data?.type || 'job_update'
+        };
 
         const message = {
             to: pushToken,
             sound: 'default',
+            priority: 'high',
             channelId: 'default',
-            title: title,
-            body: body,
-            data: data,
+            title: String(title || ''),
+            body: String(body || ''),
+            data: payloadData,
         };
 
-        const dataString = JSON.stringify([message]);
+        const bodyBuffer = Buffer.from(JSON.stringify([message]), 'utf8');
 
         const options = {
             hostname: 'exp.host',
             path: '/--/api/v2/push/send',
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
+                'Content-Type': 'application/json; charset=utf-8',
                 'Accept': 'application/json',
-                'Accept-Encoding': 'gzip, deflate',
-                'Content-Length': dataString.length,
+                'Content-Length': bodyBuffer.length,
             },
         };
 
-        try {
-            const req = https.request(options, (res) => {
-                res.on('data', () => {});
-            });
-            req.on('error', (e) => console.error('Error sending push notification:', e));
-            req.write(dataString);
-            req.end();
-        } catch (e) {
-            console.error("Exception sending push:", e);
+        return new Promise((resolve) => {
+            try {
+                const req = https.request(options, (res) => {
+                    let rawResponse = '';
+                    res.setEncoding('utf8');
+                    res.on('data', (chunk) => {
+                        rawResponse += chunk;
+                    });
+                    res.on('end', () => {
+                        try {
+                            const parsed = rawResponse ? JSON.parse(rawResponse) : null;
+                            const ticket = Array.isArray(parsed?.data) ? parsed.data[0] : parsed?.data;
+                            if (res.statusCode >= 400 || ticket?.status === 'error') {
+                                console.warn(`[NotificationService] Expo Push warning (${res.statusCode}) for ${pushToken}:`, rawResponse);
+                            } else {
+                                console.log(`[NotificationService] Push sent (${res.statusCode}) to ${pushToken} -> ticket: ${ticket?.id || 'ok'}`);
+                            }
+                            resolve(parsed);
+                        } catch (_) {
+                            resolve({ raw: rawResponse, statusCode: res.statusCode });
+                        }
+                    });
+                });
+                req.on('error', (e) => {
+                    console.error('[NotificationService] Error sending push notification:', e.message);
+                    resolve(null);
+                });
+                req.write(bodyBuffer);
+                req.end();
+            } catch (e) {
+                console.error('[NotificationService] Exception sending push:', e.message);
+                resolve(null);
+            }
+        });
+    }
+
+    /**
+     * Encuentra todos los usuarios con perfil profesional activo que coincidan con
+     * la categoría, subcategoría, municipio/zona y urgencia de una solicitud,
+     * sin excluir cuentas duales cuyo `role` base sea `'client'`.
+     */
+    static async findMatchingProfessionalsForJob({
+        categoryName,
+        subcategoryName = '',
+        location = '',
+        isUrgent = false,
+        excludeUserId = null
+    }) {
+        if (!categoryName) return [];
+
+        const stripAccents = (val) =>
+            String(val || '')
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .toLowerCase()
+                .trim();
+
+        const targetCatNorm = stripAccents(categoryName);
+        const targetSubNorm = stripAccents(subcategoryName);
+        const targetLocNorm = stripAccents(location);
+
+        const baseQuery = {
+            profiles: { $exists: true },
+            isActive: { $ne: false },
+            clientType: { $ne: 'condominio' }
+        };
+        if (excludeUserId) {
+            baseQuery._id = { $ne: excludeUserId };
         }
+
+        const candidates = await User.find(baseQuery)
+            .select('_id name email role pushToken profiles notificationPreferences')
+            .lean();
+
+        return candidates.filter((user) => {
+            const profilesObj = user.profiles instanceof Map
+                ? Object.fromEntries(user.profiles)
+                : (user.profiles || {});
+
+            const matchingKeys = Object.keys(profilesObj).filter((key) => {
+                const prof = profilesObj[key];
+                return prof && prof.isActive !== false && stripAccents(key) === targetCatNorm;
+            });
+
+            if (matchingKeys.length === 0) return false;
+
+            return matchingKeys.some((key) => {
+                const profile = profilesObj[key];
+
+                if (isUrgent && profile.acceptsUrgentJobs !== true) {
+                    return false;
+                }
+
+                const profileSubs = Array.isArray(profile.subcategories) ? profile.subcategories : [];
+                if (profileSubs.length > 0 && targetSubNorm) {
+                    const hasSub = profileSubs.some((s) => stripAccents(s) === targetSubNorm);
+                    if (!hasSub) return false;
+                }
+
+                const profileZones = Array.isArray(profile.zones) ? profile.zones : [];
+                if (profileZones.length > 0 && targetLocNorm) {
+                    const hasZone = profileZones.some((z) => {
+                        const zNorm = stripAccents(z);
+                        if (!zNorm) return false;
+                        if (zNorm === targetLocNorm) return true;
+                        const muniPart = zNorm.split(',')[0].replace(/\s*\(.*?\)\s*/g, '').trim();
+                        return muniPart.length >= 4 && targetLocNorm.includes(muniPart);
+                    });
+                    if (!hasZone) return false;
+                }
+
+                return true;
+            });
+        });
     }
 
     /**
@@ -112,14 +220,16 @@ class NotificationService {
             // Enrich push data with targetRole
             const enrichedData = { ...data, targetRole };
 
+            let pushResult = null;
+            let emailSent = false;
+
             // Send Push
             if (prefs.push && user.pushToken) {
-                await this.sendPushNotification(user.pushToken, title, body, enrichedData);
+                pushResult = await this.sendPushNotification(user.pushToken, title, body, enrichedData);
             }
 
             // Send Email
             if (prefs.email && user.email) {
-                const htmlContent = this.buildHtmlEmail(title, body, buttonText, buttonUrl, color);
                 try {
                     await sendEmail({
                         email: user.email,
@@ -127,13 +237,17 @@ class NotificationService {
                         message: body,
                         html: this.buildHtmlEmail(title, body, buttonText, buttonUrl ? `${buttonUrl}?role=${targetRole}` : null, color)
                     });
+                    emailSent = true;
                     console.log(`[NotificationService] Email sent to ${user.email} for ${eventKey}`);
                 } catch (emailErr) {
                     console.error(`[NotificationService] Failed to send email to ${user.email}:`, emailErr.message);
                 }
             }
+
+            return { pushResult, emailSent };
         } catch (err) {
             console.error(`[NotificationService] Error notifying user:`, err);
+            return { pushResult: null, emailSent: false };
         }
     }
 }

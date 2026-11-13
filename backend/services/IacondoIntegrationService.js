@@ -488,7 +488,12 @@ class IacondoIntegrationService {
         }
 
         const urgencyUpper = (requestData.urgency || 'NORMAL').toString().toUpperCase();
-        const isUrgent = urgencyUpper === 'EMERGENCIA' || urgencyUpper === 'ALTA' || Boolean(requestData.isUrgent);
+        const isUrgent =
+            urgencyUpper === 'EMERGENCIA' ||
+            Boolean(
+                requestData.isEmergency === true ||
+                (requestData.isUrgent === true && !['BAJA', 'NORMAL', 'ALTA'].includes(urgencyUpper))
+            );
 
         // Normalizar la ubicación principal a "Municipio, Región" para que coincida con las zonas de cobertura de los profesionales
         const PROFIX_ZONES_MAP = {
@@ -662,20 +667,24 @@ class IacondoIntegrationService {
                     isPrivate: false
                 }]
             });
+        }
 
-            // 5. Notificar en segundo plano a todos los profesionales activos de esta categoría
+        // 5. Notificar en segundo plano a todos los usuarios con perfil profesional activo
+        //    que coincidan en categoría, subcategoría, municipio/zona y urgencia (incluyendo cuentas duales).
+        if (!isUpdate || targetJob.status === 'active') {
             (async () => {
                 try {
-                    const proQuery = {
-                        [`profiles.${categoryDoc.name}`]: { $exists: true },
-                        role: 'professional',
-                        isActive: true
-                    };
-                    if (isUrgent) {
-                        proQuery[`profiles.${categoryDoc.name}.acceptsUrgentJobs`] = true;
-                    }
-                    const pros = await User.find(proQuery).select('_id name');
-                    console.log(`[IACONDO -> PROFIX] Notificando a ${pros.length} profesionales de "${categoryDoc.name}" por solicitud de ${condoClient.name}`);
+                    const pros = await NotificationService.findMatchingProfessionalsForJob({
+                        categoryName: categoryDoc.name,
+                        subcategoryName: resolvedSubcategory,
+                        location: jobLocation,
+                        isUrgent,
+                        excludeUserId: condoClient._id
+                    });
+
+                    console.log(
+                        `[IACONDO -> PROFIX] Notificando a ${pros.length} profesionales (${categoryDoc.name} > ${resolvedSubcategory} @ ${jobLocation}) por solicitud de ${condoClient.name}`
+                    );
 
                     for (const pro of pros) {
                         const eventTitle = isUrgent
@@ -688,21 +697,30 @@ class IacondoIntegrationService {
                             eventKey: 'prof_new_requests',
                             title: eventTitle,
                             body: eventBody,
-                            data: { jobId: targetJob._id, type: isUrgent ? 'urgent_job' : 'new_job', source: 'iacondo' },
+                            data: {
+                                jobId: String(targetJob._id),
+                                type: isUrgent ? 'urgent_job' : 'new_job',
+                                source: 'iacondo'
+                            },
                             buttonText: 'Ver y Cotizar',
                             buttonUrl: `profix://job/${targetJob._id}`
                         }).catch(() => {});
 
                         if (io) {
-                            io.to(`user_${pro._id}`).emit(isUrgent ? 'urgent_job_alert' : 'notification', {
+                            const socketPayload = {
                                 jobId: targetJob._id,
                                 type: isUrgent ? 'urgent_job' : 'new_job',
+                                targetRole: 'pro',
                                 title: eventTitle,
                                 body: eventBody,
                                 categoryName: categoryDoc.name,
                                 subcategory: resolvedSubcategory,
                                 location: jobLocation
-                            });
+                            };
+                            io.to(`user_${pro._id}`).emit('notification', socketPayload);
+                            if (isUrgent) {
+                                io.to(`user_${pro._id}`).emit('urgent_job_alert', socketPayload);
+                            }
                         }
                     }
                 } catch (notifyErr) {

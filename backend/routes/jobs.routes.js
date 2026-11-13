@@ -210,22 +210,21 @@ router.post('/', protect, async (req, res) => {
                 // Responder INMEDIATAMENTE al cliente para que la app no se cuelgue
         res.status(201).json(createdJob);
 
-        // Notificar a profesionales (Urgente o Normal) EN SEGUNDO PLANO
+        // Notificar a profesionales (Urgente o Normal) EN SEGUNDO PLANO (incluyendo cuentas duales)
         (async () => {
             try {
                 const categoryObj = await require('../models/Category').findById(category);
                 if (categoryObj) {
-                    const query = {
-                        [`profiles.${categoryObj.name}`]: { $exists: true },
-                        role: 'professional',
-                        isActive: true
-                    };
-                    if (createdJob.isUrgent) {
-                        query[`profiles.${categoryObj.name}.acceptsUrgentJobs`] = true;
-                    }
-                    const pros = await User.find(query);
-                    console.log(`[POST /jobs] Found ${pros.length} pros for ${createdJob.isUrgent ? 'urgent' : 'normal'} job in ${categoryObj.name}`);
+                    const pros = await NotificationService.findMatchingProfessionalsForJob({
+                        categoryName: categoryObj.name,
+                        subcategoryName: createdJob.subcategory || subcategory || '',
+                        location: createdJob.location || location || '',
+                        isUrgent: Boolean(createdJob.isUrgent),
+                        excludeUserId: req.user?._id || null
+                    });
+                    console.log(`[POST /jobs] Found ${pros.length} matching pros for ${createdJob.isUrgent ? 'urgent' : 'normal'} job in ${categoryObj.name}`);
 
+                    const io = req.app.get('socketio');
                     for (const pro of pros) {
                         const eventTitle = createdJob.isUrgent ? '🚨 EMERGENCIA 24/7 🚨' : 'Nueva Solicitud de Trabajo';
                         const eventBody = createdJob.isUrgent 
@@ -237,22 +236,26 @@ router.post('/', protect, async (req, res) => {
                             eventKey: 'prof_new_requests',
                             title: eventTitle,
                             body: eventBody,
-                            data: { jobId: createdJob._id, type: createdJob.isUrgent ? 'urgent_job' : 'new_job' },
+                            data: { jobId: String(createdJob._id), type: createdJob.isUrgent ? 'urgent_job' : 'new_job' },
                             buttonText: 'Ver Solicitud',
                             buttonUrl: `profix://job/${createdJob._id}`
                         });
 
-                        const io = req.app.get('socketio');
                         if (io) {
-                            io.to(`user_${pro._id}`).emit(createdJob.isUrgent ? 'urgent_job_alert' : 'notification', {
+                            const socketPayload = {
                                 jobId: createdJob._id,
                                 type: createdJob.isUrgent ? 'urgent_job' : 'new_job',
+                                targetRole: 'pro',
                                 title: eventTitle,
                                 body: eventBody,
                                 categoryName: categoryObj.name,
                                 subcategory: createdJob.subcategory,
                                 location: createdJob.exactLocation?.address || createdJob.location
-                            });
+                            };
+                            io.to(`user_${pro._id}`).emit('notification', socketPayload);
+                            if (createdJob.isUrgent) {
+                                io.to(`user_${pro._id}`).emit('urgent_job_alert', socketPayload);
+                            }
                         }
                     }
                 }
