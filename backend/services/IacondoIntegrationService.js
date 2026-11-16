@@ -229,7 +229,10 @@ class IacondoIntegrationService {
         if (payload.condoSubdomain) {
             try {
                 const normalizedSub = this.normalizeSubdomain(payload.condoSubdomain);
-                targetCondoUser = await User.findOne({ 'externalIntegration.subdomain': normalizedSub });
+                targetCondoUser = await User.findOne({
+                    'externalIntegration.subdomain': normalizedSub,
+                    clientType: 'condominio'
+                });
                 // Si es un condominio nuevo que aún no estaba registrado como cliente, lo damos de alta automáticamente
                 if (!targetCondoUser) {
                     const upserted = await this.upsertCondoAsClient({
@@ -480,6 +483,33 @@ class IacondoIntegrationService {
         const { user: condoClient, action: condoAction } = await this.upsertCondoAsClient(condoInput);
         const resolvedSubdomain = condoClient.externalIntegration?.subdomain;
 
+        // 1b. Si la solicitud proviene de un Vecino particular ("Mi Hogar"), dar de alta / actualizar al vecino como Cliente Particular
+        const isResidentScope =
+            requestData.requestScope === 'resident' ||
+            Boolean(requestData.resident && (requestData.resident.id || requestData.resident._id || requestData.resident.email));
+
+        let residentClient = null;
+        let residentAction = null;
+        if (isResidentScope && requestData.resident) {
+            const upsertedResident = await this.upsertResidentAsClient(requestData.resident, {
+                ...condoInput,
+                name: condoClient.name,
+                subdomain: resolvedSubdomain,
+                zone: condoClient.condoDetails?.zone || condoInput.zone,
+                address: condoClient.condoDetails?.address || condoInput.address,
+                city: condoClient.condoDetails?.city,
+                state: condoClient.condoDetails?.state,
+                coordinates: condoClient.condoDetails?.coordinates
+            });
+            residentClient = upsertedResident.user;
+            residentAction = upsertedResident.action;
+        }
+
+        const jobOwnerClient = residentClient || condoClient;
+        const unitLabel = isResidentScope
+            ? String(requestData.resident?.apartmentNumber || requestData.apartmentNumber || '').trim()
+            : '';
+
         // 2. Resolver Categoría y Subcategoría exacta en Profesional Cercano
         const requestedCatId = (requestData.categoryId || '').toString().trim();
         const requestedCat = (requestData.category || requestData.categoryName || requestData.serviceCategory || 'Hogar').toString().trim();
@@ -594,7 +624,7 @@ class IacondoIntegrationService {
                     : null)
         );
         const detailedRefAddress = requestData.exactLocation?.address ||
-            [condoClient.name, requestData.address || condoClient.condoDetails?.address, jobLocation]
+            [unitLabel, condoClient.name, requestData.address || condoClient.condoDetails?.address, jobLocation]
                 .filter(Boolean)
                 .join(' — ');
         const resolvedExactLocation = {
@@ -604,7 +634,7 @@ class IacondoIntegrationService {
                 : {})
         };
 
-        const jobTitle = (requestData.jobTitle || requestData.title || `Reparación en ${condoClient.name}`).trim();
+        const jobTitle = (requestData.jobTitle || requestData.title || `Reparación en ${jobOwnerClient.name}`).trim();
         const jobDescription = (requestData.jobDescription || requestData.description || jobTitle).trim();
 
         // 3. Procesar y subir fotos sincronizadas a Cloudinary (acepta URLs https:// y data:image base64)
@@ -628,13 +658,14 @@ class IacondoIntegrationService {
         }
 
         const externalReqId = (requestData.externalRequestId || requestData.requestId || requestData.id || '').toString().trim();
+        const extProviderTag = isResidentScope ? 'iacondo_resident' : 'iacondo';
 
         // 4. Si ya existe un Job activo vinculado a esta solicitud de IACONDO, actualizarlo sin duplicar
         let targetJob = null;
         let isUpdate = false;
         if (externalReqId) {
             targetJob = await Job.findOne({
-                'externalReference.provider': 'iacondo',
+                'externalReference.provider': { $in: ['iacondo', 'iacondo_resident'] },
                 'externalReference.condoSubdomain': resolvedSubdomain,
                 'externalReference.externalRequestId': externalReqId,
                 status: { $nin: ['canceled', 'archived'] }
@@ -646,6 +677,7 @@ class IacondoIntegrationService {
 
         if (targetJob) {
             isUpdate = true;
+            targetJob.client = jobOwnerClient._id;
             targetJob.title = jobTitle;
             targetJob.description = jobDescription;
             targetJob.category = categoryDoc._id;
@@ -660,25 +692,27 @@ class IacondoIntegrationService {
                 targetJob.images = uploadedImages;
             }
             targetJob.externalReference = {
-                provider: 'iacondo',
+                provider: extProviderTag,
                 condoSubdomain: resolvedSubdomain,
                 externalRequestId: externalReqId || targetJob.externalReference?.externalRequestId || '',
                 syncedAt: new Date()
             };
             targetJob.projectHistory.push({
                 eventType: 'note_added',
-                actor: condoClient._id,
+                actor: jobOwnerClient._id,
                 actorRole: 'client',
                 timestamp: new Date(),
-                title: `Solicitud actualizada desde IACONDO (${condoClient.name})`,
+                title: isResidentScope
+                    ? `Solicitud actualizada por ${jobOwnerClient.name} (${condoClient.name})`
+                    : `Solicitud actualizada desde IACONDO (${condoClient.name})`,
                 description: `Categoría: ${categoryDoc.name} > ${resolvedSubcategory}`,
                 isPrivate: false
             });
             await targetJob.save();
         } else {
-            // Crear nuevo Job a nombre del Condominio Cliente
+            // Crear nuevo Job a nombre del Vecino Particular o del Condominio Cliente
             targetJob = await Job.create({
-                client: condoClient._id,
+                client: jobOwnerClient._id,
                 title: jobTitle,
                 description: jobDescription,
                 category: categoryDoc._id,
@@ -689,18 +723,22 @@ class IacondoIntegrationService {
                 budget: requestData.budget ? Number(requestData.budget) : undefined,
                 images: uploadedImages,
                 externalReference: {
-                    provider: 'iacondo',
+                    provider: extProviderTag,
                     condoSubdomain: resolvedSubdomain,
                     externalRequestId: externalReqId,
                     syncedAt: new Date()
                 },
                 projectHistory: [{
                     eventType: 'job_created',
-                    actor: condoClient._id,
+                    actor: jobOwnerClient._id,
                     actorRole: 'client',
                     timestamp: new Date(),
-                    title: `Solicitud creada desde IACONDO (${condoClient.name})`,
-                    description: `El condominio ${condoClient.name} (${resolvedSubdomain}) solicita ${categoryDoc.name} > ${resolvedSubcategory}.`,
+                    title: isResidentScope
+                        ? `Solicitud de Hogar creada por ${jobOwnerClient.name} (${condoClient.name})`
+                        : `Solicitud creada desde IACONDO (${condoClient.name})`,
+                    description: isResidentScope
+                        ? `Residente verificado de ${condoClient.name} solicita ${categoryDoc.name} > ${resolvedSubcategory}.`
+                        : `El condominio ${condoClient.name} (${resolvedSubdomain}) solicita ${categoryDoc.name} > ${resolvedSubcategory}.`,
                     isPrivate: false
                 }]
             });
@@ -716,17 +754,21 @@ class IacondoIntegrationService {
                         subcategoryName: resolvedSubcategory,
                         location: jobLocation,
                         isUrgent,
-                        excludeUserId: condoClient._id
+                        excludeUserId: jobOwnerClient._id
                     });
 
                     console.log(
-                        `[IACONDO -> PROFIX] Notificando a ${pros.length} profesionales (${categoryDoc.name} > ${resolvedSubcategory} @ ${jobLocation}) por solicitud de ${condoClient.name}`
+                        `[IACONDO -> PROFIX] Notificando a ${pros.length} profesionales (${categoryDoc.name} > ${resolvedSubcategory} @ ${jobLocation}) por solicitud de ${jobOwnerClient.name}`
                     );
 
                     for (const pro of pros) {
-                        const eventTitle = isUrgent
-                            ? `🚨 EMERGENCIA CONDOMINIO: ${condoClient.name}`
-                            : `🏢 Solicitud de Condominio: ${condoClient.name}`;
+                        const eventTitle = isResidentScope
+                            ? (isUrgent
+                                ? `🚨 EMERGENCIA EN HOGAR (${condoClient.name})`
+                                : `🏠 Solicitud en ${condoClient.name}: ${jobOwnerClient.name}`)
+                            : (isUrgent
+                                ? `🚨 EMERGENCIA CONDOMINIO: ${condoClient.name}`
+                                : `🏢 Solicitud de Condominio: ${condoClient.name}`);
                         const eventBody = `${resolvedSubcategory}: ${jobTitle} — Zona: ${jobLocation}`;
 
                         await NotificationService.notifyUser({
@@ -737,7 +779,7 @@ class IacondoIntegrationService {
                             data: {
                                 jobId: String(targetJob._id),
                                 type: isUrgent ? 'urgent_job' : 'new_job',
-                                source: 'iacondo'
+                                source: isResidentScope ? 'iacondo_resident' : 'iacondo'
                             },
                             buttonText: 'Ver y Cotizar',
                             buttonUrl: `profix://job/${targetJob._id}`
@@ -769,6 +811,7 @@ class IacondoIntegrationService {
         return {
             success: true,
             isUpdate,
+            requestScope: isResidentScope ? 'resident' : 'condo',
             condoClient: {
                 _id: condoClient._id,
                 name: condoClient.name,
@@ -776,6 +819,16 @@ class IacondoIntegrationService {
                 zone: condoClient.condoDetails?.zone,
                 action: condoAction
             },
+            ...(residentClient
+                ? {
+                      residentClient: {
+                          _id: residentClient._id,
+                          name: residentClient.name,
+                          email: residentClient.email,
+                          action: residentAction
+                      }
+                  }
+                : {}),
             category: {
                 _id: categoryDoc._id,
                 name: categoryDoc.name,
@@ -1128,7 +1181,7 @@ class IacondoIntegrationService {
 
         // 1. Buscar si el condominio ya existe en Profesional Cercano
         const searchConditions = [];
-        if (subdomain) searchConditions.push({ 'externalIntegration.subdomain': subdomain });
+        if (subdomain) searchConditions.push({ 'externalIntegration.subdomain': subdomain, clientType: 'condominio' });
         if (externalId) searchConditions.push({ 'externalIntegration.externalId': externalId, 'externalIntegration.provider': 'iacondo' });
         if (rawEmail) searchConditions.push({ email: rawEmail, clientType: 'condominio' });
 
@@ -1272,7 +1325,7 @@ class IacondoIntegrationService {
                 if (isExplicitlyInactive && item.skipInactive !== false) {
                     // Si ya existía en Profesional Cercano, actualizamos su estado a inactivo
                     const sub = this.normalizeSubdomain(item.subdomain || item.condoSubdomain, item.name);
-                    const existing = sub ? await User.findOne({ 'externalIntegration.subdomain': sub }) : null;
+                    const existing = sub ? await User.findOne({ 'externalIntegration.subdomain': sub, clientType: 'condominio' }) : null;
                     if (existing) {
                         existing.isActive = false;
                         existing.externalIntegration.isActiveInSource = false;
@@ -1477,14 +1530,263 @@ class IacondoIntegrationService {
     }
 
     /**
+     * Da de alta o actualiza automáticamente a un Vecino (Propietario / Inquilino / Residente)
+     * de IACONDO como Cliente Particular verificado dentro de Profesional Cercano,
+     * preservando su correo y hash bcrypt de contraseña para acceso directo unificado.
+     */
+    static async upsertResidentAsClient(residentData = {}, condoContext = {}) {
+        if (!residentData || typeof residentData !== 'object') {
+            throw new Error('Datos del residente inválidos');
+        }
+
+        const rawName = String(residentData.name || residentData.fullName || 'Vecino Verificado').trim() || 'Vecino Verificado';
+        const externalId = String(residentData.id || residentData._id || residentData.externalId || '').trim();
+        const rawEmailInput = String(residentData.email || '').trim().toLowerCase();
+        const isSynthetic = (em) => !em || em.endsWith('@iacondo.profesionalcercano.com');
+        const cleanEmail = isSynthetic(rawEmailInput) ? '' : rawEmailInput;
+        const fallbackEmail = `residente.${externalId || Date.now()}@iacondo.profesionalcercano.com`;
+
+        const cleanCedula = String(residentData.cedula || residentData.idNumber || residentData.legalId || '')
+            .trim()
+            .toUpperCase();
+        const cleanPhone = String(residentData.phone || residentData.whatsapp || '').trim();
+        const apartmentNumber = String(residentData.apartmentNumber || residentData.unit || '').trim();
+        const rawPasswordHash = String(residentData.passwordHash || '').trim();
+        const hasValidBcryptHash = /^\$2[aby]\$\d{2}\$/.test(rawPasswordHash);
+
+        const condoName = String(
+            residentData.condoName || condoContext.name || condoContext.condoName || ''
+        ).trim();
+        const condoSubdomain = this.normalizeSubdomain(
+            residentData.condoSubdomain || condoContext.subdomain || condoContext.condoSubdomain || '',
+            condoName
+        );
+        const baseAddress = String(
+            residentData.address || condoContext.address || ''
+        ).trim();
+        const fullResidentAddress = [apartmentNumber, condoName, baseAddress]
+            .filter(Boolean)
+            .join(' — ');
+        const zone = String(
+            residentData.serviceZone || residentData.zone || condoContext.serviceZone || condoContext.zone || baseAddress || ''
+        ).trim();
+        const city = String(residentData.city || condoContext.city || 'Caracas').trim();
+        const state = String(residentData.state || condoContext.state || 'Miranda / DC').trim();
+
+        const rawCoords = residentData.coordinates || condoContext.coordinates || null;
+        const coordinates =
+            rawCoords &&
+            rawCoords.lat !== undefined &&
+            rawCoords.lng !== undefined &&
+            Number.isFinite(Number(rawCoords.lat)) &&
+            Number.isFinite(Number(rawCoords.lng))
+                ? { lat: Number(rawCoords.lat), lng: Number(rawCoords.lng) }
+                : undefined;
+
+        const avatarUrl =
+            residentData.avatar ||
+            `https://ui-avatars.com/api/?name=${encodeURIComponent(rawName)}&background=0EA5E9&color=fff&bold=true`;
+
+        // Buscar cuenta existente sin colisionar con cuentas corporativas de condominio
+        const searchConditions = [];
+        if (externalId) {
+            searchConditions.push({
+                'externalIntegration.provider': 'iacondo_resident',
+                'externalIntegration.externalId': externalId
+            });
+        }
+        if (cleanEmail) {
+            searchConditions.push({ email: cleanEmail, clientType: { $ne: 'condominio' } });
+            if (cleanEmail.endsWith('@gmail.com')) {
+                const [localPart, domain] = cleanEmail.split('@');
+                const dotless = `${localPart.replace(/\./g, '')}@${domain}`;
+                if (dotless !== cleanEmail) {
+                    searchConditions.push({ email: dotless, clientType: { $ne: 'condominio' } });
+                }
+            }
+        }
+        if (cleanCedula && cleanCedula.length >= 5) {
+            searchConditions.push({ cedula: cleanCedula, clientType: { $ne: 'condominio' } });
+        }
+
+        let existingUser = null;
+        if (searchConditions.length > 0) {
+            existingUser = await User.findOne({ $or: searchConditions }).select('+password');
+        }
+
+        const condoDetailsPayload = {
+            condoName: condoName || existingUser?.condoDetails?.condoName || '',
+            address: fullResidentAddress || existingUser?.condoDetails?.address || '',
+            zone: zone || existingUser?.condoDetails?.zone || '',
+            city: city || existingUser?.condoDetails?.city || 'Caracas',
+            state: state || existingUser?.condoDetails?.state || 'Miranda / DC',
+            ...(coordinates ? { coordinates } : existingUser?.condoDetails?.coordinates ? { coordinates: existingUser.condoDetails.coordinates } : {})
+        };
+
+        const isActiveInSource = residentData.isActive !== undefined ? Boolean(residentData.isActive) : true;
+
+        if (existingUser) {
+            if (rawName && (!existingUser.name || existingUser.name === 'Vecino Verificado')) {
+                existingUser.name = rawName;
+            }
+            if (cleanPhone && !existingUser.phone) {
+                existingUser.phone = cleanPhone;
+            } else if (cleanPhone && existingUser.externalIntegration?.provider === 'iacondo_resident') {
+                existingUser.phone = cleanPhone;
+            }
+            if (cleanEmail && isSynthetic(existingUser.email)) {
+                const emailConflict = await User.findOne({ email: cleanEmail, _id: { $ne: existingUser._id } });
+                if (!emailConflict) {
+                    existingUser.email = cleanEmail;
+                }
+            }
+            if (cleanCedula && !existingUser.cedula) {
+                const cedulaConflict = await User.findOne({ cedula: cleanCedula, _id: { $ne: existingUser._id } });
+                if (!cedulaConflict) {
+                    existingUser.cedula = cleanCedula;
+                }
+            }
+            if (!existingUser.password && hasValidBcryptHash) {
+                existingUser.password = rawPasswordHash;
+            }
+            // Preservar rol si ya es profesional o admin; asegurar 'particular' si era cliente
+            if (!existingUser.clientType) {
+                existingUser.clientType = 'particular';
+            }
+            existingUser.isActive = existingUser.role === 'professional' ? existingUser.isActive : isActiveInSource;
+            if (existingUser.role === 'client') {
+                existingUser.isVerified = true;
+            }
+            if (!existingUser.avatar) {
+                existingUser.avatar = avatarUrl;
+            }
+            if (!existingUser.externalIntegration?.provider || existingUser.externalIntegration.provider === 'iacondo_resident') {
+                existingUser.externalIntegration = {
+                    provider: 'iacondo_resident',
+                    externalId: externalId || existingUser.externalIntegration?.externalId || String(existingUser._id),
+                    syncedAt: new Date(),
+                    isActiveInSource
+                };
+            }
+            existingUser.condoDetails = {
+                ...(existingUser.condoDetails?.toObject ? existingUser.condoDetails.toObject() : (existingUser.condoDetails || {})),
+                ...condoDetailsPayload
+            };
+
+            await existingUser.save();
+            return { user: existingUser, action: 'updated', condoSubdomain };
+        }
+
+        let finalEmail = cleanEmail || fallbackEmail;
+        const emailConflict = await User.findOne({ email: finalEmail });
+        if (emailConflict) {
+            finalEmail = fallbackEmail;
+        }
+
+        let finalCedula = undefined;
+        if (cleanCedula && cleanCedula.length >= 5) {
+            const cedulaConflict = await User.findOne({ cedula: cleanCedula });
+            if (!cedulaConflict) {
+                finalCedula = cleanCedula;
+            }
+        }
+
+        const newUser = await User.create({
+            name: rawName,
+            email: finalEmail,
+            ...(hasValidBcryptHash ? { password: rawPasswordHash } : {}),
+            ...(finalCedula ? { cedula: finalCedula } : {}),
+            role: 'client',
+            clientType: 'particular',
+            phone: cleanPhone,
+            avatar: avatarUrl,
+            isActive: isActiveInSource,
+            isVerified: true,
+            verificationDetails: {
+                status: 'verified',
+                verifiedAt: new Date()
+            },
+            externalIntegration: {
+                provider: 'iacondo_resident',
+                externalId: externalId || undefined,
+                syncedAt: new Date(),
+                isActiveInSource
+            },
+            condoDetails: condoDetailsPayload
+        });
+
+        return { user: newUser, action: 'created', condoSubdomain };
+    }
+
+    /**
+     * Sincroniza en lote vecinos activos de IACONDO como Clientes Particulares en Profesional Cercano.
+     */
+    static async syncResidentsBatch(residentsInput = [], defaultCondoContext = {}) {
+        const list = Array.isArray(residentsInput) ? residentsInput : [residentsInput];
+        let createdCount = 0;
+        let updatedCount = 0;
+        let skippedCount = 0;
+        const errors = [];
+        const syncedResidents = [];
+
+        for (const item of list) {
+            if (!item || typeof item !== 'object') {
+                skippedCount++;
+                continue;
+            }
+            try {
+                const { user, action, condoSubdomain } = await this.upsertResidentAsClient(item, defaultCondoContext);
+                if (action === 'created') createdCount++;
+                else if (action === 'updated') updatedCount++;
+
+                syncedResidents.push({
+                    _id: user._id,
+                    name: user.name,
+                    email: user.email,
+                    phone: user.phone,
+                    role: user.role,
+                    clientType: user.clientType,
+                    condoName: user.condoDetails?.condoName || '',
+                    condoSubdomain: condoSubdomain || '',
+                    zone: user.condoDetails?.zone || '',
+                    action
+                });
+            } catch (err) {
+                errors.push({
+                    resident: item?.email || item?.name || 'Desconocido',
+                    error: err.message
+                });
+            }
+        }
+
+        return {
+            success: true,
+            totalProcessed: list.length,
+            createdCount,
+            updatedCount,
+            skippedCount,
+            errors,
+            residents: syncedResidents
+        };
+    }
+
+    /**
+     * Lista todos los vecinos de IACONDO dados de alta como Clientes Particulares en Profesional Cercano.
+     */
+    static async getSyncedResidentClients() {
+        return User.find({
+            'externalIntegration.provider': 'iacondo_resident'
+        })
+            .select('name email phone cedula avatar role isActive isVerified clientType externalIntegration condoDetails createdAt')
+            .sort({ createdAt: -1 });
+    }
+
+    /**
      * Obtiene la lista de todos los Condominios dados de alta como Clientes en Profesional Cercano
      */
     static async getSyncedCondoClients() {
         const condos = await User.find({
-            $or: [
-                { clientType: 'condominio' },
-                { 'externalIntegration.provider': 'iacondo' }
-            ]
+            clientType: 'condominio'
         })
             .select('name email phone cedula avatar isActive isVerified clientType externalIntegration condoDetails createdAt')
             .sort({ createdAt: -1 });
@@ -1493,7 +1795,7 @@ class IacondoIntegrationService {
     }
 
     /**
-     * Verifica que un Job pertenezca legítimamente a un Condominio integrado con IACONDO.
+     * Verifica que un Job pertenezca legítimamente a un Condominio o Vecino integrado con IACONDO.
      */
     static async verifyCondoJobAccess(jobId, authParams = {}) {
         const mongoose = require('mongoose');
@@ -1518,13 +1820,15 @@ class IacondoIntegrationService {
             return job;
         }
 
-        const isCondoJob =
+        const isCondoOrResidentJob =
             job.client?.clientType === 'condominio' ||
             job.externalReference?.provider === 'iacondo' ||
+            job.externalReference?.provider === 'iacondo_resident' ||
+            job.client?.externalIntegration?.provider === 'iacondo_resident' ||
             Boolean(job.client?.externalIntegration?.subdomain);
 
-        if (!isCondoJob) {
-            const err = new Error('Esta solicitud no corresponde a un condominio integrado');
+        if (!isCondoOrResidentJob) {
+            const err = new Error('Esta solicitud no corresponde a una cuenta integrada con IACONDO');
             err.status = 403;
             throw err;
         }
@@ -1913,7 +2217,11 @@ class IacondoIntegrationService {
                     userId: proUser._id,
                     eventKey: 'prof_new_messages',
                     title: `💬 ${job.client.name}`,
-                    body: rawContent || '📷 Te han enviado una imagen desde la administración del condominio.',
+                    body: rawContent || (
+                        job.client?.clientType === 'condominio'
+                            ? '📷 Te han enviado una imagen desde la administración del condominio.'
+                            : `📷 ${job.client.name} te ha enviado una imagen en el chat.`
+                    ),
                     data: {
                         chatId: String(chat._id),
                         jobId: String(job._id),
