@@ -523,12 +523,16 @@ export const api = {
     getUsers: async () => {
         const headers = await getHeaders();
         const res = await fetchWithTimeout(`${API_URL}/admin/users`, { headers });
-        return res.json();
+        const data = await res.json();
+        if (!res.ok) throw new Error(data?.message || 'Error al obtener usuarios');
+        return Array.isArray(data) ? data : [];
     },
     getPendingUsers: async () => {
         const headers = await getHeaders();
         const res = await fetchWithTimeout(`${API_URL}/admin/users/pending`, { headers });
-        return res.json();
+        const data = await res.json();
+        if (!res.ok) throw new Error(data?.message || 'Error al obtener usuarios pendientes');
+        return Array.isArray(data) ? data : [];
     },
     verifyUser: async (id) => {
         const headers = await getHeaders();
@@ -559,6 +563,16 @@ export const api = {
         });
         if (!res.ok) throw new Error('Error updating user');
         return res.json();
+    },
+    adminToggleUserActive: async (id) => {
+        const headers = await getHeaders();
+        const res = await fetchWithTimeout(`${API_URL}/admin/users/${id}/toggle-active`, {
+            method: 'PUT',
+            headers
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data?.message || 'Error cambiando estado del usuario');
+        return data;
     },
     adminGetChats: async () => {
         const headers = await getHeaders();
